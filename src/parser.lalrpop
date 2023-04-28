@@ -1,0 +1,107 @@
+use crate::ast::*;
+
+grammar;
+
+pub Circuit: Circuit = {
+    <mod_defs:ModDef*> => Circuit {
+        mod_defs,
+    }
+}
+
+pub ModDef: ModDef = {
+    <visibility:Visibility> "mod" <name:Ident>
+        <ports: Port*>
+        <components: Component*>
+        <wires: Wire*>
+    "end"
+    =>
+        ModDef {
+            name,
+            visibility,
+            ports,
+            components,
+            wires,
+        }
+}
+
+pub Port: Port = {
+    <direction:Direction> <name:Ident> ":" <shape:Shape> "@" <domain:Domain>
+    => Port(name, direction, shape, domain)
+}
+
+pub Direction: Direction = {
+    "incoming" => Direction::Incoming,
+    "outgoing" => Direction::Outgoing,
+}
+
+pub Shape: Shape = {
+    <ident:Ident> => Shape(ident, vec![])
+}
+
+pub Domain: Domain = {
+    "d" => Domain
+}
+
+
+pub Component: Component = {
+    <visibility:Visibility> "reg" <ident:Ident> "of" <shape:Shape> "@" <domain:Domain> <init:RegInit?> => {
+        Component::Reg(
+            ident,
+            Visibility::Public,
+            RegComponent {
+                shape,
+                domain ,
+                init: init.unwrap_or_default(),
+            }
+        )
+    },
+
+    <visibility:Visibility> "mod" <ident:Ident> "of" <moddef_name:ModDefName> => {
+        Component::Mod(
+            ident,
+            Visibility::Public,
+            ModComponent {
+                moddef_name,
+            }
+        )
+    },
+}
+
+pub RegInit: Value = {
+    "init" <value: Value> => value
+}
+
+pub Value: Value = {
+    "true" => Value::Bool(true),
+    "false" => Value::Bool(true),
+    <n:r"[0-9]+"> =>  Value::Word(n.parse().unwrap()),
+}
+
+pub Visibility: Visibility = {
+    <visibility:"pub"?> => if visibility.is_some() { Visibility::Public } else { Visibility::Private }
+}
+
+pub ModDefName: String = {
+    <ident:Ident> => ident.to_string()
+}
+
+pub Wire: Wire = {
+    <visibility:Visibility> "wire" <sink:Terminal> "<=" <source:Terminal> => {
+        Wire(visibility, sink, source)
+    }
+}
+
+pub Terminal: Terminal = {
+    <component_name:Ident> "." <port_name:Ident> => Terminal(component_name, port_name)
+}
+
+pub Ident: String = {
+    <ident:r"[_A-Za-z][_A-Za-z0-9]*"> => ident.to_string()
+}
+
+match {
+    r"#[^\n\r]*[\r\n]" => {},
+    r"[\r\n]*" => {},
+    r" " => {},
+    _,
+}

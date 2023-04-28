@@ -1,0 +1,21 @@
+pub mod Top
+    incoming in : Bool@d
+    outgoing out : Bool@d
+
+    pub reg r of Bool@d init true
+    mod passthrough of Passthrough
+
+    wire r.set <= io.in
+    wire passthrough.in <= r.val
+    wire io.out <= passthrough.out
+end
+
+pub mod Passthrough
+    incoming in : Bool@d
+    outgoing out : Bool@d
+
+    reg r of Bool@d
+
+    wire r.set <= io.in
+    wire io.out <= r.val
+end
