@@ -51,7 +51,7 @@ pub Component: Component = {
             RegComponent {
                 shape,
                 domain ,
-                init: init.unwrap_or_default(),
+                init: init.unwrap_or(Value::Unobservable),
             }
         )
     },
@@ -73,7 +73,7 @@ pub RegInit: Value = {
 
 pub Value: Value = {
     "true" => Value::Bool(true),
-    "false" => Value::Bool(true),
+    "false" => Value::Bool(false),
     <n:r"[0-9]+"> =>  Value::Word(n.parse().unwrap()),
 }
 

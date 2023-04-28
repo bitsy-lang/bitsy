@@ -106,9 +106,8 @@ pub mod ast {
         pub moddef_name: String,
     }
 
-    #[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
     pub enum Value {
-        #[default]
         Unknown,
         Unobservable,
         Bool(bool),
@@ -204,12 +203,18 @@ pub mod sim {
         reseting: bool,
     }
 
-    #[derive(Clone)]
+    #[derive(Debug, Clone, Copy)]
+    enum Dep {
+        Disconnected,
+        Query(Signal),
+        Reg(Signal),
+    }
+
     struct SignalState {
         id: Signal,
         path: String,
         domain_id: Domain,
-        depends: Vec<Signal>,
+        dep: Dep,
         values: [Value; 2],
     }
 
@@ -238,26 +243,19 @@ pub mod sim {
         }
 
         fn add_signals(&mut self, module: &str, mut component_path: Vec<String>) {
-            let mut i = 0;
-            let mut gen_signal_id = move || -> Signal {
-                let signal = Signal(i);
-                i += 1;
-                signal
-            };
-
             let circuit = self.circuit.clone();
             let mod_def = circuit.mod_def(module).clone();
 
             let mut local_signals: BTreeMap<String, Signal> = BTreeMap::new();
 
             for Port(name, _dir, _shape, domain) in &mod_def.ports {
-                let id = gen_signal_id();
+                let id = Signal(self.signals.len());
                 self.signals.push(SignalState {
                     id,
                     domain_id: Domain(0),
                     path: format!("{}.{}", component_path.join("."), name),
-                    depends: vec![], // to be set shortly
-                    values: [Value::Unobservable, Value::Unobservable],
+                    dep: Dep::Disconnected, // to be set shortly
+                    values: [Value::Unknown, Value::Unknown],
                 });
                 local_signals.insert(format!("io.{name}"), id);
             }
@@ -269,20 +267,22 @@ pub mod sim {
                         self.add_signals(&module.moddef_name, component_path.clone());
                     },
                     Component::Reg(_name, _visibility, reg) => {
+                        let set_id = Signal(self.signals.len());
                         self.signals.push(SignalState {
-                            id: gen_signal_id(),
+                            id: set_id,
                             domain_id: Domain(0),
                             path: format!("{}.set", component_path.join(".")),
-                            depends: vec![],
-                            values: [Value::Unobservable, Value::Unobservable],
+                            dep: Dep::Disconnected,
+                            values: [Value::Unknown, reg.init],
                         });
 
+                        let val_id = Signal(self.signals.len());
                         self.signals.push(SignalState {
-                            id: gen_signal_id(),
+                            id: val_id,
                             domain_id: Domain(0),
                             path: format!("{}.val", component_path.join(".")),
-                            depends: vec![],
-                            values: [Value::Unobservable, Value::Unobservable],
+                            dep: Dep::Reg(set_id),
+                            values: [Value::Unknown, Value::Unknown],
                         });
                     }
                 }
@@ -304,8 +304,9 @@ pub mod sim {
                 let sink_signal = self.signal_by_path(&sink_path).unwrap();
                 let source_signal = self.signal_by_path(&source_path).unwrap();
 
+                let source_name = self.signals[source_signal.id()].path.clone();
                 let sink_signal_state = &mut self.signals[sink_signal.id()];
-                sink_signal_state.depends.push(source_signal);
+                sink_signal_state.dep = Dep::Query(source_signal);
             }
         }
 
@@ -325,7 +326,7 @@ pub mod sim {
             }
 
             for signal in self.top_output_signals().into_iter() {
-                self.query(signal);
+                self.query(signal, 0);
             }
         }
 
@@ -342,22 +343,35 @@ pub mod sim {
             result
         }
 
-        fn query(&mut self, signal: Signal) -> Value {
+        fn query(&mut self, signal: Signal, depth: usize) -> Value {
+            let spaces = &vec![b' '; 4 * depth];
+            let spaces = String::from_utf8_lossy(spaces);
             let signal_state = &self.signals[signal.id()];
-            println!("Querying {}", signal_state.path);
+            println!("{spaces}Querying {}", signal_state.path);
 
             let current_value = self.peek(signal);
             if current_value != Value::Unknown {
+                println!("{spaces}    Value has already been computed: {current_value}");
                 return current_value;
             }
 
-            for depend_signal in &signal_state.depends {
-                let val = self.query(*depend_signal);
-                println!("    returning {val}");
-                return val;
+            match signal_state.dep {
+                Dep::Query(depend_signal) => {
+                    println!("{spaces}    {} depends on {}", self.signal_path(signal), self.signal_path(depend_signal));
+                    let val = self.query(depend_signal, depth + 1);
+                    println!("{spaces}    returning {val}");
+                    assert!(val != Value::Unknown, "Query failed");
+                    return val;
+                }
+                Dep::Reg(signal_id) => {
+                    let set_signal_state = &self.signals[signal_id.id()];
+                    let val = set_signal_state.values[0];
+                    println!("{spaces}    The previous cycle of the register {} gives {val}", set_signal_state.path);
+                    assert!(val != Value::Unknown, "Query failed");
+                    return val;
+                },
+                Dep::Disconnected => panic!("Disconnected: Signal {} has no driver", signal_state.path)
             }
-
-            panic!("Ruh-roh: Signal {} has no driver", signal_state.path)
         }
 
         pub fn signals(&self) -> Vec<Signal> {
@@ -425,13 +439,6 @@ fn main() {
     dbg!(&circuit);
 
     let mut simulator = sim::Simulator::new(Arc::new(circuit), "Top");
-
-    println!("Signals:");
-    for signal in simulator.signals() {
-        println!("  {} = {}", simulator.signal_path(signal), simulator.peek(signal));
-        simulator.poke(signal, ast::Value::Bool(false));
-    }
-    println!("Done");
 
     println!("Signals:");
     for signal in simulator.signals() {
