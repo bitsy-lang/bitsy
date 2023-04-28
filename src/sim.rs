@@ -79,6 +79,7 @@ struct SignalState {
     domain_id: Domain,
     dep: Dep,
     values: [Value; 2],
+    init_value: Option<Value>,
 }
 
 impl Simulator {
@@ -119,6 +120,7 @@ impl Simulator {
                 path: format!("{}.{}", component_path.join("."), name),
                 dep: Dep::Disconnected, // to be set shortly
                 values: [Value::Unknown, Value::Unknown],
+                init_value: None,
             });
             local_signals.insert(format!("io.{name}"), id);
         }
@@ -139,6 +141,7 @@ impl Simulator {
                                 path: format!("{}.a", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let b_id = Signal(self.signals.len());
@@ -148,6 +151,7 @@ impl Simulator {
                                 path: format!("{}.b", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let out_id = Signal(self.signals.len());
@@ -157,6 +161,7 @@ impl Simulator {
                                 path: format!("{}.out", component_path.join(".")),
                                 dep: Dep::Gate(vec![a_id, b_id], GateFn::Add),
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
                         },
                         "Mux" => {
@@ -167,6 +172,7 @@ impl Simulator {
                                 path: format!("{}.sel", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let a_id = Signal(self.signals.len());
@@ -176,6 +182,7 @@ impl Simulator {
                                 path: format!("{}.a", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let b_id = Signal(self.signals.len());
@@ -185,6 +192,7 @@ impl Simulator {
                                 path: format!("{}.b", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let out_id = Signal(self.signals.len());
@@ -194,6 +202,7 @@ impl Simulator {
                                 path: format!("{}.out", component_path.join(".")),
                                 dep: Dep::Gate(vec![sel_id, a_id, b_id], GateFn::Mux),
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
                         },
                         "Not" => {
@@ -204,6 +213,7 @@ impl Simulator {
                                 path: format!("{}.a", component_path.join(".")),
                                 dep: Dep::Disconnected,
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
 
                             let out_id = Signal(self.signals.len());
@@ -213,6 +223,7 @@ impl Simulator {
                                 path: format!("{}.out", component_path.join(".")),
                                 dep: Dep::Gate(vec![a_id], GateFn::Not),
                                 values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
                             });
                         },
                         _ => panic!("Unknown gate type: {}", gate.gate_name),
@@ -227,6 +238,7 @@ impl Simulator {
                         path: format!("{}.set", component_path.join(".")),
                         dep: Dep::Disconnected,
                         values: [Value::Unknown, reg.init],
+                        init_value: None,
                     });
 
                     let val_id = Signal(self.signals.len());
@@ -236,6 +248,7 @@ impl Simulator {
                         path: format!("{}.val", component_path.join(".")),
                         dep: Dep::Reg(set_id),
                         values: [Value::Unknown, Value::Unknown],
+                        init_value: Some(reg.init),
                     });
                 }
             }
@@ -265,7 +278,7 @@ impl Simulator {
     pub fn step(
         &mut self,
         domain: Domain,
-        pokes: Vec<(Signal, Value)>,
+        pokes: &[(Signal, Value)],
     ) {
         let mut domain_state = &mut self.domains[domain.id()];
         domain_state.cycle += 1;
@@ -277,14 +290,52 @@ impl Simulator {
         }
 
         for (signal, value) in pokes.into_iter() {
-            self.poke(signal, value);
+            self.poke(*signal, *value);
         }
 
+        println!();
+        println!("--------------------------------------------------------------------------------");
+        println!();
         self.dump();
+        println!();
 
         for signal in self.top_output_signals().into_iter() {
             self.query(signal, 0);
         }
+
+        println!();
+        self.dump();
+        println!();
+    }
+
+    pub fn reset(
+        &mut self,
+        domain: Domain,
+        pokes: &[(Signal, Value)],
+     ) {
+        let signals = self.signals_in_domain(domain);
+        let mut domain_state = &mut self.domains[domain.id()];
+        domain_state.reseting = true;
+
+        self.step(domain, pokes);
+
+        while !self.all_signals_observable(&signals) {
+            self.step(domain, pokes);
+        }
+
+        let mut domain_state = &mut self.domains[domain.id()];
+        domain_state.reseting = false;
+    }
+
+    fn all_signals_observable(&self, signals: &[Signal]) -> bool {
+        for signal in signals {
+            let signal_state = &self.signals[signal.id()];
+
+            if signal_state.values[1] == Value::Unobservable {
+                return false;
+            }
+        }
+        true
     }
 
     fn top_output_signals(&self) -> Vec<Signal> {
@@ -328,17 +379,28 @@ impl Simulator {
                 return val;
             }
             Dep::Reg(set_signal) => {
-                let set_signal_state = &self.signals[set_signal.id()];
-                let val = set_signal_state.values[0];
-                println!("{spaces}    The previous cycle of the register {} gives {val}", set_signal_state.path);
-                assert!(val != Value::Unknown, "Query failed");
-                self.poke(signal, val);
+                let domain = &self.domains[signal_state.domain_id.id()];
+                if domain.reseting {
+                    let val = signal_state.init_value.unwrap();
+                    println!("{spaces}    Resetting holds {} at its init value {val}", signal_state.path);
+                    self.poke(signal, val);
+                    println!("{spaces}    Querying set pin");
+                    self.query(set_signal, depth + 1);
+                    println!("{spaces}    returning {val}");
+                    val
+                } else {
+                    let set_signal_state = &self.signals[set_signal.id()];
+                    let val = set_signal_state.values[0];
+                    println!("{spaces}    The previous cycle of the register {} gives {val}", set_signal_state.path);
+                    assert!(val != Value::Unknown, "Query failed");
+                    self.poke(signal, val);
 
-                println!("{spaces}    Querying set pin");
-                self.query(set_signal, depth + 1);
+                    println!("{spaces}    Querying set pin");
+                    self.query(set_signal, depth + 1);
 
-                println!("{spaces}    returning {val}");
-                return val;
+                    println!("{spaces}    returning {val}");
+                    val
+                }
             },
             Dep::Gate(depend_signals, gate_fn) => {
                 let mut vals = vec![];
@@ -347,7 +409,11 @@ impl Simulator {
                     let val = self.query(*depend_signal, depth + 1);
                     vals.push(val);
                 }
-                gate_op(gate_fn, vals)
+                println!("{spaces}    applying gate op {gate_fn:?} to values {vals:?}");
+                let val = gate_op(gate_fn, vals);
+                self.poke(signal, val);
+                println!("{spaces}    returning {val}");
+                val
             },
             Dep::Disconnected => panic!("Disconnected: Signal {} has no driver", signal_state.path)
         }
