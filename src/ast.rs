@@ -75,6 +75,7 @@ pub enum Visibility {
 pub enum Component {
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
+    Gate(ComponentName, Visibility, GateComponent),
 }
 
 impl Component {
@@ -82,6 +83,7 @@ impl Component {
         match self {
             Component::Reg(name, _, _) => name,
             Component::Mod(name, _, _) => name,
+            Component::Gate(name, _, _) => name,
         }
     }
 }
@@ -96,6 +98,11 @@ pub struct RegComponent {
 #[derive(Debug)]
 pub struct ModComponent {
     pub moddef_name: String,
+}
+
+#[derive(Debug)]
+pub struct GateComponent {
+    pub gate_name: String,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

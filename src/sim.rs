@@ -34,11 +34,43 @@ struct DomainState {
     reseting: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GateFn {
+    Add,
+    Mux,
+    Not,
+}
+fn gate_op(gate_fn: GateFn, args: Vec<Value>) -> Value {
+    match gate_fn {
+        GateFn::Add => {
+            match (args[0], args[1]) {
+                (Value::Word(a), Value::Word(b)) => Value::Word(a + b),
+                _ => Value::Unknown
+            }
+        },
+        GateFn::Mux => {
+            match args[0] {
+                Value::Bool(true) => args[1],
+                Value::Bool(false) => args[2],
+                _ => Value::Unknown
+            }
+        },
+        GateFn::Not => {
+            match args[0] {
+                Value::Bool(b) => Value::Bool(!b),
+                _ => Value::Unknown
+            }
+        },
+        _ => panic!("Unknown gate_fn: {gate_fn:?}"),
+    }
+}
+
+#[derive(Debug, Clone)]
 enum Dep {
     Disconnected,
     Query(Signal),
     Reg(Signal),
+    Gate(Vec<Signal>, GateFn),
 }
 
 struct SignalState {
@@ -97,6 +129,96 @@ impl Simulator {
                 Component::Mod(_name, _visibility, module) => {
                     self.add_signals(&module.moddef_name, component_path.clone());
                 },
+                Component::Gate(_name, _visibility, gate) => {
+                    match gate.gate_name.as_ref() {
+                        "Adder" => {
+                            let a_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: a_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.a", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let b_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: b_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.b", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let out_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: out_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.out", component_path.join(".")),
+                                dep: Dep::Gate(vec![a_id, b_id], GateFn::Add),
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+                        },
+                        "Mux" => {
+                            let sel_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: sel_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.sel", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let a_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: a_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.a", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let b_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: b_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.b", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let out_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: out_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.out", component_path.join(".")),
+                                dep: Dep::Gate(vec![sel_id, a_id, b_id], GateFn::Mux),
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+                        },
+                        "Not" => {
+                            let a_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: a_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.a", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+
+                            let out_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: out_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.out", component_path.join(".")),
+                                dep: Dep::Gate(vec![a_id], GateFn::Not),
+                                values: [Value::Unknown, Value::Unknown],
+                            });
+                        },
+                        _ => panic!("Unknown gate type: {}", gate.gate_name),
+
+                    }
+                },
                 Component::Reg(_name, _visibility, reg) => {
                     let set_id = Signal(self.signals.len());
                     self.signals.push(SignalState {
@@ -132,8 +254,8 @@ impl Simulator {
             let sink_path = terminal_to_signal_path(sink);
             let source_path = terminal_to_signal_path(source);
 
-            let sink_signal = self.signal_by_path(&sink_path).unwrap();
-            let source_signal = self.signal_by_path(&source_path).unwrap();
+            let sink_signal = self.signal_by_path(&sink_path).expect(&format!("Looking for {sink_path}"));
+            let source_signal = self.signal_by_path(&source_path).expect(&format!("Looking for {source_path}"));
 
             let sink_signal_state = &mut self.signals[sink_signal.id()];
             sink_signal_state.dep = Dep::Query(source_signal);
@@ -196,7 +318,7 @@ impl Simulator {
             return current_value;
         }
 
-        match signal_state.dep {
+        match signal_state.dep.clone() {
             Dep::Query(depend_signal) => {
                 println!("{spaces}    {} depends on {}", self.signal_path(signal), self.signal_path(depend_signal));
                 let val = self.query(depend_signal, depth + 1);
@@ -217,6 +339,15 @@ impl Simulator {
 
                 println!("{spaces}    returning {val}");
                 return val;
+            },
+            Dep::Gate(depend_signals, gate_fn) => {
+                let mut vals = vec![];
+                for depend_signal in &depend_signals {
+                    println!("{spaces}    {} depends on {}", self.signal_path(signal), self.signal_path(*depend_signal));
+                    let val = self.query(*depend_signal, depth + 1);
+                    vals.push(val);
+                }
+                gate_op(gate_fn, vals)
             },
             Dep::Disconnected => panic!("Disconnected: Signal {} has no driver", signal_state.path)
         }

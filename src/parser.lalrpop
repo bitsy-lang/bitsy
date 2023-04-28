@@ -66,6 +66,16 @@ pub Component: Component = {
             }
         )
     },
+
+    <visibility:Visibility> "gate" <ident:Ident> "of" <gate_name:GateName> => {
+        Component::Gate(
+            ident,
+            Visibility::Public,
+            GateComponent {
+                gate_name,
+            }
+        )
+    },
 }
 
 pub RegInit: Value = {
@@ -87,6 +97,10 @@ pub Visibility: Visibility = {
 }
 
 pub ModDefName: String = {
+    <ident:Ident> => ident.to_string()
+}
+
+pub GateName: String = {
     <ident:Ident> => ident.to_string()
 }
 
