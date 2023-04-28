@@ -145,6 +145,9 @@ impl Simulator {
         domain: Domain,
         pokes: Vec<(Signal, Value)>,
     ) {
+        let mut domain_state = &mut self.domains[domain.id()];
+        domain_state.cycle += 1;
+
         for signal in self.signals_in_domain(domain).into_iter() {
             let mut signal_state = &mut self.signals[signal.id()];
             signal_state.values[0] = signal_state.values[1];

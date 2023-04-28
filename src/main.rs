@@ -19,21 +19,15 @@ fn main() {
     let top_in_signal = simulator.signal_by_path("top.in").unwrap();
     let top_foo_signal = simulator.signal_by_path("top.foo").unwrap();
 
-    println!("--------------------------------------------------------------------------------");
-    simulator.step(
-        sim::Domain::default(),
-        vec![
-            (top_in_signal, ast::Value::Bool(true)),
-            (top_foo_signal, ast::Value::Word(42)),
-        ],
-    );
-    println!("--------------------------------------------------------------------------------");
-    simulator.step(
-        sim::Domain::default(),
-        vec![
-            (top_in_signal, ast::Value::Bool(true)),
-            (top_foo_signal, ast::Value::Word(42)),
-        ],
-    );
-    println!("--------------------------------------------------------------------------------");
+    loop {
+        println!("--------------------------------------------------------------------------------");
+        simulator.step(
+            sim::Domain::default(),
+            vec![
+                (top_in_signal, ast::Value::Bool(true)),
+                (top_foo_signal, ast::Value::Word(42)),
+            ],
+        );
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 }
