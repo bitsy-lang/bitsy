@@ -416,18 +416,12 @@ pub mod sim {
 
         pub fn peek(&self, signal: Signal) -> Value {
             let signal_state = &self.signals[signal.id()];
-            let domain = signal_state.domain_id;
-            let domain_state = &self.domains[domain.id()];
-            let cycle = domain_state.cycle;
-            signal_state.values[cycle % 2]
+            signal_state.values[1]
         }
 
-        pub fn poke(&mut self, signal: Signal, value: Value) {
+        fn poke(&mut self, signal: Signal, value: Value) {
             let mut signal_state = &mut self.signals[signal.id()];
-            let domain = signal_state.domain_id;
-            let domain_state = &self.domains[domain.id()];
-            let cycle = domain_state.cycle;
-            signal_state.values[cycle % 2] = value;
+            signal_state.values[1] = value;
         }
     }
 }

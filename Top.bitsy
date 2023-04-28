@@ -14,7 +14,7 @@ pub mod Passthrough
     incoming in : Bool@d
     outgoing out : Bool@d
 
-    reg r of Bool@d init false
+    reg r of Bool@d
 
     wire r.set <= io.in
     wire io.out <= r.val
