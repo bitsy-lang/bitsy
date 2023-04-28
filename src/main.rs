@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 #[macro_use]
@@ -304,7 +303,6 @@ pub mod sim {
                 let sink_signal = self.signal_by_path(&sink_path).unwrap();
                 let source_signal = self.signal_by_path(&source_path).unwrap();
 
-                let source_name = self.signals[source_signal.id()].path.clone();
                 let sink_signal_state = &mut self.signals[sink_signal.id()];
                 sink_signal_state.dep = Dep::Query(source_signal);
             }
@@ -325,6 +323,8 @@ pub mod sim {
                 self.poke(signal, value);
             }
 
+            self.dump();
+
             for signal in self.top_output_signals().into_iter() {
                 self.query(signal, 0);
             }
@@ -341,6 +341,12 @@ pub mod sim {
                 }
             }
             result
+        }
+
+        fn dump(&self) {
+            for signal_state in &self.signals {
+                println!("{:<30} {:>8} {:>8}", signal_state.path, signal_state.values[0].to_string(), signal_state.values[1].to_string());
+            }
         }
 
         fn query(&mut self, signal: Signal, depth: usize) -> Value {
@@ -361,13 +367,20 @@ pub mod sim {
                     let val = self.query(depend_signal, depth + 1);
                     println!("{spaces}    returning {val}");
                     assert!(val != Value::Unknown, "Query failed");
+                    self.poke(signal, val);
                     return val;
                 }
-                Dep::Reg(signal_id) => {
-                    let set_signal_state = &self.signals[signal_id.id()];
+                Dep::Reg(set_signal) => {
+                    let set_signal_state = &self.signals[set_signal.id()];
                     let val = set_signal_state.values[0];
                     println!("{spaces}    The previous cycle of the register {} gives {val}", set_signal_state.path);
                     assert!(val != Value::Unknown, "Query failed");
+                    self.poke(signal, val);
+
+                    println!("{spaces}    Querying set pin");
+                    self.query(set_signal, depth + 1);
+
+                    println!("{spaces}    returning {val}");
                     return val;
                 },
                 Dep::Disconnected => panic!("Disconnected: Signal {} has no driver", signal_state.path)
@@ -430,19 +443,28 @@ fn main() {
     let parser = parser::CircuitParser::new();
     let file = std::fs::read_to_string("Top.bitsy").unwrap();
     let circuit = parser.parse(&file).unwrap();
-    dbg!(&circuit);
+//    dbg!(&circuit);
 
     let mut simulator = sim::Simulator::new(Arc::new(circuit), "Top");
 
-    println!("Signals:");
-    for signal in simulator.signals() {
-        println!("  {} = {}", simulator.signal_path(signal), simulator.peek(signal));
-    }
-    println!("Done");
-
     let top_in_signal = simulator.signal_by_path("top.in").unwrap();
+    let top_foo_signal = simulator.signal_by_path("top.foo").unwrap();
+
+    println!("--------------------------------------------------------------------------------");
     simulator.step(
         sim::Domain::default(),
-        vec![(top_in_signal, ast::Value::Bool(true))],
+        vec![
+            (top_in_signal, ast::Value::Bool(true)),
+            (top_foo_signal, ast::Value::Word(42)),
+        ],
     );
+    println!("--------------------------------------------------------------------------------");
+    simulator.step(
+        sim::Domain::default(),
+        vec![
+            (top_in_signal, ast::Value::Bool(true)),
+            (top_foo_signal, ast::Value::Word(42)),
+        ],
+    );
+    println!("--------------------------------------------------------------------------------");
 }

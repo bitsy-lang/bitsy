@@ -35,7 +35,8 @@ pub Direction: Direction = {
 }
 
 pub Shape: Shape = {
-    <ident:Ident> => Shape(ident, vec![])
+    <ident:Ident> "<" <n:Nat> ">" => Shape(ident, vec![ShapeParam::Nat(n)]),
+    <ident:Ident> => Shape(ident, vec![]),
 }
 
 pub Domain: Domain = {
@@ -71,10 +72,14 @@ pub RegInit: Value = {
     "init" <value: Value> => value
 }
 
+pub Nat: u64 = {
+    <n:r"[0-9]+"> => n.parse().unwrap(),
+}
+
 pub Value: Value = {
     "true" => Value::Bool(true),
     "false" => Value::Bool(false),
-    <n:r"[0-9]+"> =>  Value::Word(n.parse().unwrap()),
+    <n:r"[0-9]+"> => Value::Word(n.parse().unwrap()),
 }
 
 pub Visibility: Visibility = {

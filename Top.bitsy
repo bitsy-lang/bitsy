@@ -1,6 +1,9 @@
 pub mod Top
     incoming in : Bool@d
     outgoing out : Bool@d
+    incoming foo : Word<8>@d
+    outgoing bar : Word<8>@d
+    outgoing baz : Word<8>@d
 
     pub reg r of Bool@d init false
     mod passthrough of Passthrough
@@ -8,6 +11,8 @@ pub mod Top
     wire r.set <= io.in
     wire passthrough.in <= r.val
     wire io.out <= passthrough.out
+    wire io.bar <= io.foo
+    wire io.baz <= io.foo
 end
 
 pub mod Passthrough
