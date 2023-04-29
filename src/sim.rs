@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use super::ast::*;
+use pyo3::prelude::*;
+use pyo3::types::{IntoPyDict, PyDict, PyString, PyBool, PyInt, PyTuple};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Signal(usize);
@@ -34,12 +36,14 @@ struct DomainState {
     reseting: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateFn {
     Add,
     Mux,
     Not,
+    Named(&'static str),
 }
+
 fn gate_op(gate_fn: GateFn, args: Vec<Value>) -> Value {
     match gate_fn {
         GateFn::Add => {
@@ -61,7 +65,34 @@ fn gate_op(gate_fn: GateFn, args: Vec<Value>) -> Value {
                 _ => Value::Unknown
             }
         },
-        _ => panic!("Unknown gate_fn: {gate_fn:?}"),
+        GateFn::Named(gate_fn) => {
+            Python::with_gil(|py| {
+                py.run("import sys", None, None).unwrap();
+                py.run("sys.path.append('.')", None, None).unwrap();
+                let gates_module = py.import("gates").unwrap();
+                let func = gates_module.getattr(gate_fn).unwrap();
+
+                let pyargs: Vec<PyObject> = args.into_iter().map(|arg| value_to_pyobject(py, arg)).collect();
+                let obj = func.call(PyTuple::new(py, pyargs), None).unwrap();
+                pyany_to_value(obj)
+            })
+        },
+    }
+}
+
+fn value_to_pyobject(py: Python, value: Value) -> PyObject {
+    match value {
+        Value::Bool(b) => b.into_py(py),
+        Value::Word(n) => n.into_py(py),
+        _ => Python::None(py),
+    }
+}
+
+fn pyany_to_value(obj: &PyAny) -> Value {
+    match obj.get_type().name().unwrap() {
+        "int" => Value::Word(obj.extract().unwrap()),
+        "bool" => Value::Bool(obj.extract().unwrap()),
+        type_name => panic!("Unknown type: {type_name}"),
     }
 }
 
@@ -159,6 +190,7 @@ impl Simulator {
                                 id: out_id,
                                 domain_id: Domain(0),
                                 path: format!("{}.out", component_path.join(".")),
+                         //       dep: Dep::Gate(vec![a_id, b_id], GateFn::Named("Add".to_string())),
                                 dep: Dep::Gate(vec![a_id, b_id], GateFn::Add),
                                 values: [Value::Unknown, Value::Unknown],
                                 init_value: None,
@@ -200,7 +232,7 @@ impl Simulator {
                                 id: out_id,
                                 domain_id: Domain(0),
                                 path: format!("{}.out", component_path.join(".")),
-                                dep: Dep::Gate(vec![sel_id, a_id, b_id], GateFn::Mux),
+                                dep: Dep::Gate(vec![sel_id, a_id, b_id], GateFn::Named("Mux")),
                                 values: [Value::Unknown, Value::Unknown],
                                 init_value: None,
                             });
@@ -221,7 +253,38 @@ impl Simulator {
                                 id: out_id,
                                 domain_id: Domain(0),
                                 path: format!("{}.out", component_path.join(".")),
-                                dep: Dep::Gate(vec![a_id], GateFn::Not),
+                                dep: Dep::Gate(vec![a_id], GateFn::Named("Not")),
+                                values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
+                            });
+                        },
+                        "And" => {
+                            let a_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: a_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.a", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
+                            });
+
+                            let b_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: b_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.b", component_path.join(".")),
+                                dep: Dep::Disconnected,
+                                values: [Value::Unknown, Value::Unknown],
+                                init_value: None,
+                            });
+
+                            let out_id = Signal(self.signals.len());
+                            self.signals.push(SignalState {
+                                id: out_id,
+                                domain_id: Domain(0),
+                                path: format!("{}.out", component_path.join(".")),
+                                dep: Dep::Gate(vec![a_id, b_id], GateFn::Named("And")),
                                 values: [Value::Unknown, Value::Unknown],
                                 init_value: None,
                             });
