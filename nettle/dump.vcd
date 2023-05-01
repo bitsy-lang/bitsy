@@ -1,0 +1,21 @@
+$date
+    Sat Apr 29 15:46:50 2023
+$end
+$version
+    Nettle
+$end
+$scope module Top $end
+    $var wire 1 " foo  $end
+$upscope $end
+$enddefinitions $end
+$dumpsvars
+0"
+$end
+#0
+1"
+#10
+0"
+#20
+1"
+#30
+

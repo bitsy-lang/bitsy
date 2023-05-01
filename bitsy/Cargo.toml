@@ -13,3 +13,4 @@ lalrpop = "0.19.10"
 lalrpop-util = { version = "0.19.10",  features = ["lexer"] }
 pyo3 = { version = "0.18.3", features = ["auto-initialize"] }
 regex = "1"
+nettle = { path = "../nettle" }

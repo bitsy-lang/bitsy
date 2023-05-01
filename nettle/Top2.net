@@ -1,0 +1,23 @@
+domain {
+    d {}
+}
+
+mod top {
+    incoming in  : Bool@d
+    outgoing out : Bool@d
+
+    gate and;
+
+    reg r init true;
+    reg s init false;
+
+    wire io.out <= and.out;
+    wire r.set <= in;
+
+    mod foo {
+        incoming in  : Bool@d
+        outgoing out : Bool@d
+
+        wire io.out <= in;
+    }
+}
