@@ -1,128 +1,151 @@
 `timescale 1ns/1ns
 
-module UartSender(
+module UartReceiver(
     input  wire clock_12MHz,
-    input  wire [7:0] data,
-    input  wire data_valid,
-    output wire ready,
-    output reg uart_tx = 1'b1
+    output reg  [7:0] data = 8'b0,
+    output reg  data_valid = 1'b0,
+    input  wire ready,
+    input  wire uart_rx_wild
 );
+    wire uart_rx_sync;
+    assign uart_rx_sync = uart_rx_wild;
 
-    reg [7:0] latched_data;
+    /*
+    UartSynchronizer synchronizer(
+        .clock_12MHz(clock_12MHz),
+        .uart_rx_wild(uart_rx_wild),
+        .uart_rx_sync(uart_rx_sync)
+    );
+    */
+
     reg [3:0] state = 0;
-    reg [10:0] pulse = 0;
+    reg [15:0] pulse = 0;
 
-    assign ready = state == 0;
-
+    // 83.33 ns
     always @(posedge clock_12MHz) begin
         case (state)
             // IDLE
             0: begin
-                if (data_valid) begin
-                    latched_data <= data;
-                    uart_tx <= 1'b0;
-                    pulse <= 1250;
+                data_valid <= 1'b0;
+                data <= 8'b0;
+
+                if (uart_rx_sync == 0) begin
+                    pulse <= 1875; // ~= 1250 * 1.5
                     state <= 1;
                 end
             end
-            // SEND BIT 0
+            // READ BIT 0
             1: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[0];
+                    data[0] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 2;
                 end
             end
-            // SEND BIT 1
+            // READ BIT 1
             2: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[1];
+                    data[1] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 3;
                 end
             end
-            // SEND BIT 2
+            // READ BIT 2
             3: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[2];
+                    data[2] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 4;
                 end
             end
-            // SEND BIT 3
+            // READ BIT 3
             4: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[3];
+                    data[3] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 5;
                 end
             end
-            // SEND BIT 4
+            // READ BIT 4
             5: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[4];
+                    data[4] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 6;
                 end
             end
-            // SEND BIT 5
+            // READ BIT 5
             6: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[5];
+                    data[5] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 7;
                 end
             end
-            // SEND BIT 6
+            // READ BIT 6
             7: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[6];
+                    data[6] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 8;
                 end
             end
-            // SEND BIT 7
+            // READ BIT 7
             8: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= latched_data[7];
+                    data[7] <= uart_rx_sync;
                     pulse <= 1250;
                     state <= 9;
                 end
             end
-            // SEND STOP BIT
+            // READ STOP BIT
             9: begin
                 if (pulse > 0) begin
                     pulse <= pulse - 1;
                 end else begin
-                    uart_tx <= 1;
-                    pulse <= 1250;
-                    state <= 10;
+                    if (uart_rx_sync == 1'b1) begin
+                        state <= 10;
+                    end else begin
+                        state <= 0;
+                    end
                 end
             end
-            // YEAH
+            // WAIT FOR READY
             10: begin
-                if (pulse > 0) begin
-                    pulse <= pulse - 1;
-                end else begin
+                data_valid <= 1'b1;
+                if (ready) begin
                     state <= 0;
                 end
             end
         endcase
+    end
+endmodule
+
+module UartSynchronizer(
+    input  wire clock_12MHz,
+    input wire uart_rx_wild,
+    output reg uart_rx_sync
+);
+    reg buffer1;
+
+    always @(posedge clock_12MHz) begin
+        buffer1 <= uart_rx_wild;
+        uart_rx_sync <= buffer1;
     end
 endmodule
