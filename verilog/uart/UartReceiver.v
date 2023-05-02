@@ -110,7 +110,7 @@ module UartReceiver(
                     pulse <= pulse - 1;
                 end else begin
                     data[7] <= uart_rx_sync;
-                    pulse <= 1250;
+                    pulse <= 1150; // fudge this one a little bit
                     state <= 9;
                 end
             end
