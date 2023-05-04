@@ -1,54 +1,6 @@
 pub mod Top
-    incoming in : Bool@d
-    outgoing out : Bool@d
-    incoming foo : Word<8>@d
-    incoming bar : Word<8>@d
-    outgoing baz : Word<8>@d
+    incoming in  : Word<8>@d
+    outgoing out : Word<8>@d
 
-    gate mux of Mux
-
-    reg r of Bool@d init false
-    gate not of Not
-
-    wire io.out <= io.in
-
-    wire not.a <= r.val
-    wire r.set <= not.out
-
-    wire mux.sel <= r.val
-    wire mux.a <= io.foo
-    wire mux.b <= io.bar
-
-    wire io.baz <= mux.out
+    pub wire io.out <= {io.in + 1}
 end
-
-
-#pub mod Top
-#    incoming in : Bool@d
-#    outgoing out : Bool@d
-#    incoming foo : Word<8>@d
-#    incoming bar : Word<8>@d
-#    outgoing baz : Word<8>@d
-#
-#    pub reg r of Bool@d init false
-#    mod passthrough of Passthrough
-#    gate adder of Adder
-#
-#    wire r.set <= io.in
-#    wire passthrough.in <= r.val
-#    wire io.out <= passthrough.out
-#
-#    wire adder.a <= io.foo
-#    wire adder.b <= io.bar
-#    wire io.baz <= adder.out
-#end
-#
-#pub mod Passthrough
-#    incoming in : Bool@d
-#    outgoing out : Bool@d
-#
-#    reg r of Bool@d
-#
-#    wire r.set <= io.in
-#    wire io.out <= r.val
-#end

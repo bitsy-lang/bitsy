@@ -38,33 +38,11 @@ struct DomainState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GateFn {
-    Add,
-    Mux,
-    Not,
     Named(&'static str),
 }
 
 fn gate_op(gate_fn: GateFn, args: Vec<Value>) -> Value {
     match gate_fn {
-        GateFn::Add => {
-            match (args[0], args[1]) {
-                (Value::Word(a), Value::Word(b)) => Value::Word(a + b),
-                _ => Value::Unknown
-            }
-        },
-        GateFn::Mux => {
-            match args[0] {
-                Value::Bool(true) => args[1],
-                Value::Bool(false) => args[2],
-                _ => Value::Unknown
-            }
-        },
-        GateFn::Not => {
-            match args[0] {
-                Value::Bool(b) => Value::Bool(!b),
-                _ => Value::Unknown
-            }
-        },
         GateFn::Named(gate_fn) => {
             Python::with_gil(|py| {
                 py.run("import sys", None, None).unwrap();
@@ -163,6 +141,7 @@ impl Simulator {
                     self.add_signals(&module.moddef_name, component_path.clone());
                 },
                 Component::Gate(_name, _visibility, gate) => {
+                    /*
                     match gate.gate_name.as_ref() {
                         "Adder" => {
                             let a_id = Signal(self.signals.len());
@@ -292,6 +271,7 @@ impl Simulator {
                         _ => panic!("Unknown gate type: {}", gate.gate_name),
 
                     }
+                    */
                 },
                 Component::Reg(_name, _visibility, reg) => {
                     let set_id = Signal(self.signals.len());
@@ -314,6 +294,9 @@ impl Simulator {
                         init_value: Some(reg.init),
                     });
                 }
+                Component::Const(_name, _visibility, value) => {
+                    todo!()
+                },
             }
             component_path.pop();
         }
@@ -326,15 +309,22 @@ impl Simulator {
             }
         };
 
-        for Wire(_visibility, sink, source) in &mod_def.wires {
-            let sink_path = terminal_to_signal_path(sink);
-            let source_path = terminal_to_signal_path(source);
+        for wire in &mod_def.wires {
+            match wire {
+                Wire::Simple(_visibility, sink, source) => {
+                    let sink_path = terminal_to_signal_path(sink);
+                    let source_path = terminal_to_signal_path(source);
 
-            let sink_signal = self.signal_by_path(&sink_path).expect(&format!("Looking for {sink_path}"));
-            let source_signal = self.signal_by_path(&source_path).expect(&format!("Looking for {source_path}"));
+                    let sink_signal = self.signal_by_path(&sink_path).expect(&format!("Looking for {sink_path}"));
+                    let source_signal = self.signal_by_path(&source_path).expect(&format!("Looking for {source_path}"));
 
-            let sink_signal_state = &mut self.signals[sink_signal.id()];
-            sink_signal_state.dep = Dep::Query(source_signal);
+                    let sink_signal_state = &mut self.signals[sink_signal.id()];
+                    sink_signal_state.dep = Dep::Query(source_signal);
+                },
+                Wire::Expr(_visibility, sink, expr) => {
+                    todo!()
+                },
+            }
         }
     }
 

@@ -16,14 +16,16 @@ fn main() {
 
     let parser = parser::CircuitParser::new();
     let file = std::fs::read_to_string(filename).unwrap();
-    let circuit = parser.parse(&file).unwrap();
+    let mut circuit = parser.parse(&file).unwrap();
+    circuit.flatten_exprs();
+    dbg!(&circuit);
 
     let mut nettle_circuit = Nettle {
         domains: vec![nettle::ast::Domain("d".to_string())],
         signals: vec![],
     };
 
-    println!("{}", nettle::pretty::pretty_print(&nettle_circuit));
+    //println!("{}", nettle::pretty::pretty_print(&nettle_circuit));
 }
 
 /*

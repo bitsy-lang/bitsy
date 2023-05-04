@@ -1,4 +1,5 @@
 use crate::ast::*;
+use std::sync::Arc;
 
 grammar;
 
@@ -106,8 +107,27 @@ pub GateName: String = {
 
 pub Wire: Wire = {
     <visibility:Visibility> "wire" <sink:Terminal> "<=" <source:Terminal> => {
-        Wire(visibility, sink, source)
-    }
+        Wire::Simple(visibility, sink, source)
+    },
+    <visibility:Visibility> "wire" <sink:Terminal> "<=" "{" <expr:Expr> "}" => {
+        Wire::Expr(visibility, sink, expr)
+    },
+}
+
+pub Expr: Arc<Expr> = {
+    <op0:Term> "+" <op1:Expr> => Arc::new(Expr::Add(op0, op1)),
+    <expr:Term> => expr,
+}
+
+pub Term: Arc<Expr> = {
+    <op0:Factor> "*" <op1: Term> => Arc::new(Expr::Mul(op0, op1)),
+    <expr:Factor> => expr,
+}
+
+pub Factor: Arc<Expr> = {
+    <terminal:Terminal> => Arc::new(Expr::Term(terminal)),
+    <value:Value> => Arc::new(Expr::Lit(value)),
+    "(" <expr:Expr> ")" => expr,
 }
 
 pub Terminal: Terminal = {
