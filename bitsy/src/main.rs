@@ -1,3 +1,5 @@
+#![allow(unused, dead_code)]
+
 use nettle::ast::Nettle;
 use bitsy::parser::CircuitParser;
 
@@ -9,6 +11,9 @@ fn main() {
     let parser = CircuitParser::new();
     let file = std::fs::read_to_string(filename).unwrap();
     let circuit = parser.parse(&file).unwrap();
+    //dbg!(&circuit);
+
+    let circuit = bitsy::Circuit::from(circuit);
     dbg!(&circuit);
 
     /*

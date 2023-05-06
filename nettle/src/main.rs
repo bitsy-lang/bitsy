@@ -1,3 +1,5 @@
+#![allow(unused, dead_code)]
+
 use std::sync::Arc;
 use std::io::Write;
 

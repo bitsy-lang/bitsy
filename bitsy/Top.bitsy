@@ -1,11 +1,11 @@
 enum type State
     @Idle
-    @Running of Tuple<Word<4>, Bit>
+    @Running of Tuple<Word<4>, Foo>
 end
 
 struct type Foo
     field bar : Word<4>
-    field baz : Bit
+    field baz : State
 end
 
 pub mod Top

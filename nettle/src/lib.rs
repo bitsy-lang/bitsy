@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 #[macro_use]
 extern crate lalrpop_util;
 

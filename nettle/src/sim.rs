@@ -1,3 +1,5 @@
+#![allow(unused, dead_code)]
+
 use std::fmt::Write;
 use std::collections::BTreeMap;
 use std::sync::Arc;

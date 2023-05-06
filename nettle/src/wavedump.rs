@@ -76,7 +76,7 @@ impl Wavedump {
         writeln!(f, "$enddefinitions $end")?;
         writeln!(f, "$dumpsvars")?;
 
-        for (name, shortname) in &self.shortnames {
+        for (_name, shortname) in &self.shortnames {
             writeln!(f, "0{shortname}")?;
         }
         writeln!(f, "$end")?;

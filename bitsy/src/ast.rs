@@ -1,4 +1,5 @@
 pub type ComponentName = String;
+pub type ModDefRef = String;
 pub type PortName = String;
 
 #[derive(Debug)]
@@ -46,6 +47,56 @@ impl Circuit {
 
         panic!("No such enum found: {name}")
     }
+
+    pub fn shape_defs(&self) -> Vec<ShapeDef> {
+        let mut results = vec![];
+        for decl in &self.decls {
+            if let Decl::EnumDef(enum_def) = decl {
+                results.push(ShapeDef::EnumDef(enum_def.clone()));
+            } else if let Decl::StructDef(struct_def) = decl {
+                results.push(ShapeDef::StructDef(struct_def.clone()));
+            }
+        }
+        results
+    }
+
+    pub fn shape_def(&self, name: &str) -> ShapeDef {
+        for decl in &self.decls {
+            if decl.name() == name {
+                if let Decl::EnumDef(enum_def) = decl {
+                    return ShapeDef::EnumDef(enum_def.clone());
+                } else if let Decl::StructDef(struct_def) = decl {
+                    return ShapeDef::StructDef(struct_def.clone());
+                } else {
+                    panic!("Decl {name} is not a shape decl")
+                }
+            }
+        }
+
+        panic!("No such shape def found: {name}")
+    }
+}
+
+#[derive(Debug)]
+pub enum ShapeDef {
+    EnumDef(EnumDef),
+    StructDef(StructDef),
+}
+
+impl ShapeDef {
+    pub fn shape_refs(&self) -> Vec<ShapeRef> {
+        match self {
+            ShapeDef::EnumDef(enum_def) => enum_def.shape_refs(),
+            ShapeDef::StructDef(struct_def) => struct_def.shape_refs(),
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            ShapeDef::EnumDef(enum_def) => &enum_def.name,
+            ShapeDef::StructDef(struct_def) => &struct_def.name,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -55,11 +106,31 @@ pub enum Decl {
     StructDef(StructDef),
 }
 
+impl Decl {
+    pub fn name(&self) -> &str {
+        match self {
+            Decl::ModDef(mod_def) => &mod_def.name,
+            Decl::EnumDef(enum_def) => &enum_def.name,
+            Decl::StructDef(struct_def) => &struct_def.name,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub name: String,
     pub visibility: Visibility,
     pub fields: Vec<StructField>,
+}
+
+impl StructDef {
+    pub fn shape_refs(&self) -> Vec<ShapeRef> {
+        let mut results = vec![];
+        for StructField(_field_name, shape_ref) in &self.fields {
+            results.push(shape_ref.clone());
+        }
+        results
+    }
 }
 
 pub type FieldName = String;
@@ -72,6 +143,18 @@ pub struct EnumDef {
     pub name: String,
     pub visibility: Visibility,
     pub alts: Vec<EnumAlt>,
+}
+
+impl EnumDef {
+    pub fn shape_refs(&self) -> Vec<ShapeRef> {
+        let mut results = vec![];
+        for alt in &self.alts {
+            if let Some(shape_ref) = &alt.payload_shape {
+                results.push(shape_ref.clone());
+            }
+        }
+        results
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -87,6 +170,18 @@ pub struct ModDef {
     pub ports: Vec<Port>,
     pub components: Vec<Component>,
     pub wires: Vec<Wire>,
+}
+
+impl ModDef {
+    pub fn depends_on(&self) -> Vec<ModDefRef> {
+        let mut result = vec![];
+        for component in &self.components {
+            if let Component::Mod(_name, _visibility, mod_component) = component {
+                result.push(mod_component.moddef_name.clone());
+            }
+        }
+        result
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -245,6 +340,20 @@ impl Port {
 
 #[derive(Debug, Clone)]
 pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
+
+/*
+impl ShapeRef {
+    pub fn shape_refs(&self) -> Vec<ShapeRef> {
+        let mut results = vec![self.0];
+        for shape_param in &self.1 {
+            if let ShapeParam::Shape(shape_ref) = shape_param {
+                results.extend_from_slice(&shape_ref.shape_refs());
+            }
+        }
+        results
+    }
+}
+*/
 
 #[derive(Debug, Clone)]
 pub struct Domain;

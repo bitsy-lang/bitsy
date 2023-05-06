@@ -1,3 +1,5 @@
+#![allow(unused, dead_code)]
+
 pub type SignalPath = String;
 
 #[derive(Debug)]

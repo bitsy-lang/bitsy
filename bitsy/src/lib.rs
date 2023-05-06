@@ -1,3 +1,7 @@
+#![allow(unused, dead_code)]
+
+use std::collections::HashSet;
+
 // impl EnumDef {
 //     fn clog2(n: u64) -> u64 {
 //         let mut r = 0;
@@ -25,13 +29,147 @@
 
 use std::sync::Arc;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
 #[macro_use]
 extern crate lalrpop_util;
 
 lalrpop_mod!(pub parser);
 
 pub mod ast;
+pub mod depends;
 pub mod sim;
+
+#[derive(Debug)]
+pub struct Circuit {
+    modules: Vec<Arc<Module>>,
+    shape_families: Vec<Arc<ShapeFamily>>,
+}
+
+impl Circuit {
+    pub fn from(circuit: ast::Circuit) -> Circuit {
+        let mut decl_names = HashSet::new();
+        for decl in &circuit.decls {
+            assert!(!decl_names.contains(decl.name()), "Duplicate declaration: {}", decl.name());
+            decl_names.insert(decl.name().clone());
+        }
+
+        let mut result = Circuit {
+            shape_families: vec![],
+            modules: vec![],
+        };
+
+        let mut depends = depends::Depends::<String>::new();
+
+        for shape_def in &circuit.shape_defs() {
+            depends.add(dbg!(shape_def.name().to_string()));
+            for dep_shape_def in &shape_def.shape_refs() {
+                depends.add_dependency(dep_shape_def.0.to_string(), shape_def.name().to_string());
+            }
+        }
+
+        println!("Adding shape families");
+        result.add_builtin_shape_families();
+        for shape_ref in depends.sort().expect("Cycle detected") {
+            println!("    {shape_ref}");
+            // if not defined, define it
+            if result.shape_family(&shape_ref).is_none() {
+                result.add_shape_family(&circuit.shape_def(&shape_ref));
+            }
+        }
+
+        println!();
+
+        let mut depends = depends::Depends::<String>::new();
+
+        for mod_def in &circuit.mod_defs() {
+            depends.add(mod_def.name.clone());
+            for dep_mod_def in &mod_def.depends_on() {
+                depends.add_dependency(mod_def.name.clone(), dep_mod_def.to_string());
+            }
+        }
+
+        for mod_name in depends.sort().expect("Cycle detected") {
+            println!("    {mod_name}");
+            result.add_module(&circuit.mod_def(&mod_name));
+        }
+
+        result
+    }
+
+    fn add_builtin_shape_families(&mut self) {
+        use ShapeParamType::{Nat, Shape};
+        let builtins = [
+            ShapeFamily { name: "Tuple".to_string(), args: None },
+            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]) },
+            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]) },
+        ];
+        for builtin in builtins {
+            self.shape_families.push(Arc::new(builtin));
+        }
+    }
+
+    fn add_shape_family(&mut self, shape_def: &ast::ShapeDef) {
+        let shape_family = ShapeFamily {
+            name: shape_def.name().to_string(),
+            args: Some(vec![]),
+        };
+        self.shape_families.push(Arc::new(shape_family));
+    }
+
+    fn add_module(&mut self, mod_def: &ast::ModDef) {
+        let module = Module {
+            ports: vec![],
+        };
+        self.modules.push(Arc::new(module));
+    }
+
+    fn shape_family(&self, name: &str) -> Option<Arc<ShapeFamily>> {
+        for shape_family in &self.shape_families {
+            if shape_family.name == name {
+                return Some(shape_family.clone());
+            }
+        }
+        None
+    }
+
+    fn modules(&self) -> Vec<Arc<Module>> {
+        todo!()
+    }
+
+    fn module(&self, name: &str) -> Option<Arc<Module>> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
+pub struct Module {
+    pub ports: Vec<Port>,
+}
+
+#[derive(Debug)]
+pub struct ShapeFamily {
+    pub name: String,
+    pub args: Option<Vec<ShapeParamType>>, // Option for variadic
+}
+
+#[derive(Debug)]
+pub enum ShapeParamType {
+    Nat,
+    Shape,
+}
+
+
+pub type ComponentName = String;
+pub type PortName = String;
+pub type FieldName = String;
+
+#[derive(Debug)]
+pub struct Port(PortName, Arc<Shape>);
 
 #[derive(Debug, Clone)]
 pub enum Shape {
@@ -44,11 +182,26 @@ pub enum Shape {
 
 #[derive(Debug, Clone)]
 pub struct EnumShape {
+    name: String,
+    alts: Vec<EnumAlt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumAlt {
+    ctor_name: String,
+    visibility: Visibility,
+    payload: Option<Arc<Shape>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructShape {
+    name: String,
+    visibility: Visibility,
+    fields: Vec<StructField>,
 }
+
+#[derive(Debug, Clone)]
+pub struct StructField(FieldName, Arc<Shape>);
 
 impl Shape {
     pub fn bitwidth(&self) -> u64 {
@@ -179,3 +332,34 @@ impl Circuit {
     }
 }
 */
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Value {
+    Unknown,
+    Unobservable,
+    Bool(bool),
+    Word(u64),
+    Tuple(Vec<Box<Value>>),
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Value::Unknown => write!(f, "?")?,
+            Value::Unobservable => write!(f, "X")?,
+            Value::Bool(b) => write!(f,"{b}")?,
+            Value::Word(n) => write!(f, "{n}")?,
+            Value::Tuple(elts) => {
+                write!(f, "tuple(")?;
+                for (i, elt) in elts.iter().enumerate() {
+                    write!(f, "{elt}")?;
+                    if i + 1 < elts.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "tuple)")?;
+            },
+        }
+        Ok(())
+    }
+}
