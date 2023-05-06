@@ -114,9 +114,15 @@ impl Circuit {
     }
 
     fn add_shape_family(&mut self, shape_def: &ast::ShapeDef) {
+        let args: Option<Vec<ShapeParamType>> = Some(shape_def.params().iter().map(|param| {
+            match param {
+                ast::ShapeDefParam::Nat(_name) => ShapeParamType::Nat,
+                ast::ShapeDefParam::Shape(_name) => ShapeParamType::Shape,
+            }
+        }).collect());
         let shape_family = ShapeFamily {
             name: shape_def.name().to_string(),
-            args: Some(vec![]),
+            args,
         };
         self.shape_families.push(Arc::new(shape_family));
     }

@@ -97,6 +97,13 @@ impl ShapeDef {
             ShapeDef::StructDef(struct_def) => &struct_def.name,
         }
     }
+
+    pub fn params(&self) -> Vec<ShapeDefParam> {
+        match self {
+            ShapeDef::EnumDef(enum_def) => enum_def.params.clone(),
+            ShapeDef::StructDef(struct_def) => struct_def.params.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -119,6 +126,7 @@ impl Decl {
 #[derive(Debug, Clone)]
 pub struct StructDef {
     pub name: String,
+    pub params: Vec<ShapeDefParam>,
     pub visibility: Visibility,
     pub fields: Vec<StructField>,
 }
@@ -141,6 +149,7 @@ pub struct StructField(pub FieldName, pub ShapeRef);
 #[derive(Debug, Clone)]
 pub struct EnumDef {
     pub name: String,
+    pub params: Vec<ShapeDefParam>,
     pub visibility: Visibility,
     pub alts: Vec<EnumAlt>,
 }
@@ -340,6 +349,12 @@ impl Port {
 
 #[derive(Debug, Clone)]
 pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
+
+#[derive(Debug, Clone)]
+pub enum ShapeDefParam {
+    Nat(String),
+    Shape(String),
+}
 
 /*
 impl ShapeRef {

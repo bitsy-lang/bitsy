@@ -37,12 +37,13 @@ pub ModDef: ModDef = {
 }
 
 pub StructDef: StructDef = {
-    <visibility:Visibility> "struct" "type" <name:Ident>
+    <visibility:Visibility> "struct" "type" <name:Ident> <params:TypeDefParams?>
         <fields:StructField*>
     "end"
     => {
         StructDef {
             name,
+            params: params.unwrap_or(vec![]),
             visibility,
             fields,
         }
@@ -54,16 +55,32 @@ pub StructField: StructField = {
 }
 
 pub EnumDef: EnumDef = {
-    <visibility:Visibility> "enum" "type" <name:Ident>
+    <visibility:Visibility> "enum" "type" <name:Ident> <params:TypeDefParams?>
         <alts:EnumAlt*>
     "end"
     => {
         EnumDef {
             name,
+            params: params.unwrap_or(vec![]),
             visibility,
             alts,
         }
     }
+}
+
+pub TypeDefParams: Vec<ShapeDefParam> = {
+    "<" <param0:TypeDefParam> <param_rest:("," TypeDefParam)*> ">" => {
+        let mut result = vec![param0];
+        for (_s, param) in param_rest {
+            result.push(param);
+        }
+        result
+    },
+}
+
+pub TypeDefParam: ShapeDefParam = {
+    <ident:Ident> ":" "Nat" => ShapeDefParam::Nat(ident),
+    <ident:Ident> ":" "Shape" => ShapeDefParam::Shape(ident),
 }
 
 pub EnumAlt: EnumAlt = {

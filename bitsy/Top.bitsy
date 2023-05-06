@@ -1,11 +1,16 @@
-enum type State
+enum type Valid<S : Shape>
+    @Invalid
+    @Valid of Bit
+end
+
+enum type State<n: Nat>
     @Idle
-    @Running of Tuple<Word<4>, Foo>
+    @Running of Tuple<Word<n>, Foo>
 end
 
 struct type Foo
     field bar : Word<4>
-    field baz : State
+    field baz : State<3>
 end
 
 pub mod Top
