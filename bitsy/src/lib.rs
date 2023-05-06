@@ -375,6 +375,7 @@ impl std::fmt::Display for Value {
 pub enum Expr {
     Term(Terminal),
     Lit(Value),
+    Let(String, Box<Expr>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     As(Box<Expr>, Arc<Shape>),
