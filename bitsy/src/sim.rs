@@ -62,7 +62,7 @@ fn gate_op(gate_fn: GateFn, args: Vec<Value>) -> Value {
 
 fn value_to_pyobject(py: Python, value: Value) -> PyObject {
     match value {
-        Value::Bool(b) => b.into_py(py),
+        Value::Bit(b) => b.into_py(py),
         Value::Word(n) => n.into_py(py),
         _ => Python::None(py),
     }
@@ -71,7 +71,7 @@ fn value_to_pyobject(py: Python, value: Value) -> PyObject {
 fn pyany_to_value(obj: &PyAny) -> Value {
     match obj.get_type().name().unwrap() {
         "int" => Value::Word(obj.extract().unwrap()),
-        "bool" => Value::Bool(obj.extract().unwrap()),
+        "bool" => Value::Bit(obj.extract().unwrap()),
         type_name => panic!("Unknown type: {type_name}"),
     }
 }

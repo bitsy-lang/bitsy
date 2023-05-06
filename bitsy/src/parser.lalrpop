@@ -170,8 +170,8 @@ pub Nat: u64 = {
 }
 
 pub Value: Value = {
-    "true" => Value::Bool(true),
-    "false" => Value::Bool(false),
+    "true" => Value::Bit(true),
+    "false" => Value::Bit(false),
     <n:r"[0-9]+"> => Value::Word(n.parse().unwrap()),
     "tuple" "(" <elts:TupleElts?>")" => Value::Tuple(elts.unwrap_or_default()),
 }

@@ -29,7 +29,7 @@ use std::collections::HashSet;
 
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Public,
     Private,
@@ -40,6 +40,7 @@ extern crate lalrpop_util;
 
 lalrpop_mod!(pub parser);
 
+pub mod shapecheck;
 pub mod ast;
 pub mod depends;
 pub mod sim;
@@ -177,7 +178,7 @@ pub type FieldName = String;
 #[derive(Debug)]
 pub struct Port(PortName, Arc<Shape>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Shape {
     Bit,
     Word(u64),
@@ -186,27 +187,27 @@ pub enum Shape {
     Struct(Arc<StructShape>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumShape {
     name: String,
     alts: Vec<EnumAlt>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumAlt {
     ctor_name: String,
     visibility: Visibility,
     payload: Option<Arc<Shape>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructShape {
     name: String,
     visibility: Visibility,
     fields: Vec<StructField>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StructField(FieldName, Arc<Shape>);
 
 impl Shape {
@@ -343,7 +344,7 @@ impl Circuit {
 pub enum Value {
     Unknown,
     Unobservable,
-    Bool(bool),
+    Bit(bool),
     Word(u64),
     Tuple(Vec<Box<Value>>),
 }
@@ -353,7 +354,7 @@ impl std::fmt::Display for Value {
         match &self {
             Value::Unknown => write!(f, "?")?,
             Value::Unobservable => write!(f, "X")?,
-            Value::Bool(b) => write!(f,"{b}")?,
+            Value::Bit(b) => write!(f,"{b}")?,
             Value::Word(n) => write!(f, "{n}")?,
             Value::Tuple(elts) => {
                 write!(f, "tuple(")?;
@@ -367,5 +368,27 @@ impl std::fmt::Display for Value {
             },
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Expr {
+    Term(Terminal),
+    Lit(Value),
+    Add(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
+    As(Box<Expr>, Arc<Shape>),
+}
+
+#[derive(Debug, Clone)]
+pub struct Terminal(pub ComponentName, pub PortName);
+
+impl Terminal {
+    pub fn component(&self) -> &ComponentName {
+        &self.0
+    }
+
+    pub fn port(&self) -> &PortName {
+        &self.1
     }
 }

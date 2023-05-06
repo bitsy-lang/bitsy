@@ -299,7 +299,7 @@ pub struct GateComponent {
 pub enum Value {
     Unknown,
     Unobservable,
-    Bool(bool),
+    Bit(bool),
     Word(u64),
     Tuple(Vec<Box<Value>>),
 }
@@ -309,7 +309,7 @@ impl std::fmt::Display for Value {
         match &self {
             Value::Unknown => write!(f, "?")?,
             Value::Unobservable => write!(f, "X")?,
-            Value::Bool(b) => write!(f,"{b}")?,
+            Value::Bit(b) => write!(f,"{b}")?,
             Value::Word(n) => write!(f, "{n}")?,
             Value::Tuple(elts) => {
                 write!(f, "tuple(")?;
