@@ -5,22 +5,72 @@ pub type PortName = String;
 
 #[derive(Debug)]
 pub struct Circuit {
-    pub mod_defs: Vec<ModDef>,
+    pub decls: Vec<Decl>,
 }
 
 impl Circuit {
-    pub fn mod_def(&self, name: &str) -> &ModDef {
-        for mod_def in &self.mod_defs {
+    pub fn mod_defs(&self) -> Vec<Arc<ModDef>> {
+        let mut result = vec![];
+        for decl in &self.decls {
+            if let Decl::ModDef(mod_def) = decl {
+                result.push(Arc::clone(mod_def));
+            }
+        }
+        result
+    }
+
+    pub fn enum_defs(&self) -> Vec<Arc<EnumDef>> {
+        let mut result = vec![];
+        for decl in &self.decls {
+            if let Decl::EnumDef(enum_def) = decl {
+                result.push(Arc::clone(enum_def));
+            }
+        }
+        result
+    }
+
+    pub fn mod_def(&self, name: &str) -> Arc<ModDef> {
+        for mod_def in self.mod_defs() {
             if mod_def.name == name {
-                return mod_def;
+                return Arc::clone(&mod_def);
             }
         }
 
         panic!("No such module found: {name}")
     }
+
+    pub fn enum_def(&self, name: &str) -> Arc<EnumDef> {
+        for enum_def in self.enum_defs() {
+            if enum_def.name == name {
+                return Arc::clone(&enum_def);
+            }
+        }
+
+        panic!("No such enum found: {name}")
+    }
 }
 
+
 #[derive(Debug)]
+pub enum Decl {
+    ModDef(Arc<ModDef>),
+    EnumDef(Arc<EnumDef>),
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumDef {
+    pub name: String,
+    pub visibility: Visibility,
+    pub alts: Vec<EnumAlt>,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnumAlt {
+    pub ctor_name: String,
+    pub payload_shape: Option<Shape>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ModDef {
     pub name: String,
     pub visibility: Visibility,
@@ -131,27 +181,38 @@ pub struct GateComponent {
     pub gate_name: String,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Value {
     Unknown,
     Unobservable,
     Bool(bool),
     Word(u64),
+    Tuple(Vec<Box<Value>>),
 }
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        match &self {
             Value::Unknown => write!(f, "?")?,
             Value::Unobservable => write!(f, "X")?,
             Value::Bool(b) => write!(f,"{b}")?,
             Value::Word(n) => write!(f, "{n}")?,
+            Value::Tuple(elts) => {
+                write!(f, "tuple(")?;
+                for (i, elt) in elts.iter().enumerate() {
+                    write!(f, "{elt}")?;
+                    if i + 1 < elts.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "tuple)")?;
+            },
         }
         Ok(())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Port(pub String, pub Direction, pub Shape, pub Domain);
 
 impl Port {
@@ -191,15 +252,29 @@ pub enum ShapeParam {
 }
 
 impl Circuit {
-    pub fn flatten_exprs(&mut self) {
-        for mod_def in &mut self.mod_defs {
-            mod_def.flatten_exprs();
+    pub fn flatten_exprs(&self) -> Circuit {
+        let mut decls = vec![];
+
+        for decl in &self.decls {
+            match decl {
+                Decl::ModDef(mod_def) => {
+                    let mut flattened_mod_def: ModDef = ModDef::clone(mod_def);
+                    flattened_mod_def.flatten_exprs();
+                    decls.push(Decl::ModDef(Arc::new(flattened_mod_def)));
+                },
+                Decl::EnumDef(enum_def) => {
+                    decls.push(Decl::EnumDef(Arc::clone(enum_def)));
+                },
+            }
+        }
+        Circuit {
+            decls,
         }
     }
 }
 
 impl ModDef {
-    pub fn flatten_exprs(&mut self) {
+    fn flatten_exprs(&mut self) {
         let mut gensym_id = 0;
         let mut expr_wire_indexes: Vec<usize> = vec![];
         let mut wires_to_add: Vec<Wire> = vec![];
@@ -246,7 +321,7 @@ impl ModDef {
             Expr::Lit(v) => {
                 let name = format!("__gen_{gensym_id}");
                 *gensym_id += 1;
-                let gate = Component::Const(name, Visibility::Private, *v);
+                let gate = Component::Const(name, Visibility::Private, v.clone());
                 (
                     vec![gate.clone()],
                     vec![],

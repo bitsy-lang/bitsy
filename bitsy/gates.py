@@ -27,3 +27,7 @@ def Mux(sel, a, b):
         return a
     else:
         return b
+
+
+def Eq(a, b):
+    return a == b

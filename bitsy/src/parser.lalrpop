@@ -4,8 +4,17 @@ use std::sync::Arc;
 grammar;
 
 pub Circuit: Circuit = {
-    <mod_defs:ModDef*> => Circuit {
-        mod_defs,
+    <decls:Decl*> => Circuit {
+        decls,
+    }
+}
+
+pub Decl: Decl = {
+    <mod_def:ModDef> => {
+        Decl::ModDef(Arc::new(mod_def))
+    },
+    <enum_def:EnumDef> => {
+        Decl::EnumDef(Arc::new(enum_def))
     }
 }
 
@@ -25,6 +34,28 @@ pub ModDef: ModDef = {
         }
 }
 
+pub EnumDef: EnumDef = {
+    <visibility:Visibility> "enum" "type" <name:Ident>
+        <alts:EnumAlt*>
+    "end"
+    => {
+        EnumDef {
+            name,
+            visibility,
+            alts,
+        }
+    }
+}
+
+pub EnumAlt: EnumAlt = {
+    <ctor_name:Ctor> <payload_shape:("of" <Shape>)?> => {
+        EnumAlt {
+            ctor_name,
+            payload_shape,
+        }
+    }
+}
+
 pub Port: Port = {
     <direction:Direction> <name:Ident> ":" <shape:Shape> "@" <domain:Domain>
     => Port(name, direction, shape, domain)
@@ -36,8 +67,23 @@ pub Direction: Direction = {
 }
 
 pub Shape: Shape = {
-    <ident:Ident> "<" <n:Nat> ">" => Shape(ident, vec![ShapeParam::Nat(n)]),
+    <ident:Ident> "<" <shape_params:ShapeParams> ">" => Shape(ident, shape_params),
     <ident:Ident> => Shape(ident, vec![]),
+}
+
+pub ShapeParams: Vec<ShapeParam> = {
+    <shape_param0:ShapeParam> <shape_param_rest:("," ShapeParam)*> => {
+        let mut result = vec![shape_param0];
+        for (_s, shape_param) in shape_param_rest {
+            result.push(shape_param);
+        }
+        result
+    }
+}
+
+pub ShapeParam: ShapeParam = {
+    <n:Nat> => ShapeParam::Nat(n),
+    <shape:Shape> => ShapeParam::Shape(Arc::new(shape)),
 }
 
 pub Domain: Domain = {
@@ -91,6 +137,17 @@ pub Value: Value = {
     "true" => Value::Bool(true),
     "false" => Value::Bool(false),
     <n:r"[0-9]+"> => Value::Word(n.parse().unwrap()),
+    "tuple" "(" <elts:TupleElts?>")" => Value::Tuple(elts.unwrap_or_default()),
+}
+
+pub TupleElts: Vec<Box<Value>> = {
+    <v0:Value> <v_rest:("," <Value>)*> => {
+        let mut result = vec![Box::new(v0)];
+        for v in v_rest {
+            result.push(Box::new(v));
+        }
+        result
+    }
 }
 
 pub Visibility: Visibility = {
@@ -132,6 +189,10 @@ pub Factor: Arc<Expr> = {
 
 pub Terminal: Terminal = {
     <component_name:Ident> "." <port_name:Ident> => Terminal(component_name, port_name)
+}
+
+pub Ctor: String = {
+    "@" <name:Ident> => name,
 }
 
 pub Ident: String = {
