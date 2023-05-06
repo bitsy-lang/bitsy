@@ -7,9 +7,9 @@ endif
 syn match lineComment "//.*"
 hi link lineComment Comment
 
-syn keyword bitsyKeyword mod enum type struct pub end of otherwise match if else wire reg incoming outgoing gate field let
+syn keyword bitsyKeyword mod enum type struct pub end of match if else wire reg incoming outgoing gate field let
 hi link bitsyKeyword Keyword
-syn keyword bitsyConstant true false X
+syn keyword bitsyConstant true false X io
 hi link bitsyConstant Number
 
 syn match bitsyDecNumber /\<[1-9][0-9]*\>/
@@ -29,12 +29,27 @@ hi link bitsyDecFloatNumber bitsyFloatNumber
 hi link bitsyHexFloatNumber bitsyFloatNumber
 hi link bitsyFloatNumber Float
 
-syn match bitsyIdentifier "\<[A-Z][A-Za-z0-9_]*"
+syn match bitsyIdentifier "\<[a-z_][A-Za-z0-9_]*"
 syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*"
 hi link bitsyIdentifier Function
 hi link bitsyUpperIdentifier Type
 
 syn match bitsyAt "@"
 syn match bitsyColon ":"
+syn match bitsyRevArrow "<="
+syn match bitsyEq "="
+syn match bitsyArrow "=>"
+syn match bitsyAdd "+"
+syn match bitsyMul "*"
 hi link bitsyAt Keyword
 hi link bitsyColon Keyword
+hi link bitsyArrow Keyword
+hi link bitsyRevArrow Keyword
+hi link bitsyEq Keyword
+hi link bitsyAdd Keyword
+hi link bitsyMul Keyword
+
+syn match bitsyCtor "@\<[a-zA-Z_][A-Za-z0-9_]*"
+syn match bitsyOtherwise "otherwise"
+hi link bitsyCtor Constant
+hi link bitsyOtherwise Constant
