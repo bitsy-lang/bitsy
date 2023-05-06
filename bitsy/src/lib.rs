@@ -381,7 +381,6 @@ pub enum Expr {
     Let(String, Box<Expr>, Option<Shape>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
-    As(Box<Expr>, Arc<Shape>),
 }
 
 impl Expr {
@@ -392,7 +391,6 @@ impl Expr {
             ast::Expr::Let(x, def, def_shape, body) => Expr::Let(x.to_string(), Expr::from(def), todo!(), Expr::from(body)),
             ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0), Expr::from(op1)),
             ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0), Expr::from(op1)),
-            //ast::Expr::As(Box<Expr>, Arc<Shape>),
             _ => panic!("No as"),
         })
     }

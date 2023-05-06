@@ -205,7 +205,6 @@ pub enum Expr {
     Let(String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
-    As(Box<Expr>, ShapeRef),
     Match(Box<Expr>, Vec<MatchArm>),
 }
 

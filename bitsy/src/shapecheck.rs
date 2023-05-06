@@ -90,13 +90,6 @@ pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
             }
             */
         },
-        Expr::As(expr0, shape0) => {
-            if !check_shape(context, expr0, shape0) {
-                None
-            } else {
-                Some(Shape::clone(shape0))
-            }
-        },
     }
 }
 
@@ -132,7 +125,6 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
         },
         Expr::Add(op0, op1) => todo!(),
         Expr::Mul(op0, op1) => todo!(),
-        Expr::As(expr0, shape0) =>  check_shape(context, expr0, shape0) && *shape == **shape0,
     }
 }
 
