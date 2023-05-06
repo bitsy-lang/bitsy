@@ -223,6 +223,7 @@ pub MatchArm: MatchArm = {
 pub MatchPattern: Box<MatchPattern> = {
     <ctor:Ctor> <args: MatchPatternArgs?> => Box::new(MatchPattern::Ctor(ctor, args.unwrap_or(vec![]))),
     <v:Ident> => Box::new(MatchPattern::Var(v)),
+    <v:Value> => Box::new(MatchPattern::Lit(v)),
     "otherwise" => Box::new(MatchPattern::Otherwise),
 }
 

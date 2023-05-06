@@ -349,6 +349,24 @@ pub enum Value {
     Tuple(Vec<Box<Value>>),
 }
 
+impl Value {
+    pub fn from(value: ast::Value) -> Value {
+        match value {
+            ast::Value::Bit(b) => Value::Bit(b),
+            ast::Value::Word(n) => Value::Word(n),
+            ast::Value::Tuple(vs) => {
+                let mut new_vs = vec![];
+                for v in vs {
+                    new_vs.push(Box::new(Value::from(*v.clone())));
+                }
+
+                Value::Tuple(new_vs)
+            },
+            _ => panic!("Uh oh"),
+        }
+    }
+}
+
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self {
@@ -379,6 +397,20 @@ pub enum Expr {
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     As(Box<Expr>, Arc<Shape>),
+}
+
+impl Expr {
+    pub fn from(expr: &ast::Expr) -> Box<Expr> {
+        Box::new(match expr {
+            ast::Expr::Term(ast::Terminal(component, port)) => Expr::Term(Terminal(component.to_string(), port.to_string())),
+            ast::Expr::Lit(v) => Expr::Lit(Value::from(v.clone())),
+            ast::Expr::Let(x, def, def_shape, body) => Expr::Let(x.to_string(), Expr::from(def), todo!(), Expr::from(body)),
+            ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0), Expr::from(op1)),
+            ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0), Expr::from(op1)),
+            //ast::Expr::As(Box<Expr>, Arc<Shape>),
+            _ => panic!("No as"),
+        })
+    }
 }
 
 #[derive(Debug, Clone)]

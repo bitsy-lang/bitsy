@@ -21,6 +21,7 @@ pub mod Top
     pub wire io.out <= {
         let x : Word<3> = 314;
         let t = 314;
+        let b = true;
         io.in + 1
     }
 end

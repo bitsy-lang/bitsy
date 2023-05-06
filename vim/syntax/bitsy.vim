@@ -9,6 +9,8 @@ hi link lineComment Comment
 
 syn keyword bitsyKeyword mod enum type struct pub end of otherwise match if else wire reg incoming outgoing gate field let
 hi link bitsyKeyword Keyword
+syn keyword bitsyConstant true false X
+hi link bitsyConstant Number
 
 syn match bitsyDecNumber /\<[1-9][0-9]*\>/
 syn match bitsyBinNumber /\<0b[01_]\+\>/
@@ -31,3 +33,8 @@ syn match bitsyIdentifier "\<[A-Z][A-Za-z0-9_]*"
 syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*"
 hi link bitsyIdentifier Function
 hi link bitsyUpperIdentifier Type
+
+syn match bitsyAt "@"
+syn match bitsyColon ":"
+hi link bitsyAt Keyword
+hi link bitsyColon Keyword

@@ -230,6 +230,7 @@ pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
 pub enum MatchPattern {
     Ctor(String, Vec<Box<MatchPattern>>),
     Var(String),
+    Lit(Value),
     Otherwise,
 }
 
