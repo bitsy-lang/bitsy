@@ -1,3 +1,4 @@
+// Valid<S> is used when a signal may or may not be valid.
 enum type Valid<S : Shape>
     @Invalid
     @Valid of Bit

@@ -1,0 +1,33 @@
+if version < 600
+    syntax clear
+elseif exists("b:current_syntax")
+    finish
+endif
+
+syn match lineComment "//.*"
+hi link lineComment Comment
+
+syn keyword bitsyKeyword mod enum type struct pub end of otherwise match if else wire reg incoming outgoing gate field let
+hi link bitsyKeyword Keyword
+
+syn match bitsyDecNumber /\<[1-9][0-9]*\>/
+syn match bitsyBinNumber /\<0b[01_]\+\>/
+syn match bitsyOctNumber /\<0[0-7_]*\>/
+syn match bitsyHexNumber /\<0x[0-9a-fA-F_]\+\>/
+syn match bitsyDecFloatNumber /\<\([1-9][0-9_]*\|0\)\.[0-9]\+\([eE][+-]\?[0-9_]\+\)\?\>/
+syn match bitsyDecFloatNumber /\<\([1-9][0-9_]*\|0\)[eE][+-]\?[0-9_]\+\>/
+syn match bitsyHexFloatNumber /\<0x[0-9a-fA-F_]\+\.[0-9a-fA-F_]\+\([pP][+-]\?[0-9a-fA-F_]\+\)\?\>/
+syn match bitsyHexFloatNumber /\<0x[0-9a-fA-F_]\+[pP][+-]\?[0-9a-fA-F_]\+\>/
+hi link bitsyDecNumber bitsyNumber
+hi link bitsyBinNumber bitsyNumber
+hi link bitsyOctNumber bitsyNumber
+hi link bitsyHexNumber bitsyNumber
+hi link bitsyNumber Number
+hi link bitsyDecFloatNumber bitsyFloatNumber
+hi link bitsyHexFloatNumber bitsyFloatNumber
+hi link bitsyFloatNumber Float
+
+syn match bitsyIdentifier "\<[A-Z][A-Za-z0-9_]*"
+syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*"
+hi link bitsyIdentifier Function
+hi link bitsyUpperIdentifier Type
