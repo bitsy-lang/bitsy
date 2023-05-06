@@ -29,7 +29,7 @@ impl ShapeContext {
 
 pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
     match expr {
-        Expr::Term(term) => context.lookup(&format!("{}.{}", term.0, term.1)),
+        Expr::Var(x) => context.lookup(&x),
         Expr::Lit(value) => infer_shape_lit(value),
         Expr::Let(x, def, def_shape, body) => {
             match (infer_shape(context, def), def_shape) {
@@ -106,8 +106,8 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
     }
 
     match expr {
-        Expr::Term(term) => {
-            if let Some(shape0) = context.lookup(&format!("{}.{}", term.0, term.1)) {
+        Expr::Var(x) => {
+            if let Some(shape0) = context.lookup(&x) {
                 *shape == shape0
             } else {
                 false

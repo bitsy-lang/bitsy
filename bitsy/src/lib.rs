@@ -376,7 +376,7 @@ impl std::fmt::Display for Value {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Term(Terminal),
+    Var(String),
     Lit(Value),
     Let(String, Box<Expr>, Option<Shape>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
@@ -387,7 +387,7 @@ pub enum Expr {
 impl Expr {
     pub fn from(expr: &ast::Expr) -> Box<Expr> {
         Box::new(match expr {
-            ast::Expr::Term(ast::Terminal(component, port)) => Expr::Term(Terminal(component.to_string(), port.to_string())),
+            ast::Expr::Var(x) => Expr::Var(x.to_string()),
             ast::Expr::Lit(v) => Expr::Lit(Value::from(v.clone())),
             ast::Expr::Let(x, def, def_shape, body) => Expr::Let(x.to_string(), Expr::from(def), todo!(), Expr::from(body)),
             ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0), Expr::from(op1)),

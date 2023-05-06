@@ -1,5 +1,4 @@
 pub type ComponentName = String;
-pub type ModDefRef = String;
 pub type PortName = String;
 
 #[derive(Debug)]
@@ -186,7 +185,7 @@ impl ModDef {
         let mut result = vec![];
         for component in &self.components {
             if let Component::Mod(_name, _visibility, mod_component) = component {
-                result.push(mod_component.moddef_name.clone());
+                result.push(mod_component.mod_def_ref.clone());
             }
         }
         result
@@ -194,27 +193,14 @@ impl ModDef {
 }
 
 #[derive(Debug, Clone)]
-pub struct Terminal(pub ComponentName, pub PortName);
-
-impl Terminal {
-    pub fn component(&self) -> &ComponentName {
-        &self.0
-    }
-
-    pub fn port(&self) -> &PortName {
-        &self.1
-    }
-}
-
-#[derive(Debug, Clone)]
 pub enum Wire {
-    Simple(Visibility, Terminal, Terminal),
-    Expr(Visibility, Terminal, Box<Expr>),
+    Simple(Visibility, TerminalRef, TerminalRef),
+    Expr(Visibility, TerminalRef, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Term(Terminal),
+    Var(String),
     Lit(Value),
     Let(String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
@@ -242,7 +228,7 @@ impl Wire {
         }
     }
 
-    pub fn sink(&self) -> &Terminal {
+    pub fn sink(&self) -> &TerminalRef {
         match self {
             Wire::Simple(_visibility, sink, _source) => sink,
             Wire::Expr(_visibility, sink, _expr) => sink,
@@ -250,7 +236,7 @@ impl Wire {
     }
 
     /*
-    pub fn source(&self) -> &Terminal {
+    pub fn source(&self) -> &TerminalRef {
         &self.2
     }
     */
@@ -286,27 +272,27 @@ impl Component {
         }
     }
 
-    pub fn port<T>(&self, port_name: T) -> Terminal
+    pub fn port<T>(&self, port_name: T) -> TerminalRef
         where T: Into<PortName> {
-        Terminal(self.name().to_string(), port_name.into())
+        TerminalRef(self.name().to_string(), port_name.into())
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RegComponent {
     pub shape: ShapeRef,
-    pub domain: Domain,
+    pub domain: DomainRef,
     pub init: Value,
 }
 
 #[derive(Debug, Clone)]
 pub struct ModComponent {
-    pub moddef_name: String,
+    pub mod_def_ref: ModDefRef,
 }
 
 #[derive(Debug, Clone)]
 pub struct GateComponent {
-    pub gate_name: String,
+    pub gate_ref: GateRef,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -341,7 +327,7 @@ impl std::fmt::Display for Value {
 }
 
 #[derive(Debug, Clone)]
-pub struct Port(pub String, pub Direction, pub ShapeRef, pub Domain);
+pub struct Port(pub String, pub Direction, pub ShapeRef, pub DomainRef);
 
 impl Port {
     pub fn name(&self) -> &str {
@@ -356,13 +342,10 @@ impl Port {
         &self.2
     }
 
-    pub fn domain(&self) -> &Domain {
+    pub fn domain(&self) -> &DomainRef {
         &self.3
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
 
 #[derive(Debug, Clone)]
 pub enum ShapeDefParam {
@@ -384,17 +367,54 @@ impl ShapeRef {
 }
 */
 
-#[derive(Debug, Clone)]
-pub struct Domain;
-
-impl Domain {
-    pub fn name(&self) -> &str {
-        &"d"
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ShapeParam {
     Nat(u64),
     Shape(ShapeRef),
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
+#[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
+pub struct TerminalRef(pub String, pub String);
+#[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
+pub struct DomainRef(pub String);
+#[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
+pub struct ModDefRef(pub String);
+#[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
+pub struct GateRef(pub String);
+
+impl std::fmt::Display for ModDefRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl std::fmt::Display for TerminalRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)?;
+        std::fmt::Display::fmt(&self.1, f)
+    }
+}
+
+impl std::fmt::Display for DomainRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl std::fmt::Display for GateRef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl TerminalRef {
+    pub fn component(&self) -> &ComponentName {
+        &self.0
+    }
+
+    pub fn port(&self) -> &PortName {
+        &self.1
+    }
 }

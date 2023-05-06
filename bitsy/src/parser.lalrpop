@@ -122,10 +122,9 @@ pub ShapeParam: ShapeParam = {
     <shape:Shape> => ShapeParam::Shape(shape),
 }
 
-pub Domain: Domain = {
-    "d" => Domain
+pub Domain: DomainRef = {
+    <ident:Ident> => DomainRef(ident),
 }
-
 
 pub Component: Component = {
     <visibility:Visibility> "reg" <ident:Ident> "of" <shape:Shape> "@" <domain:Domain> <init:RegInit?> => {
@@ -140,22 +139,22 @@ pub Component: Component = {
         )
     },
 
-    <visibility:Visibility> "mod" <ident:Ident> "of" <moddef_name:ModDefName> => {
+    <visibility:Visibility> "mod" <ident:Ident> "of" <mod_def_ref:ModDefRef> => {
         Component::Mod(
             ident,
             Visibility::Public,
             ModComponent {
-                moddef_name,
+                mod_def_ref,
             }
         )
     },
 
-    <visibility:Visibility> "gate" <ident:Ident> "of" <gate_name:GateName> => {
+    <visibility:Visibility> "gate" <ident:Ident> "of" <gate_ref:GateRef> => {
         Component::Gate(
             ident,
             Visibility::Public,
             GateComponent {
-                gate_name,
+                gate_ref,
             }
         )
     },
@@ -190,19 +189,19 @@ pub Visibility: Visibility = {
     <visibility:"pub"?> => if visibility.is_some() { Visibility::Public } else { Visibility::Private }
 }
 
-pub ModDefName: String = {
-    <ident:Ident> => ident.to_string()
+pub ModDefRef: ModDefRef = {
+    <ident:Ident> => ModDefRef(ident.to_string())
 }
 
-pub GateName: String = {
-    <ident:Ident> => ident.to_string()
+pub GateRef: GateRef = {
+    <ident:Ident> => GateRef(ident.to_string())
 }
 
 pub Wire: Wire = {
-    <visibility:Visibility> "wire" <sink:Terminal> "<=" <source:Terminal> => {
+    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" <source:TerminalRef> => {
         Wire::Simple(visibility, sink, source)
     },
-    <visibility:Visibility> "wire" <sink:Terminal> "<=" "{" <expr:Expr> "}" => {
+    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" "{" <expr:Expr> "}" => {
         Wire::Expr(visibility, sink, expr)
     },
 }
@@ -243,14 +242,20 @@ pub Term: Box<Expr> = {
 }
 
 pub Factor: Box<Expr> = {
-    <terminal:Terminal> => Box::new(Expr::Term(terminal)),
-    <name:Ident> => Box::new(Expr::Term(Terminal("__temp".to_string(), name))),
+    <x:Ident> <path_parts:("." Ident)*> => {
+        let mut full_x = String::from(x);
+        for path_part in path_parts {
+            full_x.push_str(".");
+            full_x.push_str(&path_part.1);
+        }
+        Box::new(Expr::Var(full_x))
+    },
     <value:Value> => Box::new(Expr::Lit(value)),
     "(" <expr:Expr> ")" => expr,
 }
 
-pub Terminal: Terminal = {
-    <component_name:Ident> "." <port_name:Ident> => Terminal(component_name, port_name)
+pub TerminalRef: TerminalRef = {
+    <component_name:Ident> "." <port_name:Ident> => TerminalRef(component_name, port_name)
 }
 
 pub Ctor: String = {
