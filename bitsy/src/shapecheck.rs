@@ -188,8 +188,6 @@ mod test {
         let expr: Box<Expr> = Expr::from(&parser.parse("true").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
 
-        dbg!(&expr);
-        dbg!(&shape);
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
     }
 }

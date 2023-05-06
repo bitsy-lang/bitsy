@@ -347,19 +347,9 @@ impl Simulator {
             self.poke(*signal, value.clone());
         }
 
-        println!();
-        println!("--------------------------------------------------------------------------------");
-        println!();
-        self.dump();
-        println!();
-
         for signal in self.top_output_signals().into_iter() {
             self.query(signal, 0);
         }
-
-        println!();
-        self.dump();
-        println!();
     }
 
     pub fn reset(
@@ -405,29 +395,19 @@ impl Simulator {
         result
     }
 
-    fn dump(&self) {
-        for signal_state in &self.signals {
-            println!("{:<30} {:>8} {:>8}", signal_state.path, signal_state.values[0].to_string(), signal_state.values[1].to_string());
-        }
-    }
-
     fn query(&mut self, signal: Signal, depth: usize) -> Value {
         let spaces = &vec![b' '; 4 * depth];
         let spaces = String::from_utf8_lossy(spaces);
         let signal_state = &self.signals[signal.id()];
-        println!("{spaces}Querying {}", signal_state.path);
 
         let current_value = self.peek(signal);
         if current_value != Value::Unknown {
-            println!("{spaces}    Value has already been computed: {current_value}");
             return current_value;
         }
 
         match signal_state.dep.clone() {
             Dep::Query(depend_signal) => {
-                println!("{spaces}    {} depends on {}", self.signal_path(signal), self.signal_path(depend_signal));
                 let val = self.query(depend_signal, depth + 1).clone();
-                println!("{spaces}    returning {val}");
                 assert!(val != Value::Unknown, "Query failed");
                 self.poke(signal, val.clone());
                 val
@@ -436,37 +416,28 @@ impl Simulator {
                 let domain = &self.domains[signal_state.domain_id.id()];
                 if domain.reseting {
                     let val = signal_state.init_value.clone().unwrap();
-                    println!("{spaces}    Resetting holds {} at its init value {val}", signal_state.path);
                     self.poke(signal, val.clone());
-                    println!("{spaces}    Querying set pin");
                     self.query(set_signal, depth + 1);
-                    println!("{spaces}    returning {}", val.clone());
                     val.clone()
                 } else {
                     let set_signal_state = &self.signals[set_signal.id()];
                     let val = set_signal_state.values[0].clone();
-                    println!("{spaces}    The previous cycle of the register {} gives {}", set_signal_state.path, val.clone());
                     assert!(val != Value::Unknown, "Query failed");
                     self.poke(signal, val.clone());
 
-                    println!("{spaces}    Querying set pin");
                     self.query(set_signal, depth + 1);
 
-                    println!("{spaces}    returning {}", val.clone());
                     val.clone()
                 }
             },
             Dep::Gate(depend_signals, gate_fn) => {
                 let mut vals = vec![];
                 for depend_signal in &depend_signals {
-                    println!("{spaces}    {} depends on {}", self.signal_path(signal), self.signal_path(*depend_signal));
                     let val = self.query(*depend_signal, depth + 1);
                     vals.push(val);
                 }
-                println!("{spaces}    applying gate op {gate_fn:?} to values {vals:?}");
                 let val = gate_op(gate_fn, vals);
                 self.poke(signal, val.clone());
-                println!("{spaces}    returning {}", val.clone());
                 val
             },
             Dep::Disconnected => panic!("Disconnected: Signal {} has no driver", signal_state.path)

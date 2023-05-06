@@ -5,6 +5,7 @@ use ast::Namespace;
 use parser::NamespaceParser;
 
 use std::sync::Arc;
+use log::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
@@ -38,12 +39,10 @@ impl Bitsy {
     }
 
     pub fn add(&mut self, text: &str)  {
+        info!("Adding text: \"{}...\"", &text[..90].split("\n").collect::<Vec<_>>().join("\\n"));
         let parser = NamespaceParser::new();
         let namespace = parser.parse(text).unwrap();
-        //dbg!(&namespace);
-
         self.add_from(&namespace);
-        //dbg!(&self);
     }
 
     fn add_from(&mut self, namespace: &Namespace) {
@@ -56,23 +55,21 @@ impl Bitsy {
         let mut depends = depends::Depends::<String>::new();
 
         for shape_def in &namespace.shape_defs() {
-            depends.add(dbg!(shape_def.name().to_string()));
+            depends.add(shape_def.name().to_string());
             for dep_shape_def in &shape_def.shape_refs() {
                 depends.add_dependency(dep_shape_def.0.to_string(), shape_def.name().to_string());
             }
         }
 
-        println!("Adding shape families");
+        info!("Adding shape families");
         self.add_builtin_shape_families();
         for shape_ref in depends.sort().expect("Cycle detected") {
-            println!("    {shape_ref}");
+            info!("    {shape_ref}");
             // if not defined, define it
             if self.shape_family(&shape_ref).is_none() {
                 self.add_shape_family(&namespace.shape_def(&shape_ref));
             }
         }
-
-        println!();
 
         let mut depends = depends::Depends::<String>::new();
 
@@ -83,8 +80,9 @@ impl Bitsy {
             }
         }
 
+        info!("Adding modules");
         for mod_name in depends.sort().expect("Cycle detected") {
-            println!("    {mod_name}");
+            info!("    {mod_name}");
             self.add_module(&namespace.mod_def(&mod_name));
         }
     }
