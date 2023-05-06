@@ -30,7 +30,10 @@ pub fn infer_shape(context: &ShapeContext, circuit: &Circuit, expr: &Expr) -> Op
     match expr {
         Expr::Term(term) => context.lookup(&format!("{}.{}", term.0, term.1)),
         Expr::Lit(value) => infer_shape_lit(circuit, value),
-        Expr::Let(x, def, body) => todo!(), // need to add a context after all
+        Expr::Let(x, def, shape, body) => {
+            // don't forget to use shape
+            todo!() // need to add a context after all
+        },
         Expr::Add(op0, op1) => todo!(), // infer either or then check the other
         Expr::Mul(op0, op1) => todo!(), // infer either or then check the other
         Expr::As(expr0, shape0) => {
@@ -53,7 +56,7 @@ pub fn check_shape(context: &ShapeContext, circuit: &Circuit, expr: &Expr, shape
             }
         },
         Expr::Lit(value) => check_shape_lit(value, shape),
-        Expr::Let(x, def, body) => todo!(), // need to add a context after all
+        Expr::Let(x, def, shape, body) => todo!(), // need to add a context after all
         Expr::Add(op0, op1) => todo!(),
         Expr::Mul(op0, op1) => todo!(),
         Expr::As(expr0, shape0) =>  check_shape(context, circuit, expr0, shape0) && *shape == **shape0,

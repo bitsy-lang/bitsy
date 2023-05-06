@@ -208,6 +208,7 @@ pub Wire: Wire = {
 }
 
 pub Expr: Box<Expr> = {
+    "let" <v:Ident> <shape:(":" Shape)?> "=" <def:Expr> ";" <body:Expr> => Box::new(Expr::Let(v, def, shape.map(|x| x.1), body)),
     <op0:Term> "+" <op1:Expr> => Box::new(Expr::Add(op0, op1)),
     <expr:Term> => expr,
 }

@@ -216,8 +216,10 @@ pub enum Wire {
 pub enum Expr {
     Term(Terminal),
     Lit(Value),
+    Let(String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
+    As(Box<Expr>, ShapeRef),
 }
 
 impl Wire {

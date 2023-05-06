@@ -17,5 +17,9 @@ pub mod Top
     incoming in  : Word<8>@d
     outgoing out : Word<8>@d
 
-    pub wire io.out <= { io.in + 1 }
+    pub wire io.out <= {
+        let x : Word<3> = 314;
+        let t = 314;
+        io.in + 1
+    }
 end
