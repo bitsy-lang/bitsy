@@ -1,29 +1,22 @@
-use std::sync::Arc;
 use nettle::ast::Nettle;
-
-#[macro_use]
-extern crate lalrpop_util;
-
-lalrpop_mod!(pub parser);
-
-pub mod ast;
-pub mod sim;
+use bitsy::parser::CircuitParser;
 
 fn main() {
     let argv: Vec<String> = std::env::args().collect();
     let default = "Top.bitsy".to_string();
     let filename = argv.get(1).unwrap_or(&default);
 
-    let parser = parser::CircuitParser::new();
+    let parser = CircuitParser::new();
     let file = std::fs::read_to_string(filename).unwrap();
-    let mut circuit = parser.parse(&file).unwrap();
-    circuit.flatten_exprs();
+    let circuit = parser.parse(&file).unwrap();
     dbg!(&circuit);
 
+    /*
     let mut nettle_circuit = Nettle {
         domains: vec![nettle::ast::Domain("d".to_string())],
         signals: vec![],
     };
+    */
 
     //println!("{}", nettle::pretty::pretty_print(&nettle_circuit));
 }

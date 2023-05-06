@@ -1,5 +1,4 @@
 use crate::ast::*;
-use std::sync::Arc;
 
 grammar;
 
@@ -11,11 +10,14 @@ pub Circuit: Circuit = {
 
 pub Decl: Decl = {
     <mod_def:ModDef> => {
-        Decl::ModDef(Arc::new(mod_def))
+        Decl::ModDef(mod_def)
     },
     <enum_def:EnumDef> => {
-        Decl::EnumDef(Arc::new(enum_def))
-    }
+        Decl::EnumDef(enum_def)
+    },
+    <struct_def:StructDef> => {
+        Decl::StructDef(struct_def)
+    },
 }
 
 pub ModDef: ModDef = {
@@ -32,6 +34,23 @@ pub ModDef: ModDef = {
             components,
             wires,
         }
+}
+
+pub StructDef: StructDef = {
+    <visibility:Visibility> "struct" "type" <name:Ident>
+        <fields:StructField*>
+    "end"
+    => {
+        StructDef {
+            name,
+            visibility,
+            fields,
+        }
+    }
+}
+
+pub StructField: StructField = {
+    "field" <ident:Ident> ":" <shape:Shape> => StructField(ident, shape),
 }
 
 pub EnumDef: EnumDef = {
@@ -66,9 +85,9 @@ pub Direction: Direction = {
     "outgoing" => Direction::Outgoing,
 }
 
-pub Shape: Shape = {
-    <ident:Ident> "<" <shape_params:ShapeParams> ">" => Shape(ident, shape_params),
-    <ident:Ident> => Shape(ident, vec![]),
+pub Shape: ShapeRef = {
+    <ident:Ident> "<" <shape_params:ShapeParams> ">" => ShapeRef(ident, shape_params),
+    <ident:Ident> => ShapeRef(ident, vec![]),
 }
 
 pub ShapeParams: Vec<ShapeParam> = {
@@ -83,7 +102,7 @@ pub ShapeParams: Vec<ShapeParam> = {
 
 pub ShapeParam: ShapeParam = {
     <n:Nat> => ShapeParam::Nat(n),
-    <shape:Shape> => ShapeParam::Shape(Arc::new(shape)),
+    <shape:Shape> => ShapeParam::Shape(shape),
 }
 
 pub Domain: Domain = {
@@ -171,19 +190,19 @@ pub Wire: Wire = {
     },
 }
 
-pub Expr: Arc<Expr> = {
-    <op0:Term> "+" <op1:Expr> => Arc::new(Expr::Add(op0, op1)),
+pub Expr: Box<Expr> = {
+    <op0:Term> "+" <op1:Expr> => Box::new(Expr::Add(op0, op1)),
     <expr:Term> => expr,
 }
 
-pub Term: Arc<Expr> = {
-    <op0:Factor> "*" <op1: Term> => Arc::new(Expr::Mul(op0, op1)),
+pub Term: Box<Expr> = {
+    <op0:Factor> "*" <op1: Term> => Box::new(Expr::Mul(op0, op1)),
     <expr:Factor> => expr,
 }
 
-pub Factor: Arc<Expr> = {
-    <terminal:Terminal> => Arc::new(Expr::Term(terminal)),
-    <value:Value> => Arc::new(Expr::Lit(value)),
+pub Factor: Box<Expr> = {
+    <terminal:Terminal> => Box::new(Expr::Term(terminal)),
+    <value:Value> => Box::new(Expr::Lit(value)),
     "(" <expr:Expr> ")" => expr,
 }
 

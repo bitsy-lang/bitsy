@@ -3,11 +3,14 @@ enum type State
     @Running of Tuple<Word<4>, Bit>
 end
 
+struct type Foo
+    field bar : Word<4>
+    field baz : Bit
+end
+
 pub mod Top
     incoming in  : Word<8>@d
     outgoing out : Word<8>@d
 
     pub wire io.out <= { io.in + 1 }
-
-    pub wire io.out <= { tuple(1, 2, 3) }
 end

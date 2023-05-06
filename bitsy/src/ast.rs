@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 pub type ComponentName = String;
 pub type PortName = String;
 
@@ -9,40 +7,40 @@ pub struct Circuit {
 }
 
 impl Circuit {
-    pub fn mod_defs(&self) -> Vec<Arc<ModDef>> {
+    pub fn mod_defs(&self) -> Vec<&ModDef> {
         let mut result = vec![];
         for decl in &self.decls {
             if let Decl::ModDef(mod_def) = decl {
-                result.push(Arc::clone(mod_def));
+                result.push(mod_def);
             }
         }
         result
     }
 
-    pub fn enum_defs(&self) -> Vec<Arc<EnumDef>> {
+    pub fn enum_defs(&self) -> Vec<&EnumDef> {
         let mut result = vec![];
         for decl in &self.decls {
             if let Decl::EnumDef(enum_def) = decl {
-                result.push(Arc::clone(enum_def));
+                result.push(enum_def);
             }
         }
         result
     }
 
-    pub fn mod_def(&self, name: &str) -> Arc<ModDef> {
+    pub fn mod_def(&self, name: &str) -> &ModDef {
         for mod_def in self.mod_defs() {
             if mod_def.name == name {
-                return Arc::clone(&mod_def);
+                return &mod_def;
             }
         }
 
         panic!("No such module found: {name}")
     }
 
-    pub fn enum_def(&self, name: &str) -> Arc<EnumDef> {
+    pub fn enum_def(&self, name: &str) -> &EnumDef {
         for enum_def in self.enum_defs() {
             if enum_def.name == name {
-                return Arc::clone(&enum_def);
+                return &enum_def;
             }
         }
 
@@ -50,12 +48,24 @@ impl Circuit {
     }
 }
 
-
 #[derive(Debug)]
 pub enum Decl {
-    ModDef(Arc<ModDef>),
-    EnumDef(Arc<EnumDef>),
+    ModDef(ModDef),
+    EnumDef(EnumDef),
+    StructDef(StructDef),
 }
+
+#[derive(Debug, Clone)]
+pub struct StructDef {
+    pub name: String,
+    pub visibility: Visibility,
+    pub fields: Vec<StructField>,
+}
+
+pub type FieldName = String;
+
+#[derive(Debug, Clone)]
+pub struct StructField(pub FieldName, pub ShapeRef);
 
 #[derive(Debug, Clone)]
 pub struct EnumDef {
@@ -67,7 +77,7 @@ pub struct EnumDef {
 #[derive(Debug, Clone)]
 pub struct EnumAlt {
     pub ctor_name: String,
-    pub payload_shape: Option<Shape>,
+    pub payload_shape: Option<ShapeRef>,
 }
 
 #[derive(Debug, Clone)]
@@ -95,15 +105,15 @@ impl Terminal {
 #[derive(Debug, Clone)]
 pub enum Wire {
     Simple(Visibility, Terminal, Terminal),
-    Expr(Visibility, Terminal, Arc<Expr>),
+    Expr(Visibility, Terminal, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
     Term(Terminal),
     Lit(Value),
-    Add(Arc<Expr>, Arc<Expr>),
-    Mul(Arc<Expr>, Arc<Expr>),
+    Add(Box<Expr>, Box<Expr>),
+    Mul(Box<Expr>, Box<Expr>),
 }
 
 impl Wire {
@@ -166,7 +176,7 @@ impl Component {
 
 #[derive(Debug, Clone)]
 pub struct RegComponent {
-    pub shape: Shape,
+    pub shape: ShapeRef,
     pub domain: Domain,
     pub init: Value,
 }
@@ -213,7 +223,7 @@ impl std::fmt::Display for Value {
 }
 
 #[derive(Debug, Clone)]
-pub struct Port(pub String, pub Direction, pub Shape, pub Domain);
+pub struct Port(pub String, pub Direction, pub ShapeRef, pub Domain);
 
 impl Port {
     pub fn name(&self) -> &str {
@@ -224,7 +234,7 @@ impl Port {
         self.1
     }
 
-    pub fn shape(&self) -> &Shape {
+    pub fn shape(&self) -> &ShapeRef {
         &self.2
     }
 
@@ -234,7 +244,7 @@ impl Port {
 }
 
 #[derive(Debug, Clone)]
-pub struct Shape(pub String, pub Vec<ShapeParam>);
+pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
 
 #[derive(Debug, Clone)]
 pub struct Domain;
@@ -248,118 +258,5 @@ impl Domain {
 #[derive(Debug, Clone)]
 pub enum ShapeParam {
     Nat(u64),
-    Shape(Arc<Shape>),
-}
-
-impl Circuit {
-    pub fn flatten_exprs(&self) -> Circuit {
-        let mut decls = vec![];
-
-        for decl in &self.decls {
-            match decl {
-                Decl::ModDef(mod_def) => {
-                    let mut flattened_mod_def: ModDef = ModDef::clone(mod_def);
-                    flattened_mod_def.flatten_exprs();
-                    decls.push(Decl::ModDef(Arc::new(flattened_mod_def)));
-                },
-                Decl::EnumDef(enum_def) => {
-                    decls.push(Decl::EnumDef(Arc::clone(enum_def)));
-                },
-            }
-        }
-        Circuit {
-            decls,
-        }
-    }
-}
-
-impl ModDef {
-    fn flatten_exprs(&mut self) {
-        let mut gensym_id = 0;
-        let mut expr_wire_indexes: Vec<usize> = vec![];
-        let mut wires_to_add: Vec<Wire> = vec![];
-        let mut components_to_add: Vec<Component> = vec![];
-
-        for (i, wire) in self.wires.iter().enumerate() {
-            if let Wire::Expr(visibility, sink, expr) = wire {
-                expr_wire_indexes.push(i);
-                let (new_components, new_wires, source) = self.flatten_expr(
-                    expr.clone(),
-                    &mut gensym_id,
-                );
-                components_to_add.extend_from_slice(&new_components);
-                wires_to_add.extend_from_slice(&new_wires);
-                wires_to_add.push(Wire::Simple(*visibility, sink.clone(), source));
-            }
-        }
-
-        for i in expr_wire_indexes.into_iter().rev() {
-            self.wires.remove(i);
-        }
-
-        self.components.extend_from_slice(&components_to_add);
-        self.wires.extend_from_slice(&wires_to_add);
-    }
-
-    fn flatten_expr(
-        &self,
-        expr: Arc<Expr>,
-        gensym_id: &mut usize,
-    ) -> (
-        Vec<Component>,
-        Vec<Wire>,
-        Terminal,
-    ) {
-        match &*expr {
-            Expr::Term(terminal) => {
-                (
-                    vec![],
-                    vec![],
-                    terminal.clone(),
-                )
-            },
-            Expr::Lit(v) => {
-                let name = format!("__gen_{gensym_id}");
-                *gensym_id += 1;
-                let gate = Component::Const(name, Visibility::Private, v.clone());
-                (
-                    vec![gate.clone()],
-                    vec![],
-                    gate.port("val"),
-                )
-            },
-            Expr::Add(op0, op1) => {
-                let (new_components0, new_wires0, op_terminal0) = self.flatten_expr(op0.clone(), gensym_id);
-                let (new_components1, new_wires1, op_terminal1) = self.flatten_expr(op1.clone(), gensym_id);
-
-                let name = format!("__gen_{gensym_id}");
-                *gensym_id += 1;
-                let gate = Component::Gate(name, Visibility::Private, GateComponent { gate_name: "Add".to_string() });
-                (
-                    vec![gate.clone()],
-                    vec![
-                        Wire::Simple(Visibility::Private, gate.port("in0"), op_terminal0),
-                        Wire::Simple(Visibility::Private, gate.port("in1"), op_terminal1),
-                    ],
-                    gate.port("out"),
-                )
-            },
-            Expr::Mul(op0, op1) => {
-                let (new_components0, new_wires0, op_terminal0) = self.flatten_expr(op0.clone(), gensym_id);
-                let (new_components1, new_wires1, op_terminal1) = self.flatten_expr(op1.clone(), gensym_id);
-
-                let name = format!("__gen_{gensym_id}");
-                *gensym_id += 1;
-                let gate = Component::Gate(name, Visibility::Private, GateComponent { gate_name: "Mul".to_string() });
-                (
-                    vec![gate.clone()],
-                    vec![
-                        Wire::Simple(Visibility::Private, gate.port("in0"), op_terminal0),
-                        Wire::Simple(Visibility::Private, gate.port("in1"), op_terminal1),
-                    ],
-                    gate.port("out"),
-                )
-            },
-        }
-    }
+    Shape(ShapeRef),
 }
