@@ -220,6 +220,17 @@ pub enum Expr {
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     As(Box<Expr>, ShapeRef),
+    Match(Box<Expr>, Vec<MatchArm>),
+}
+
+#[derive(Debug, Clone)]
+pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
+
+#[derive(Debug, Clone)]
+pub enum MatchPattern {
+    Ctor(String, Vec<Box<MatchPattern>>),
+    Var(String),
+    Otherwise,
 }
 
 impl Wire {

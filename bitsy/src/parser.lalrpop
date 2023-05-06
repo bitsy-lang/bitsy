@@ -209,8 +209,31 @@ pub Wire: Wire = {
 
 pub Expr: Box<Expr> = {
     "let" <v:Ident> <shape:(":" Shape)?> "=" <def:Expr> ";" <body:Expr> => Box::new(Expr::Let(v, def, shape.map(|x| x.1), body)),
+    "match" <subject:Expr> "{"
+        <patterns:MatchArm*>
+    "}" => Box::new(Expr::Match(subject, patterns)),
     <op0:Term> "+" <op1:Expr> => Box::new(Expr::Add(op0, op1)),
     <expr:Term> => expr,
+}
+
+pub MatchArm: MatchArm = {
+    <pattern:MatchPattern> "=>" <expr:Expr> => MatchArm(pattern, expr)
+}
+
+pub MatchPattern: Box<MatchPattern> = {
+    <ctor:Ctor> <args: MatchPatternArgs?> => Box::new(MatchPattern::Ctor(ctor, args.unwrap_or(vec![]))),
+    <v:Ident> => Box::new(MatchPattern::Var(v)),
+    "otherwise" => Box::new(MatchPattern::Otherwise),
+}
+
+pub MatchPatternArgs: Vec<Box<MatchPattern>> = {
+    "(" <first:MatchPattern> <rest:("," MatchPattern)*> ")" => {
+        let mut results = vec![first];
+        for pat in rest {
+            results.push(pat.1);
+        }
+        results
+    }
 }
 
 pub Term: Box<Expr> = {
@@ -220,6 +243,7 @@ pub Term: Box<Expr> = {
 
 pub Factor: Box<Expr> = {
     <terminal:Terminal> => Box::new(Expr::Term(terminal)),
+    <name:Ident> => Box::new(Expr::Term(Terminal("__temp".to_string(), name))),
     <value:Value> => Box::new(Expr::Lit(value)),
     "(" <expr:Expr> ")" => expr,
 }

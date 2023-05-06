@@ -23,3 +23,22 @@ pub mod Top
         io.in + 1
     }
 end
+
+enum type UartSenderState
+    @Idle
+    @Sending of Word<4>
+end
+
+pub mod UartSender
+    outgoing tx : Bit @ d
+
+    reg state of UartSenderState @ d
+
+    wire state.set <= {
+        match state {
+            @Idle => 0
+            @Sending(n) => 1
+            otherwise => 2
+        }
+    }
+end
