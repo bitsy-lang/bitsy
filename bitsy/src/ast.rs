@@ -3,11 +3,11 @@ pub type ModDefRef = String;
 pub type PortName = String;
 
 #[derive(Debug)]
-pub struct Circuit {
+pub struct Namespace {
     pub decls: Vec<Decl>,
 }
 
-impl Circuit {
+impl Namespace {
     pub fn mod_defs(&self) -> Vec<&ModDef> {
         let mut result = vec![];
         for decl in &self.decls {

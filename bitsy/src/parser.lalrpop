@@ -2,8 +2,8 @@ use crate::ast::*;
 
 grammar;
 
-pub Circuit: Circuit = {
-    <decls:Decl*> => Circuit {
+pub Namespace: Namespace = {
+    <decls:Decl*> => Namespace {
         decls,
     }
 }

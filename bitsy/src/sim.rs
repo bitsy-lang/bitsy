@@ -1,4 +1,5 @@
 #![allow(unused, dead_code)]
+/*
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -25,7 +26,7 @@ impl Domain {
 }
 
 pub struct Simulator {
-    circuit: Arc<Circuit>,
+    circuit: Arc<Package>,
     top: String,
     domains: Vec<DomainState>,
     signals: Vec<SignalState>,
@@ -94,7 +95,7 @@ struct SignalState {
 }
 
 impl Simulator {
-    pub fn new(circuit: Arc<Circuit>, top: &str) -> Simulator {
+    pub fn new(circuit: Arc<Package>, top: &str) -> Simulator {
         let mut simulator = Simulator {
             circuit: circuit.clone(),
             top: top.to_string(),
@@ -143,7 +144,6 @@ impl Simulator {
                     self.add_signals(&module.moddef_name, component_path.clone());
                 },
                 Component::Gate(_name, _visibility, gate) => {
-                    /*
                     match gate.gate_name.as_ref() {
                         "Adder" => {
                             let a_id = Signal(self.signals.len());
@@ -273,7 +273,6 @@ impl Simulator {
                         _ => panic!("Unknown gate type: {}", gate.gate_name),
 
                     }
-                    */
                 },
                 Component::Reg(_name, _visibility, reg) => {
                     let set_id = Signal(self.signals.len());
@@ -524,3 +523,4 @@ impl Simulator {
         signal_state.values[1] = value;
     }
 }
+*/

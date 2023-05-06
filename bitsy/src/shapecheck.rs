@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::{Circuit, Expr, Shape, Value};
+use crate::{Bitsy, Expr, Shape, Value};
 
 type VarName = String;
 
@@ -186,8 +186,10 @@ mod test {
         let parser = ExprParser::new();
 //        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<2> = 2; x").unwrap());
         let expr: Box<Expr> = Expr::from(&parser.parse("true").unwrap());
-        let shape = infer_shape(&ShapeContext::empty(), &*expr);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
 
-        dbg!(shape);
+        dbg!(&expr);
+        dbg!(&shape);
+        assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
     }
 }

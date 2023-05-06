@@ -1,31 +1,8 @@
 #![allow(unused, dead_code)]
 
 use std::collections::HashSet;
-
-// impl EnumDef {
-//     fn clog2(n: u64) -> u64 {
-//         let mut r = 0;
-//         while (1 << r) > n {
-//             r += 1;
-//         }
-//         r
-//     }
-// }
-//    pub fn to_shape(&self, shape_ref: &ShapeRef) -> Arc<Shape> {
-//        let ShapeRef(shape_name, params) = shape_ref;
-//        if shape_name == &"Bit" {
-//            assert_eq!(params.len(), 0, "Bit doesn't take params");
-//            return Arc::new(Shape::Bit);
-//        } else if shape_name == &"Word" {
-//            assert_eq!(params.len(), 1, "Word takes exactly 1 param");
-//            if let ShapeParam::Nat(n) = params[0] {
-//                return Arc::new(Shape::Word(n));
-//            } else {
-//                panic!("Word takes exactly 1 Nat param");
-//            }
-//        }
-//        panic!("Unknown shape: {shape_ref:?}")
-//    }
+use ast::Namespace;
+use parser::NamespaceParser;
 
 use std::sync::Arc;
 
@@ -43,30 +20,42 @@ lalrpop_mod!(pub parser);
 pub mod shapecheck;
 pub mod ast;
 pub mod depends;
-pub mod sim;
+// pub mod sim;
+// pub mod nettle;
 
 #[derive(Debug)]
-pub struct Circuit {
+pub struct Bitsy {
     modules: Vec<Arc<Module>>,
     shape_families: Vec<Arc<ShapeFamily>>,
 }
 
-impl Circuit {
-    pub fn from(circuit: ast::Circuit) -> Circuit {
+impl Bitsy {
+    pub fn new() -> Bitsy {
+        Bitsy {
+            modules: vec![],
+            shape_families: vec![],
+        }
+    }
+
+    pub fn add(&mut self, text: &str)  {
+        let parser = NamespaceParser::new();
+        let namespace = parser.parse(text).unwrap();
+        //dbg!(&namespace);
+
+        self.add_from(&namespace);
+        //dbg!(&self);
+    }
+
+    fn add_from(&mut self, namespace: &Namespace) {
         let mut decl_names = HashSet::new();
-        for decl in &circuit.decls {
+        for decl in &namespace.decls {
             assert!(!decl_names.contains(decl.name()), "Duplicate declaration: {}", decl.name());
             decl_names.insert(decl.name().clone());
         }
 
-        let mut result = Circuit {
-            shape_families: vec![],
-            modules: vec![],
-        };
-
         let mut depends = depends::Depends::<String>::new();
 
-        for shape_def in &circuit.shape_defs() {
+        for shape_def in &namespace.shape_defs() {
             depends.add(dbg!(shape_def.name().to_string()));
             for dep_shape_def in &shape_def.shape_refs() {
                 depends.add_dependency(dep_shape_def.0.to_string(), shape_def.name().to_string());
@@ -74,12 +63,12 @@ impl Circuit {
         }
 
         println!("Adding shape families");
-        result.add_builtin_shape_families();
+        self.add_builtin_shape_families();
         for shape_ref in depends.sort().expect("Cycle detected") {
             println!("    {shape_ref}");
             // if not defined, define it
-            if result.shape_family(&shape_ref).is_none() {
-                result.add_shape_family(&circuit.shape_def(&shape_ref));
+            if self.shape_family(&shape_ref).is_none() {
+                self.add_shape_family(&namespace.shape_def(&shape_ref));
             }
         }
 
@@ -87,7 +76,7 @@ impl Circuit {
 
         let mut depends = depends::Depends::<String>::new();
 
-        for mod_def in &circuit.mod_defs() {
+        for mod_def in &namespace.mod_defs() {
             depends.add(mod_def.name.clone());
             for dep_mod_def in &mod_def.depends_on() {
                 depends.add_dependency(mod_def.name.clone(), dep_mod_def.to_string());
@@ -96,10 +85,8 @@ impl Circuit {
 
         for mod_name in depends.sort().expect("Cycle detected") {
             println!("    {mod_name}");
-            result.add_module(&circuit.mod_def(&mod_name));
+            self.add_module(&namespace.mod_def(&mod_name));
         }
-
-        result
     }
 
     fn add_builtin_shape_families(&mut self) {
@@ -314,8 +301,8 @@ impl Shape {
         }
     }
 }
-impl Circuit {
-    pub fn flatten_exprs(&self) -> Circuit {
+impl Bitsy {
+    pub fn flatten_exprs(&self) -> Bitsy {
         let mut decls = vec![];
 
         for decl in &self.decls {
@@ -333,7 +320,7 @@ impl Circuit {
                 },
             }
         }
-        Circuit {
+        Bitsy {
             decls,
         }
     }
@@ -425,3 +412,29 @@ impl Terminal {
         &self.1
     }
 }
+
+// impl EnumDef {
+//     fn clog2(n: u64) -> u64 {
+//         let mut r = 0;
+//         while (1 << r) > n {
+//             r += 1;
+//         }
+//         r
+//     }
+// }
+//    pub fn to_shape(&self, shape_ref: &ShapeRef) -> Arc<Shape> {
+//        let ShapeRef(shape_name, params) = shape_ref;
+//        if shape_name == &"Bit" {
+//            assert_eq!(params.len(), 0, "Bit doesn't take params");
+//            return Arc::new(Shape::Bit);
+//        } else if shape_name == &"Word" {
+//            assert_eq!(params.len(), 1, "Word takes exactly 1 param");
+//            if let ShapeParam::Nat(n) = params[0] {
+//                return Arc::new(Shape::Word(n));
+//            } else {
+//                panic!("Word takes exactly 1 Nat param");
+//            }
+//        }
+//        panic!("Unknown shape: {shape_ref:?}")
+//    }
+
