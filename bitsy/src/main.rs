@@ -17,6 +17,7 @@ fn main() {
 
 fn init_logging() {
     simple_logger::SimpleLogger::new()
+        .with_level(log::LevelFilter::Debug)
         .init()
         .unwrap();
 }

@@ -89,10 +89,13 @@ impl Bitsy {
 
     fn add_builtin_shape_families(&mut self) {
         use ShapeParamType::{Nat, Shape};
+        let is_struct = false;
+        let is_enum = false;
+
         let builtins = [
-            ShapeFamily { name: "Tuple".to_string(), args: None },
-            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]) },
-            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]) },
+            ShapeFamily { name: "Tuple".to_string(), args: None, is_struct, is_enum },
+            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]), is_struct, is_enum },
+            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]), is_struct, is_enum },
         ];
         for builtin in builtins {
             self.shape_families.push(Arc::new(builtin));
@@ -106,9 +109,17 @@ impl Bitsy {
                 ast::ShapeDefParam::Shape(_name) => ShapeParamType::Shape,
             }
         }).collect());
+
+        let (is_enum, is_struct) = match shape_def {
+            ast::ShapeDef::EnumDef(_def) => (true, false),
+            ast::ShapeDef::StructDef(_def) => (false, true),
+        };
+
         let shape_family = ShapeFamily {
             name: shape_def.name().to_string(),
             args,
+            is_enum,
+            is_struct,
         };
         self.shape_families.push(Arc::new(shape_family));
     }
@@ -136,6 +147,15 @@ impl Bitsy {
     fn module(&self, name: &str) -> Option<Arc<Module>> {
         todo!()
     }
+
+    fn shape(&self, shape_ref: &ast::ShapeRef) -> Shape {
+        let ast::ShapeRef(shape_familly_name, args) = shape_ref;
+        if let Some(shape_family) = self.shape_family(shape_familly_name) {
+            shape_family.to_shape(args.as_slice())
+        } else {
+            panic!("Shape family not defined: {shape_familly_name}")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -147,6 +167,25 @@ pub struct Module {
 pub struct ShapeFamily {
     pub name: String,
     pub args: Option<Vec<ShapeParamType>>, // Option for variadic
+    pub is_enum: bool,
+    pub is_struct: bool,
+}
+
+impl ShapeFamily {
+    fn to_shape(&self, args: &[ast::ShapeParam]) -> Shape {
+        match self.name.as_str() {
+            "Bit" => Shape::Bit,
+            "Word" => {
+                if let ast::ShapeParam::Nat(n) = args[0] {
+                    Shape::Word(n)
+                } else {
+                    panic!("Improper args for Nat")
+                }
+            },
+            "Tuple" => todo!(), //Shape::Tuple(args),
+            _ => todo!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -384,13 +423,22 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn from(expr: &ast::Expr) -> Box<Expr> {
+    pub fn from(expr: &ast::Expr, bitsy: &Bitsy) -> Box<Expr> {
         Box::new(match expr {
             ast::Expr::Var(x) => Expr::Var(x.to_string()),
             ast::Expr::Lit(v) => Expr::Lit(Value::from(v.clone())),
-            ast::Expr::Let(x, def, def_shape, body) => Expr::Let(x.to_string(), Expr::from(def), todo!(), Expr::from(body)),
-            ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0), Expr::from(op1)),
-            ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0), Expr::from(op1)),
+            ast::Expr::Let(x, def, def_shape, body) => {
+                match def_shape {
+                    Some(def_shape0) => {
+                        Expr::Let(x.to_string(), Expr::from(def, bitsy), Some(bitsy.shape(def_shape0)), Expr::from(body, bitsy))
+                    },
+                    None => {
+                        Expr::Let(x.to_string(), Expr::from(def, bitsy), None, Expr::from(body, bitsy))
+                    },
+                }
+            }
+            ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
+            ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
             _ => panic!("No as"),
         })
     }

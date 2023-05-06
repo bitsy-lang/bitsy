@@ -175,11 +175,75 @@ mod test {
 
     #[test]
     fn shapecheck_0() {
+        let mut bitsy = Bitsy::new();
+        let text = "
+            pub mod Top
+            end
+        ";
+
+        bitsy.add(&text);
         let parser = ExprParser::new();
-//        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<2> = 2; x").unwrap());
-        let expr: Box<Expr> = Expr::from(&parser.parse("true").unwrap());
+        let expr: Box<Expr> = Expr::from(&parser.parse("true").unwrap(), &bitsy);
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
 
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
+    }
+
+    #[test]
+    fn shapecheck_1() {
+        let mut bitsy = Bitsy::new();
+        let text = "
+            pub mod Top
+            end
+        ";
+        bitsy.add(&text);
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Bit = true; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x = true; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert!(check_shape(&ShapeContext::empty(), &*expr, &Shape::Bit));
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<8> = 255; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<0> = 0; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
+    }
+
+    #[test]
+    fn shapecheck_2() {
+        // check things fail when they are the wrong shape
+
+        let mut bitsy = Bitsy::new();
+        let text = "
+            pub mod Top
+            end
+        ";
+        bitsy.add(&text);
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Bit = 0; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert_eq!(shape, None);
+        assert!(!check_shape(&ShapeContext::empty(), &*expr, &Shape::Bit));
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x = 0; x").unwrap(), &bitsy);
+        let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
+        assert_eq!(shape, None);
+
+        let parser = ExprParser::new();
+        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<8> = 256; x").unwrap(), &bitsy);
+        assert_eq!(shape, None);
+        assert!(!check_shape(&ShapeContext::empty(), &*expr, &Shape::Word(8)));
     }
 }
