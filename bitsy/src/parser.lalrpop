@@ -171,7 +171,12 @@ pub Value: Value = {
     "false" => Value::Bit(false),
     <n:r"[0-9]+"> => Value::Word(n.parse().unwrap()),
     "tuple" "(" <elts:TupleElts?>")" => Value::Tuple(elts.unwrap_or_default()),
+    "${" <field_name:Ident> "=" <v:Value> "}" => {
+        Value::Struct(vec![(field_name, Box::new(v))])
+    },
 }
+
+//pub FieldValues: Vec<(FieldName, Box<Expr...
 
 pub TupleElts: Vec<Box<Value>> = {
     <v0:Value> <v_rest:("," <Value>)*> => {

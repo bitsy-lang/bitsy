@@ -285,6 +285,7 @@ pub enum Value {
     Bit(bool),
     Word(u64),
     Tuple(Vec<Box<Value>>),
+    Struct(Vec<(FieldName, Box<Value>)>),
 }
 
 impl std::fmt::Display for Value {
@@ -303,6 +304,16 @@ impl std::fmt::Display for Value {
                     }
                 }
                 write!(f, "tuple)")?;
+            },
+            Value::Struct(field_vals) => {
+                write!(f, "${{")?;
+                for (i, (field_name, val)) in field_vals.iter().enumerate() {
+                    write!(f, "{field_name} = {val}")?;
+                    if i + 1 < field_vals.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "}}")?;
             },
         }
         Ok(())

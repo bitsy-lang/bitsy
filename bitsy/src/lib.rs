@@ -447,6 +447,7 @@ pub enum Value {
     Bit(bool),
     Word(u64),
     Tuple(Vec<Box<Value>>),
+    Struct(Vec<(FieldName, Box<Value>)>),
 }
 
 impl Value {
@@ -461,6 +462,15 @@ impl Value {
                 }
 
                 Value::Tuple(new_vs)
+            },
+            ast::Value::Struct(fs) => {
+                let fields: Vec<(FieldName, Box<Value>)> = fs
+                    .iter()
+                    .map(|(field_name, val)| {
+                        (field_name.to_string(), Box::new(Value::from(*val.clone())))
+                    })
+                    .collect();
+                Value::Struct(fields)
             },
             _ => panic!("Uh oh"),
         }
@@ -483,6 +493,16 @@ impl std::fmt::Display for Value {
                     }
                 }
                 write!(f, "tuple)")?;
+            },
+            Value::Struct(field_vals) => {
+                write!(f, "${{")?;
+                for (i, (field_name, val)) in field_vals.iter().enumerate() {
+                    write!(f, "{field_name} = {val}")?;
+                    if i + 1 < field_vals.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "}}")?;
             },
         }
         Ok(())

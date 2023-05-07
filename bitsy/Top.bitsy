@@ -9,11 +9,6 @@ enum type State<n: Nat>
     @Running of Tuple<Word<8>, Foo>
 end
 
-struct type Foo
-    field bar : Word<4>
-    field baz : Word<3>
-end
-
 pub mod Top
     incoming in  : Word<8> @ d
     outgoing out : Word<8> @ d
@@ -48,4 +43,17 @@ mod Incrementer
   outgoing out : Word<10> @ d
 
   wire io.out <= { io.in0 + io.in1 + 1}
+end
+
+struct type Foo
+    field bar : Word<4>
+end
+
+mod Structs
+    outgoing out : Foo @ d
+
+    wire io.out <= {
+        ${ bar = 15 }
+    }
+
 end

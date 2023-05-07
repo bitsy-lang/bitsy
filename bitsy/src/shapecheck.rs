@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::{Bitsy, Expr, Shape, Value};
+use crate::{Bitsy, Expr, Shape, Value, StructField};
 
 type VarName = String;
 
@@ -63,7 +63,6 @@ pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
 }
 
 pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
-
     let result = match expr {
         Expr::Var(x) => {
             if let Some(shape0) = context.lookup(&x) {
@@ -166,6 +165,17 @@ fn check_shape_lit(value: &Value, shape: &Shape) -> bool {
                 true
             }
         }
+        (Value::Struct(fs), Shape::Struct(struct_shape_family)) => {
+            for ((field_name, field_val), StructField(shape_field_name, shape_field_shape)) in fs.iter().zip(struct_shape_family.fields.clone()) {
+                if field_name != &shape_field_name {
+                    return false;
+                } else if !check_shape_lit(field_val, &shape_field_shape) {
+                    return false;
+                }
+
+            }
+            true
+        },
         _ => false,
     }
 }
