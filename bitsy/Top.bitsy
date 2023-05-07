@@ -15,8 +15,8 @@ struct type Foo
 end
 
 pub mod Top
-    incoming in  : Word<8>@d
-    outgoing out : Word<8>@d
+    incoming in  : Word<8> @ d
+    outgoing out : Word<8> @ d
 
     pub wire io.out <= {
         let x : Word<3> = io.in;
@@ -43,4 +43,12 @@ pub mod UartSender
             otherwise => 2
         }
     }
+end
+
+mod Bar
+  outgoing out : Tuple<Bit, Bit> @ d
+
+  wire io.out <= {
+      tuple(true, false)
+  }
 end
