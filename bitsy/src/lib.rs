@@ -85,7 +85,6 @@ impl Bitsy {
 
         info!("Adding modules");
         for mod_name in depends.sort().expect("Cycle detected") {
-            info!("    {mod_name}");
             self.add_module(&namespace.mod_def(&mod_name));
         }
     }
@@ -128,20 +127,40 @@ impl Bitsy {
     }
 
     fn add_module(&mut self, mod_def: &ast::ModDef) {
- //    pub name: String,
- //    pub visibility: Visibility,
- //    pub ports: Vec<Port>,
- //    pub components: Vec<Component>,
- //    pub wires: Vec<Wire>,
- //
+        info!("add_module: {}", &mod_def.name);
+
         let mut ports = vec![];
+        info!("    Ports:");
         for ast::Port(name, direction, shape_ref, domain_ref) in &mod_def.ports {
-            ports.push(Port(name.to_string(), Arc::new(self.shape(shape_ref))));
+            ports.push(Port(name.to_string(), *direction, Arc::new(self.shape(shape_ref))));
+            info!("        port: {}", name);
+        }
+
+        let mut terminals: Vec<Terminal> = vec![];
+
+        info!("    Terminals:");
+        for port in &ports {
+            let polarity = match port.direction() {
+                Direction::Incoming => Polarity::Source,
+                Direction::Outgoing => Polarity::Sink,
+            };
+            info!("        terminal: io.{} : {}{}", port.name(), polarity, port.shape());
+
+            let terminal = Terminal(
+                "io".to_string(),
+                port.name().to_string(),
+                polarity,
+                port.shape(),
+            );
+
+            terminals.push(terminal);
         }
 
         let module = Module {
             ports,
+            terminals,
         };
+        assert!(module.shapecheck());
         self.modules.push(Arc::new(module));
     }
 
@@ -172,9 +191,21 @@ impl Bitsy {
     }
 }
 
+
+#[derive(Debug)]
+pub struct Terminal(ComponentName, PortName, Polarity, Arc<Shape>);
+
 #[derive(Debug)]
 pub struct Module {
     pub ports: Vec<Port>,
+    pub terminals: Vec<Terminal>,
+}
+
+impl Module {
+    fn shapecheck(&self) -> bool {
+        // todo!()
+        true
+    }
 }
 
 #[derive(Debug)]
@@ -219,12 +250,56 @@ pub enum ShapeParamType {
     Shape,
 }
 
+impl std::fmt::Display for Shape {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Shape::Bit => write!(f, "Bit"),
+            Shape::Word(n) => write!(f, "Word<{n}>"),
+            Shape::Tuple(shapes) => {
+                write!(f, "Tuple<")?;
+                for (i, shape) in shapes.iter().enumerate() {
+                    write!(f, "{shape}")?;
+                    if i + 1 < shapes.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ">")?;
+                Ok(())
+            },
+            Shape::Enum(enum_shape) => {
+                // missing parameters
+                write!(f, "{}", enum_shape.name)?;
+                Ok(())
+            }
+            Shape::Struct(struct_shape) => {
+                // missing parameters
+                write!(f, "{}", struct_shape.name)?;
+                Ok(())
+            }
+        }
+    }
+}
+
 
 pub type PortName = String;
 pub type FieldName = String;
 
 #[derive(Debug)]
-pub struct Port(PortName, Arc<Shape>);
+pub struct Port(PortName, Direction, Arc<Shape>);
+
+impl Port {
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.1
+    }
+
+    pub fn shape(&self) -> Arc<Shape> {
+        self.2.clone()
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Shape {

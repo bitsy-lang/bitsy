@@ -13,6 +13,7 @@ fn main() {
 
     let mut bitsy = Bitsy::new();
     bitsy.add(&text);
+    //dbg!(&bitsy);
 }
 
 fn init_logging() {
