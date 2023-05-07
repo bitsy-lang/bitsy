@@ -58,6 +58,8 @@ pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
         },
         Expr::Add(op0, op1) => None,
         Expr::Mul(op0, op1) => None,
+        // Expr::Match // todo!()
+        _ => None,
     };
     result
 }
@@ -124,7 +126,41 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
                 },
                 _ => false,
             }
-        }
+        },
+        Expr::Match(op0, op1) => todo!(),
+        Expr::Tuple(es) => {
+            if let Shape::Tuple(ss) = shape {
+                if ss.len() != es.len() {
+                    return false;
+                }
+
+                for (e, s) in es.iter().zip(ss) {
+                    if !check_shape(context, e, s) {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        },
+        Expr::Struct(fs) => {
+            if let Shape::Struct(struct_shape_family) = shape {
+                let struct_fields = &struct_shape_family.fields;
+                if fs.len() != struct_fields.len() {
+                    return false;
+                }
+
+                for ((field_name0, e), StructField(field_name1, s)) in fs.iter().zip(struct_fields) {
+                    if field_name0 != field_name1 || !check_shape(context, e, s) {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        },
     };
     result
 }

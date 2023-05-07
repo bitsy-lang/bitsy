@@ -141,8 +141,6 @@ impl StructDef {
     }
 }
 
-pub type FieldName = String;
-
 #[derive(Debug, Clone)]
 pub struct StructField(pub FieldName, pub ShapeRef);
 
@@ -208,18 +206,12 @@ pub enum Expr {
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
     Match(Box<Expr>, Vec<MatchArm>),
+    Tuple(Vec<Box<Expr>>),
+    Struct(Vec<(FieldName, Box<Expr>)>),
 }
 
 #[derive(Debug, Clone)]
 pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
-
-#[derive(Debug, Clone)]
-pub enum MatchPattern {
-    Ctor(String, Vec<Box<MatchPattern>>),
-    Var(String),
-    Lit(Value),
-    Otherwise,
-}
 
 impl Wire {
     pub fn visibility(&self) -> Visibility {
@@ -276,48 +268,6 @@ pub struct ModComponent {
 #[derive(Debug, Clone)]
 pub struct GateComponent {
     pub gate_ref: GateRef,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Value {
-    Unknown,
-    Unobservable,
-    Bit(bool),
-    Word(u64),
-    Tuple(Vec<Box<Value>>),
-    Struct(Vec<(FieldName, Box<Value>)>),
-}
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            Value::Unknown => write!(f, "?")?,
-            Value::Unobservable => write!(f, "X")?,
-            Value::Bit(b) => write!(f,"{b}")?,
-            Value::Word(n) => write!(f, "{n}")?,
-            Value::Tuple(elts) => {
-                write!(f, "tuple(")?;
-                for (i, elt) in elts.iter().enumerate() {
-                    write!(f, "{elt}")?;
-                    if i + 1 < elts.len() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "tuple)")?;
-            },
-            Value::Struct(field_vals) => {
-                write!(f, "${{")?;
-                for (i, (field_name, val)) in field_vals.iter().enumerate() {
-                    write!(f, "{field_name} = {val}")?;
-                    if i + 1 < field_vals.len() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "}}")?;
-            },
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug, Clone)]

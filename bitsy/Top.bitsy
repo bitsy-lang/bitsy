@@ -47,13 +47,18 @@ end
 
 struct type Foo
     field bar : Word<4>
+    field baz : Bit
 end
 
 mod Structs
+    incoming in  : Word<4> @ d
     outgoing out : Foo @ d
 
     wire io.out <= {
-        ${ bar = 15 }
+        ${
+            bar = 15,
+            baz = true
+        }
     }
 
 end

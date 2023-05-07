@@ -1,5 +1,6 @@
 pub type ComponentName = String;
 pub type PortName = String;
+pub type FieldName = String;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Polarity {
@@ -77,5 +78,55 @@ impl TerminalRef {
 
     pub fn port(&self) -> &PortName {
         &self.1
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum MatchPattern {
+    Ctor(String, Vec<Box<MatchPattern>>),
+    Var(String),
+    Lit(Value),
+    Otherwise,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum Value {
+    Unknown,
+    Unobservable,
+    Bit(bool),
+    Word(u64),
+    Tuple(Vec<Box<Value>>),
+    Struct(Vec<(FieldName, Box<Value>)>),
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            Value::Unknown => write!(f, "?")?,
+            Value::Unobservable => write!(f, "X")?,
+            Value::Bit(b) => write!(f,"{b}")?,
+            Value::Word(n) => write!(f, "{n}")?,
+            Value::Tuple(elts) => {
+                write!(f, "tuple(")?;
+                for (i, elt) in elts.iter().enumerate() {
+                    write!(f, "{elt}")?;
+                    if i + 1 < elts.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "tuple)")?;
+            },
+            Value::Struct(field_vals) => {
+                write!(f, "${{")?;
+                for (i, (field_name, val)) in field_vals.iter().enumerate() {
+                    write!(f, "{field_name} = {val}")?;
+                    if i + 1 < field_vals.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "}}")?;
+            },
+        }
+        Ok(())
     }
 }

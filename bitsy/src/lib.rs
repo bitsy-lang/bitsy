@@ -376,10 +376,6 @@ impl std::fmt::Display for Shape {
     }
 }
 
-
-pub type PortName = String;
-pub type FieldName = String;
-
 #[derive(Debug)]
 pub struct Port(PortName, Direction, Arc<Shape>);
 
@@ -440,75 +436,6 @@ impl Shape {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Value {
-    Unknown,
-    Unobservable,
-    Bit(bool),
-    Word(u64),
-    Tuple(Vec<Box<Value>>),
-    Struct(Vec<(FieldName, Box<Value>)>),
-}
-
-impl Value {
-    pub fn from(value: ast::Value) -> Value {
-        match value {
-            ast::Value::Bit(b) => Value::Bit(b),
-            ast::Value::Word(n) => Value::Word(n),
-            ast::Value::Tuple(vs) => {
-                let mut new_vs = vec![];
-                for v in vs {
-                    new_vs.push(Box::new(Value::from(*v.clone())));
-                }
-
-                Value::Tuple(new_vs)
-            },
-            ast::Value::Struct(fs) => {
-                let fields: Vec<(FieldName, Box<Value>)> = fs
-                    .iter()
-                    .map(|(field_name, val)| {
-                        (field_name.to_string(), Box::new(Value::from(*val.clone())))
-                    })
-                    .collect();
-                Value::Struct(fields)
-            },
-            _ => panic!("Uh oh"),
-        }
-    }
-}
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self {
-            Value::Unknown => write!(f, "?")?,
-            Value::Unobservable => write!(f, "X")?,
-            Value::Bit(b) => write!(f,"{b}")?,
-            Value::Word(n) => write!(f, "{n}")?,
-            Value::Tuple(elts) => {
-                write!(f, "tuple(")?;
-                for (i, elt) in elts.iter().enumerate() {
-                    write!(f, "{elt}")?;
-                    if i + 1 < elts.len() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "tuple)")?;
-            },
-            Value::Struct(field_vals) => {
-                write!(f, "${{")?;
-                for (i, (field_name, val)) in field_vals.iter().enumerate() {
-                    write!(f, "{field_name} = {val}")?;
-                    if i + 1 < field_vals.len() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "}}")?;
-            },
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum Expr {
     Var(String),
@@ -516,6 +443,9 @@ pub enum Expr {
     Let(String, Box<Expr>, Option<Shape>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
     Mul(Box<Expr>, Box<Expr>),
+    Match(Box<Expr>, Vec<MatchArm>),
+    Tuple(Vec<Box<Expr>>),
+    Struct(Vec<(FieldName, Box<Expr>)>),
 }
 
 impl Expr {
@@ -535,10 +465,23 @@ impl Expr {
             }
             ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
             ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
-            _ => panic!("No as"),
+            ast::Expr::Tuple(es) => Expr::Tuple(es.iter().map(|e| Expr::from(e, bitsy)).collect()),
+            ast::Expr::Struct(fs) => {
+                Expr::Struct(fs.iter().map(|(field_name, e)| {
+                    (field_name.clone(), Expr::from(e, bitsy))
+                }).collect())
+            },
+            ast::Expr::Match(e, arms) => {
+                Expr::Match(Expr::from(e, &bitsy), arms.iter().map(|ast::MatchArm(pat, e)| {
+                    MatchArm(pat.clone(), Expr::from(e, &bitsy))
+                }).collect())
+            },
         })
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
 
 #[derive(Debug, Clone)]
 pub struct Wire(pub Visibility, pub TerminalRef, pub WireSource);
