@@ -191,10 +191,14 @@ impl ModDef {
 }
 
 #[derive(Debug, Clone)]
-pub enum Wire {
-    Simple(Visibility, TerminalRef, TerminalRef),
-    Expr(Visibility, TerminalRef, Box<Expr>),
+pub struct Wire(pub Visibility, pub TerminalRef, pub WireSource);
+
+#[derive(Debug, Clone)]
+pub enum WireSource {
+    Terminal(TerminalRef),
+    Expr(Box<Expr>),
 }
+
 
 #[derive(Debug, Clone)]
 pub enum Expr {
@@ -219,17 +223,11 @@ pub enum MatchPattern {
 
 impl Wire {
     pub fn visibility(&self) -> Visibility {
-        match self {
-            Wire::Simple(visibility, _sink, _source) => *visibility,
-            Wire::Expr(visibility, _sink, _expr) => *visibility,
-        }
+        self.0
     }
 
     pub fn sink(&self) -> &TerminalRef {
-        match self {
-            Wire::Simple(_visibility, sink, _source) => sink,
-            Wire::Expr(_visibility, sink, _expr) => sink,
-        }
+        &self.1
     }
 
     /*

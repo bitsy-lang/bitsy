@@ -18,12 +18,7 @@ pub mod Top
     incoming in  : Word<8> @ d
     outgoing out : Word<8> @ d
 
-    pub wire io.out <= {
-        let x : Word<3> = io.in;
-        let t = 314;
-        let b = true;
-        io.in + 1
-    }
+    pub wire io.out <= { 255 }
 end
 
 enum type UartSenderState
@@ -36,13 +31,7 @@ pub mod UartSender
 
     reg state of UartSenderState @ d
 
-    wire state.set <= {
-        match state {
-            @Idle => 0
-            @Sending(n) => 1
-            otherwise => 2
-        }
-    }
+//    wire state.set <= { }
 end
 
 mod Bar

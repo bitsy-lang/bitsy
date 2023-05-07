@@ -157,7 +157,7 @@ fn check_shape_lit(value: &Value, shape: &Shape) -> bool {
                 return false;
             } else {
                 for (v, s) in vs.iter().zip(ss) {
-                    if !check_shape_lit(value, shape) {
+                    if !check_shape_lit(v, s) {
                         return false;
                     }
                 }

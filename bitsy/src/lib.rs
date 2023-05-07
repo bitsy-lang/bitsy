@@ -1,6 +1,6 @@
 #![allow(unused, dead_code)]
 
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use ast::Namespace;
 use parser::NamespaceParser;
 
@@ -162,7 +162,10 @@ impl Bitsy {
             info!("        port: {}", name);
         }
 
+        let mut terminals_by_ref: HashMap<TerminalRef, Terminal> = HashMap::new();
         let mut terminals: Vec<Terminal> = vec![];
+        let mut driven_terminals: Vec<TerminalRef> = vec![];
+        // let mut floating_terminals = vec![]; // todo!()
 
         info!("    Terminals:");
         for port in &ports {
@@ -179,6 +182,11 @@ impl Bitsy {
                 port.shape(),
             );
 
+            if port.direction() == Direction::Incoming {
+                driven_terminals.push(terminal.to_ref());
+            }
+
+            terminals_by_ref.insert(terminal.to_ref(), terminal.clone());
             terminals.push(terminal);
         }
 
@@ -193,10 +201,26 @@ impl Bitsy {
 
                     info!("        terminal: {}.set : -{}", name, &shape);
                     info!("        terminal: {}.val : +{}", name, &shape);
+                    terminals_by_ref.insert(set_terminal.to_ref(), set_terminal.clone());
                     terminals.push(set_terminal);
+                    terminals_by_ref.insert(val_terminal.to_ref(), val_terminal.clone());
                     terminals.push(val_terminal);
                 },
                 _ => (),
+            }
+        }
+
+        for ast::Wire(visibility, sink_terminal_ref, source) in &mod_def.wires {
+            driven_terminals.push(sink_terminal_ref.clone());
+
+            if let ast::WireSource::Expr(ast_expr) = source {
+                let expr = Expr::from(ast_expr, self);
+                let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
+                let shape = sink_terminal.shape();
+                let context = shapecheck::ShapeContext::empty();
+                if !shapecheck::check_shape(&context, &expr, &shape) {
+                    panic!("Shape check failed: {:?} is not {:?}", &expr, &shape);
+                }
             }
         }
 
@@ -204,7 +228,7 @@ impl Bitsy {
             ports,
             terminals,
         };
-        assert!(module.shapecheck());
+
         self.modules.push(Arc::new(module));
     }
 
@@ -236,8 +260,18 @@ impl Bitsy {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Terminal(ComponentName, PortName, Polarity, Arc<Shape>);
+
+impl Terminal {
+    pub fn to_ref(&self) -> TerminalRef {
+        TerminalRef(self.0.clone(), self.1.clone())
+    }
+
+    pub fn shape(&self) -> Arc<Shape> {
+        self.3.clone()
+    }
+}
 
 #[derive(Debug)]
 pub struct Module {
@@ -245,12 +279,11 @@ pub struct Module {
     pub terminals: Vec<Terminal>,
 }
 
-impl Module {
-    fn shapecheck(&self) -> bool {
-        // todo!()
-        true
-    }
-}
+//impl Module {
+//    fn shapecheck(&self) -> bool {
+//        todo!()
+//    }
+//}
 
 #[derive(Debug)]
 pub struct ShapeFamily {
@@ -483,4 +516,13 @@ impl Expr {
             _ => panic!("No as"),
         })
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct Wire(pub Visibility, pub TerminalRef, pub WireSource);
+
+#[derive(Debug, Clone)]
+pub enum WireSource {
+    Terminal(TerminalRef),
+    Expr(Box<Expr>),
 }
