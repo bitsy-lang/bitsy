@@ -28,8 +28,8 @@ impl ShapeContext {
 }
 
 pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
-    match expr {
-        Expr::Var(x) => context.lookup(&x),
+    let result = match expr {
+        Expr::Var(x) => Some(context.lookup(&x).expect(&format!("No such variable: {x}"))),
         Expr::Lit(value) => infer_shape_lit(value),
         Expr::Let(x, def, def_shape, body) => {
             match (infer_shape(context, def), def_shape) {
@@ -58,20 +58,18 @@ pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
         },
         Expr::Add(op0, op1) => None,
         Expr::Mul(op0, op1) => None,
-    }
+    };
+    result
 }
 
 pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
-    if let Some(shape0) = infer_shape(context, expr) {
-        return &shape0 == shape;
-    }
 
-    match expr {
+    let result = match expr {
         Expr::Var(x) => {
             if let Some(shape0) = context.lookup(&x) {
                 *shape == shape0
             } else {
-                false
+                panic!("No such variable: {x}")
             }
         },
         Expr::Lit(value) => check_shape_lit(value, shape),
@@ -95,11 +93,21 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
             match shape {
                 Shape::Word(n) => {
                     if *n > 0 {
-                        check_shape(context, op0, &Shape::Word(n - 1)) &&
-                        check_shape(context, op1, &Shape::Word(n - 1))
-                    } else {
-                        false
+                        if check_shape(context, op0, &Shape::Word(*n - 1)) {
+                            for i in 0..*n {
+                                if check_shape(context, op1, &Shape::Word(i)) {
+                                    return true
+                                }
+                            }
+                        } else if check_shape(context, op1, &Shape::Word(*n - 1)) {
+                            for i in 0..*n {
+                                if check_shape(context, op0, &Shape::Word(i)) {
+                                    return true
+                                }
+                            }
+                        }
                     }
+                    false
                 },
                 _ => false,
             }
@@ -118,7 +126,8 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
                 _ => false,
             }
         }
-    }
+    };
+    result
 }
 
 fn infer_shape_lit(value: &Value) -> Option<Shape> {

@@ -43,8 +43,9 @@ mod Bar
 end
 
 mod Incrementer
-  incoming in  : Word<8> @ d
-  outgoing out : Word<16> @ d
+  incoming in0 : Word<8> @ d
+  incoming in1 : Word<8> @ d
+  outgoing out : Word<10> @ d
 
-  wire io.out <= { io.in * 255 }
+  wire io.out <= { io.in0 + io.in1 + 1}
 end
