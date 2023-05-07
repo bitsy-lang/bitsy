@@ -56,40 +56,8 @@ pub fn infer_shape(context: &ShapeContext, expr: &Expr) -> Option<Shape> {
                 (None, None) => None,
             }
         },
-        Expr::Add(op0, op1) => {
-            todo!()
-            /*
-            match (infer_shape(context, op0), infer_shape(context, op1)) {
-                (Some(shape0), Some(shape1)) => {
-                    if shape0 == shape1 {
-                        Some(shape0)
-                    } else {
-                        None
-                    }
-                },
-                (Some(shape0), None) => Some(shape0),
-                (None, Some(shape1)) => Some(shape1),
-                (None, None) => None,
-            }
-            */
-        },
-        Expr::Mul(op0, op1) => {
-            todo!()
-            /*
-            match (infer_shape(context, op0), infer_shape(context, op1)) {
-                (Some(shape0), Some(shape1)) => {
-                    if shape0 == shape1 {
-                        Some(shape0)
-                    } else {
-                        None
-                    }
-                },
-                (Some(shape0), None) => Some(shape0),
-                (None, Some(shape1)) => Some(shape1),
-                (None, None) => None,
-            }
-            */
-        },
+        Expr::Add(op0, op1) => None,
+        Expr::Mul(op0, op1) => None,
     }
 }
 
@@ -123,8 +91,33 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
                 check_shape(&new_context, body, shape)
             }
         },
-        Expr::Add(op0, op1) => todo!(),
-        Expr::Mul(op0, op1) => todo!(),
+        Expr::Add(op0, op1) => {
+            match shape {
+                Shape::Word(n) => {
+                    if *n > 0 {
+                        check_shape(context, op0, &Shape::Word(n - 1)) &&
+                        check_shape(context, op1, &Shape::Word(n - 1))
+                    } else {
+                        false
+                    }
+                },
+                _ => false,
+            }
+        },
+        Expr::Mul(op0, op1) => {
+            match shape {
+                Shape::Word(n) => {
+                    for i in 0..*n {
+                        if check_shape(context, op0, &Shape::Word(i)) &&
+                           check_shape(context, op1, &Shape::Word(n - i)) {
+                            return true;
+                        }
+                    }
+                    false
+                },
+                _ => false,
+            }
+        }
     }
 }
 

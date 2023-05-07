@@ -217,7 +217,11 @@ impl Bitsy {
                 let expr = Expr::from(ast_expr, self);
                 let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
                 let shape = sink_terminal.shape();
-                let context = shapecheck::ShapeContext::empty();
+                let mut context = shapecheck::ShapeContext::empty();
+                for terminal in &terminals {
+                    context = context.extend(terminal.name(), Shape::clone(&terminal.shape()));
+
+                }
                 if !shapecheck::check_shape(&context, &expr, &shape) {
                     panic!("Shape check failed: {:?} is not {:?}", &expr, &shape);
                 }
@@ -264,6 +268,10 @@ impl Bitsy {
 pub struct Terminal(ComponentName, PortName, Polarity, Arc<Shape>);
 
 impl Terminal {
+    pub fn name(&self) -> String {
+        format!("{}.{}", &self.0, &self.1)
+    }
+
     pub fn to_ref(&self) -> TerminalRef {
         TerminalRef(self.0.clone(), self.1.clone())
     }
@@ -278,12 +286,6 @@ pub struct Module {
     pub ports: Vec<Port>,
     pub terminals: Vec<Terminal>,
 }
-
-//impl Module {
-//    fn shapecheck(&self) -> bool {
-//        todo!()
-//    }
-//}
 
 #[derive(Debug)]
 pub struct ShapeFamily {

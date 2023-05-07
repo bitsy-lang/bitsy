@@ -41,3 +41,10 @@ mod Bar
       tuple(true, false)
   }
 end
+
+mod Incrementer
+  incoming in  : Word<8> @ d
+  outgoing out : Word<16> @ d
+
+  wire io.out <= { io.in * 255 }
+end
