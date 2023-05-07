@@ -157,8 +157,8 @@ pub struct EnumDef {
 impl EnumDef {
     pub fn shape_refs(&self) -> Vec<ShapeRef> {
         let mut results = vec![];
-        for alt in &self.alts {
-            if let Some(shape_ref) = &alt.payload_shape {
+        for EnumAlt(_ctor_name, payload_shape_ref) in &self.alts {
+            if let Some(shape_ref) = payload_shape_ref {
                 results.push(shape_ref.clone());
             }
         }
@@ -167,10 +167,7 @@ impl EnumDef {
 }
 
 #[derive(Debug, Clone)]
-pub struct EnumAlt {
-    pub ctor_name: String,
-    pub payload_shape: Option<ShapeRef>,
-}
+pub struct EnumAlt(pub String, pub Option<ShapeRef>);
 
 #[derive(Debug, Clone)]
 pub struct ModDef {

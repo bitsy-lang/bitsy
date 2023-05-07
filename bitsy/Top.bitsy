@@ -6,12 +6,12 @@ end
 
 enum type State<n: Nat>
     @Idle
-    @Running of Tuple<Word<n>, Foo>
+    @Running of Tuple<Word<8>, Foo>
 end
 
 struct type Foo
     field bar : Word<4>
-    field baz : State<3>
+    field baz : Word<3>
 end
 
 pub mod Top

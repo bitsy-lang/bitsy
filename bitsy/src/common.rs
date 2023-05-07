@@ -22,7 +22,7 @@ pub enum Direction {
     Outgoing,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility {
     Public,
     Private,

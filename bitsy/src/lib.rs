@@ -7,12 +7,6 @@ use parser::NamespaceParser;
 use std::sync::Arc;
 use log::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Visibility {
-    Public,
-    Private,
-}
-
 #[macro_use]
 extern crate lalrpop_util;
 
@@ -49,12 +43,6 @@ impl Bitsy {
     }
 
     fn add_from(&mut self, namespace: &Namespace) {
-        let mut decl_names = HashSet::new();
-        for decl in &namespace.decls {
-            assert!(!decl_names.contains(decl.name()), "Duplicate declaration: {}", decl.name());
-            decl_names.insert(decl.name().clone());
-        }
-
         let mut depends = depends::Depends::<String>::new();
 
         for shape_def in &namespace.shape_defs() {
@@ -74,6 +62,13 @@ impl Bitsy {
             }
         }
 
+        let mut decl_names = HashSet::new();
+        for decl in &namespace.decls {
+            assert!(!decl_names.contains(decl.name()), "Duplicate declaration: {}", decl.name());
+            decl_names.insert(decl.name().clone());
+        }
+
+
         let mut depends = depends::Depends::<String>::new();
 
         for mod_def in &namespace.mod_defs() {
@@ -91,13 +86,13 @@ impl Bitsy {
 
     fn add_builtin_shape_families(&mut self) {
         use ShapeParamType::{Nat, Shape};
-        let is_struct = false;
-        let is_enum = false;
+        let enum_shape = None;
+        let struct_shape = None;
 
         let builtins = [
-            ShapeFamily { name: "Tuple".to_string(), args: None, is_struct, is_enum },
-            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]), is_struct, is_enum },
-            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]), is_struct, is_enum },
+            ShapeFamily { name: "Tuple".to_string(), args: None, struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
+            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
+            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
         ];
         for builtin in builtins {
             self.shape_families.push(Arc::new(builtin));
@@ -112,18 +107,49 @@ impl Bitsy {
             }
         }).collect());
 
-        let (is_enum, is_struct) = match shape_def {
-            ast::ShapeDef::EnumDef(_def) => (true, false),
-            ast::ShapeDef::StructDef(_def) => (false, true),
+        let (enum_shape, struct_shape) = match shape_def {
+            ast::ShapeDef::EnumDef(enum_def) => (Some(self.enum_shape_family(enum_def)), None),
+            ast::ShapeDef::StructDef(struct_def) => (None, Some(self.struct_shape_family(struct_def))),
         };
 
         let shape_family = ShapeFamily {
             name: shape_def.name().to_string(),
             args,
-            is_enum,
-            is_struct,
+            enum_shape,
+            struct_shape,
         };
         self.shape_families.push(Arc::new(shape_family));
+    }
+
+    fn enum_shape_family(&self, enum_def: &ast::EnumDef) -> EnumShape {
+        let mut alts: Vec<EnumAlt> = vec![];
+
+        for ast::EnumAlt(ctor_name, payload_shape_ref) in &enum_def.alts {
+            let payload = payload_shape_ref.as_ref().map(|shape_ref| Arc::new(self.shape(shape_ref)));
+            let alt = EnumAlt {
+                ctor_name: ctor_name.to_string(),
+                payload,
+            };
+            alts.push(alt);
+        }
+
+        EnumShape {
+            name: enum_def.name.to_string(), // String,
+            alts,
+        }
+    }
+
+    fn struct_shape_family(&self, struct_def: &ast::StructDef) -> StructShape {
+        let mut fields = vec![];
+        for ast::StructField(field_name, shape_ref) in &struct_def.fields {
+            fields.push(StructField(field_name.to_string(), self.shape(&shape_ref).into()));
+        }
+
+        StructShape {
+            name: struct_def.name.to_string(),
+            visibility: struct_def.visibility,
+            fields,
+        }
     }
 
     fn add_module(&mut self, mod_def: &ast::ModDef) {
@@ -154,6 +180,24 @@ impl Bitsy {
             );
 
             terminals.push(terminal);
+        }
+
+        for component in &mod_def.components {
+            match component {
+                ast::Component::Reg(name, visibility, reg_component) => {
+                    let shape = self.shape(&reg_component.shape);
+                    //let domain = self.domain(domain);
+
+                    let set_terminal = Terminal(name.to_string(), "set".to_string(), Polarity::Sink, shape.clone().into());
+                    let val_terminal = Terminal(name.to_string(), "val".to_string(), Polarity::Source, shape.clone().into());
+
+                    info!("        terminal: {}.set : -{}", name, &shape);
+                    info!("        terminal: {}.val : +{}", name, &shape);
+                    terminals.push(set_terminal);
+                    terminals.push(val_terminal);
+                },
+                _ => (),
+            }
         }
 
         let module = Module {
@@ -212,11 +256,19 @@ impl Module {
 pub struct ShapeFamily {
     pub name: String,
     pub args: Option<Vec<ShapeParamType>>, // Option for variadic
-    pub is_enum: bool,
-    pub is_struct: bool,
+    pub enum_shape: Option<EnumShape>, // todo!() rename this EnumShapeFamily
+    pub struct_shape: Option<StructShape>, // todo!() rename this StructShapeFamily
 }
 
 impl ShapeFamily {
+    pub fn is_enum(&self) -> bool {
+        self.enum_shape.is_some()
+    }
+
+    pub fn is_struct(&self) -> bool {
+        self.struct_shape.is_some()
+    }
+
     fn to_shape(&self, bitsy: &Bitsy, args: &[ShapeParam]) -> Shape {
         match self.name.as_str() {
             "Bit" => Shape::Bit,
@@ -239,7 +291,16 @@ impl ShapeFamily {
                 }
                 Shape::Tuple(params)
             },
-            _ => todo!(),
+            _ => {
+                let shape_family = bitsy.shape_family(&self.name).expect("Shape Family not found");
+                if let Some(enum_shape_family) = &shape_family.enum_shape {
+                    Shape::Enum(Arc::new(enum_shape_family.clone()))
+                } else if let Some(struct_shape_family) = &shape_family.struct_shape {
+                    Shape::Struct(Arc::new(struct_shape_family.clone()))
+                } else {
+                    panic!("Expected shape family to either be an enum or struct")
+                }
+            },
         }
     }
 }
@@ -319,7 +380,6 @@ pub struct EnumShape {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumAlt {
     ctor_name: String,
-    visibility: Visibility,
     payload: Option<Arc<Shape>>,
 }
 

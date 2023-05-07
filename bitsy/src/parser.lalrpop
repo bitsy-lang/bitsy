@@ -86,10 +86,7 @@ pub TypeDefParam: ShapeDefParam = {
 
 pub EnumAlt: EnumAlt = {
     <ctor_name:Ctor> <payload_shape:("of" <Shape>)?> => {
-        EnumAlt {
-            ctor_name,
-            payload_shape,
-        }
+        EnumAlt(ctor_name, payload_shape)
     }
 }
 
