@@ -258,7 +258,7 @@ pub Factor: Box<Expr> = {
 }
 
 pub StructFields: Vec<(FieldName, Box<Expr>)> = {
-    <field0:(Ident "=" Expr)> <field_rest:("," Ident "=" Expr)*> => {
+    <field0:(Ident "=" Expr )> <field_rest:("," Ident "=" Expr)*> ","? => {
         let mut results = vec![(field0.0.to_string(), field0.2).clone()];
         for field in &field_rest {
             results.push((field.1.to_string(), field.3.clone()));
