@@ -4,6 +4,11 @@ enum type Valid<S : Shape>
     @Valid of Bit
 end
 
+enum type ValidBit
+    @Invalid
+    @Valid of Bit
+end
+
 enum type State
     @Idle
     @Running of Tuple<Word<8>, Foo>
@@ -59,13 +64,14 @@ struct type Foo
 end
 
 mod Structs
-    incoming in  : Word<4> @ d
-    outgoing out : Foo @ d
+    incoming in  : ValidBit @ d
+    incoming in1 : Word<8> @ d
+    outgoing out : Bit @ d
 
     wire io.out <= {
-        ${
-            baz = true,
-            bar = 14,
+        match io.in {
+            @Invalid => false;
+            @Valid(bit) => bit;
         }
     }
 

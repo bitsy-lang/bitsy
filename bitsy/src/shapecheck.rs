@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::{Bitsy, Expr, Shape, Value, StructField, EnumAlt};
+use crate::{Bitsy, Expr, Shape, Value, StructField, EnumAlt, MatchArm, MatchPattern};
 
 type VarName = String;
 
@@ -127,7 +127,75 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
                 _ => false,
             }
         },
-        Expr::Match(op0, op1) => todo!(),
+        Expr::Match(subject, arms) => {
+            if let Some(subject_shape) = &infer_shape(context, subject) {
+                let enum_shape_family = if let Shape::Enum(enum_shape_family) = subject_shape {
+                    Some(enum_shape_family)
+                } else {
+                    None
+                };
+
+                for MatchArm(pat, expr0) in arms {
+                    let mut new_context = context.clone();
+                    match &**pat {
+                        MatchPattern::Ctor(ctor_name, pats) => {
+                            if let Some(enum_shape_family) = enum_shape_family {
+                                if let Some(alt) = enum_shape_family.alt_by_ctor(ctor_name) {
+                                    let new_context: ShapeContext = match &alt.payload {
+                                        Some(payload_shape) => {
+                                            if pats.len() == 0 {
+                                                context.clone()
+                                            } else {
+                                                if pats.len() != 1 {
+                                                    return false;
+                                                }
+                                                if let MatchPattern::Var(x0) = &*pats[0] {
+                                                    context.extend(x0.to_string(), Shape::clone(payload_shape))
+                                                } else {
+                                                    return false;
+                                                    unreachable!()
+                                                }
+                                            }
+                                        },
+                                        None => context.clone(),
+                                    };
+
+                                    if !check_shape(&new_context, expr0, shape) {
+                                        return false;
+                                    }
+                                } else {
+                                    return false;
+                                }
+                            } else {
+                                return false;
+                            }
+                        },
+                        MatchPattern::Var(x) => {
+                            let new_context = context.extend(x.to_string(), subject_shape.clone());
+                            if !check_shape(&new_context, expr0, shape) {
+                                return false;
+                            }
+                        },
+                        MatchPattern::Lit(v) => {
+                            if !check_shape(context, &Expr::Lit(v.clone()), subject_shape) {
+                                return false;
+                            }
+                            if !check_shape(context, expr0, shape) {
+                                return false;
+                            }
+                        },
+                        MatchPattern::Otherwise => {
+                            if !check_shape(context, expr0, shape) {
+                                return false;
+                            }
+                        },
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        },
         Expr::Tuple(es) => {
             if let Shape::Tuple(ss) = shape {
                 if ss.len() != es.len() {

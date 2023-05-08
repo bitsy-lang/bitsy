@@ -215,7 +215,7 @@ pub Expr: Box<Expr> = {
 }
 
 pub MatchArm: MatchArm = {
-    <pattern:MatchPattern> "=>" <expr:Expr> => MatchArm(pattern, expr)
+    <pattern:MatchPattern> "=>" <expr:Expr> ";" => MatchArm(pattern, expr)
 }
 
 pub MatchPattern: Box<MatchPattern> = {
