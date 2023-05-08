@@ -27,7 +27,8 @@ pub ModDef: ModDef = {
         <components: Component*>
         <wires: Wire*>
     "end"
-    =>
+    => {
+        let ports = ports.iter().flatten().cloned().collect();
         ModDef {
             name,
             visibility,
@@ -35,6 +36,7 @@ pub ModDef: ModDef = {
             components,
             wires,
         }
+    },
 }
 
 pub StructDef: StructDef = {
@@ -90,7 +92,11 @@ pub EnumAlt: EnumAlt = {
     }
 }
 
-pub Port: Port = {
+pub Port: Vec<Port> = {
+    "port" <port_name:Ident> <pins:Pin*> => pins
+}
+
+pub Pin: Port = {
     <direction:Direction> <name:Ident> ":" <shape:Shape> "@" <domain:Domain>
     => Port(name, direction, shape, domain)
 }

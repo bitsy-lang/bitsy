@@ -15,8 +15,9 @@ enum shape State
 end
 
 pub mod Top
-    incoming in  : Word<8> @ d
-    outgoing out : Word<8> @ d
+    port io
+        incoming in  : Word<8> @ d
+        outgoing out : Word<8> @ d
 
     pub reg state of State @ d
 
@@ -33,7 +34,8 @@ enum shape UartSenderState
 end
 
 pub mod UartSender
-    outgoing tx : Bit @ d
+    port io
+        outgoing tx : Bit @ d
 
     reg state of UartSenderState @ d
 
@@ -43,17 +45,19 @@ pub mod UartSender
 end
 
 mod Bar
-  outgoing out : Tuple<Bit, Bit> @ d
+    port io
+        outgoing out : Tuple<Bit, Bit> @ d
 
-  wire io.out <= {
-      tuple(true, false)
-  }
+    wire io.out <= {
+        tuple(true, false)
+    }
 end
 
 mod Incrementer
-  incoming in0 : Word<8> @ d
-  incoming in1 : Word<8> @ d
-  outgoing out : Word<10> @ d
+  port io
+      incoming in0 : Word<8> @ d
+      incoming in1 : Word<8> @ d
+      outgoing out : Word<10> @ d
 
   wire io.out <= { io.in0 + io.in1 + 1}
 end
@@ -64,9 +68,10 @@ struct shape Foo
 end
 
 mod Structs
-    incoming in  : ValidBit @ d
-    incoming in1 : Word<8> @ d
-    outgoing out : Bit @ d
+    port io
+        incoming in  : ValidBit @ d
+        incoming in1 : Word<8> @ d
+        outgoing out : Bit @ d
 
     wire io.out <= {
         match io.in {
