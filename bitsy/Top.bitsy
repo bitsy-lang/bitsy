@@ -56,8 +56,8 @@ mod Structs
 
     wire io.out <= {
         ${
-            bar = 14,
             baz = true,
+            bar = 14,
         }
     }
 

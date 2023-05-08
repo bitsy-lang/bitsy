@@ -146,12 +146,16 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
         },
         Expr::Struct(fs) => {
             if let Shape::Struct(struct_shape_family) = shape {
-                let struct_fields = &struct_shape_family.fields;
-                if fs.len() != struct_fields.len() {
+                if fs.len() != struct_shape_family.fields.len() {
                     return false;
                 }
+                let mut fs_sorted = fs.clone();
+                fs_sorted.sort_by_key(|(field_name, _val)| field_name.clone());
+                let mut struct_fields_sorted = struct_shape_family.fields.clone();
+                struct_fields_sorted.sort_by_key(|StructField(field_name, _shape)| field_name.clone());
 
-                for ((field_name0, e), StructField(field_name1, s)) in fs.iter().zip(struct_fields) {
+
+                for ((field_name0, e), StructField(field_name1, s)) in fs_sorted.iter().zip(&struct_fields_sorted) {
                     if field_name0 != field_name1 || !check_shape(context, e, s) {
                         return false;
                     }
