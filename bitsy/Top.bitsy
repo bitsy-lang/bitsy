@@ -4,7 +4,7 @@ enum type Valid<S : Shape>
     @Valid of Bit
 end
 
-enum type State<n: Nat>
+enum type State
     @Idle
     @Running of Tuple<Word<8>, Foo>
 end
@@ -12,6 +12,12 @@ end
 pub mod Top
     incoming in  : Word<8> @ d
     outgoing out : Word<8> @ d
+
+    pub reg state of State @ d
+
+    pub wire state.set <= {
+        @Running(tuple(15, ${ bar = 0, baz = false }))
+    }
 
     pub wire io.out <= { 255 }
 end
@@ -26,7 +32,9 @@ pub mod UartSender
 
     reg state of UartSenderState @ d
 
-//    wire state.set <= { }
+    wire state.set <= {
+        @Sending(15)
+    }
 end
 
 mod Bar

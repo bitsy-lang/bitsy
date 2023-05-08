@@ -254,6 +254,7 @@ pub Factor: Box<Expr> = {
     "${" <struct_fields:StructFields> "}" => {
         Box::new(Expr::Struct(struct_fields))
     },
+    "@" <ctor_name:Ident> <payload:( "(" Expr ")")?>  => Box::new(Expr::Enum(ctor_name, payload.map(|p| p.1))),
     "tuple" "(" <elts:TupleElts?>")" => Box::new(Expr::Tuple(elts.unwrap_or_default())),
 }
 

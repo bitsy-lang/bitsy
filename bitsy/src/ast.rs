@@ -208,6 +208,7 @@ pub enum Expr {
     Match(Box<Expr>, Vec<MatchArm>),
     Tuple(Vec<Box<Expr>>),
     Struct(Vec<(FieldName, Box<Expr>)>),
+    Enum(CtorName, Option<Box<Expr>>),
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use crate::{Bitsy, Expr, Shape, Value, StructField};
+use crate::{Bitsy, Expr, Shape, Value, StructField, EnumAlt};
 
 type VarName = String;
 
@@ -161,6 +161,21 @@ pub fn check_shape(context: &ShapeContext, expr: &Expr, shape: &Shape) -> bool {
                     }
                 }
                 true
+            } else {
+                false
+            }
+        },
+        Expr::Enum(ctor_name, payload) => {
+            if let Shape::Enum(enum_shape_family) = shape {
+                if let Some(alt) = enum_shape_family.alt_by_ctor(ctor_name) {
+                    match (payload, &alt.payload) {
+                        (None, None) => true,
+                        (Some(payload_val), Some(payload_shape)) => check_shape(context, payload_val, payload_shape),
+                        _ => false
+                    }
+                } else {
+                    false
+                }
             } else {
                 false
             }

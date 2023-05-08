@@ -1,6 +1,7 @@
 pub type ComponentName = String;
 pub type PortName = String;
 pub type FieldName = String;
+pub type CtorName = String;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Polarity {

@@ -284,6 +284,7 @@ impl Bitsy {
                     (field_name.clone(), self.expr(e))
                 }).collect())
             },
+            ast::Expr::Enum(ctor_name, payload) => Expr::Enum(ctor_name.to_string(), payload.as_ref().map(|e| self.expr(e))),
             ast::Expr::Match(e, arms) => {
                 Expr::Match(self.expr(e), arms.iter().map(|ast::MatchArm(pat, e)| {
                     MatchArm(pat.clone(), self.expr(e))
@@ -440,6 +441,17 @@ pub struct EnumShape {
     alts: Vec<EnumAlt>,
 }
 
+impl EnumShape {
+    fn alt_by_ctor(&self, ctor_name: &str) -> Option<&EnumAlt> {
+        for alt in &self.alts {
+            if alt.ctor_name == ctor_name {
+                return Some(alt)
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnumAlt {
     ctor_name: String,
@@ -478,6 +490,7 @@ pub enum Expr {
     Match(Box<Expr>, Vec<MatchArm>),
     Tuple(Vec<Box<Expr>>),
     Struct(Vec<(FieldName, Box<Expr>)>),
+    Enum(CtorName, Option<Box<Expr>>),
 }
 
 #[derive(Debug, Clone)]
