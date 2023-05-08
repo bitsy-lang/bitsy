@@ -171,7 +171,7 @@ pub struct EnumAlt(pub String, pub Option<ShapeRef>);
 pub struct ModDef {
     pub name: String,
     pub visibility: Visibility,
-    pub ports: Vec<Port>,
+    pub ports: Vec<Pin>,
     pub components: Vec<Component>,
     pub wires: Vec<Wire>,
 }
@@ -272,9 +272,9 @@ pub struct GateComponent {
 }
 
 #[derive(Debug, Clone)]
-pub struct Port(pub String, pub Direction, pub ShapeRef, pub DomainRef);
+pub struct Pin(pub String, pub Direction, pub ShapeRef, pub DomainRef);
 
-impl Port {
+impl Pin {
     pub fn name(&self) -> &str {
         &self.0
     }

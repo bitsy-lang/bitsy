@@ -92,13 +92,13 @@ pub EnumAlt: EnumAlt = {
     }
 }
 
-pub Port: Vec<Port> = {
+pub Port: Vec<Pin> = {
     "port" <port_name:Ident> <pins:Pin*> => pins
 }
 
-pub Pin: Port = {
+pub Pin: Pin = {
     <direction:Direction> <name:Ident> ":" <shape:Shape> "@" <domain:Domain>
-    => Port(name, direction, shape, domain)
+    => Pin(name, direction, shape, domain)
 }
 
 pub Direction: Direction = {

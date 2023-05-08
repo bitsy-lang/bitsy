@@ -157,7 +157,7 @@ impl Bitsy {
 
         let mut ports = vec![];
         info!("    Ports:");
-        for ast::Port(name, direction, shape_ref, domain_ref) in &mod_def.ports {
+        for ast::Pin(name, direction, shape_ref, domain_ref) in &mod_def.ports {
             ports.push(Port(name.to_string(), *direction, Arc::new(self.shape(shape_ref))));
             info!("        port: {}", name);
         }
