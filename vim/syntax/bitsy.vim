@@ -7,7 +7,7 @@ endif
 syn match lineComment "//.*"
 hi link lineComment Comment
 
-syn keyword bitsyKeyword mod enum type struct pub end of match if else wire reg incoming outgoing gate field let
+syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port
 hi link bitsyKeyword Keyword
 syn keyword bitsyConstant true false X io
 hi link bitsyConstant Number

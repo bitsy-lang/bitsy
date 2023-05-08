@@ -1,15 +1,15 @@
 // Valid<S> is used when a signal may or may not be valid.
-enum type Valid<S : Shape>
+enum shape Valid<S : Shape>
     @Invalid
     @Valid of Bit
 end
 
-enum type ValidBit
+enum shape ValidBit
     @Invalid
     @Valid of Bit
 end
 
-enum type State
+enum shape State
     @Idle
     @Running of Tuple<Word<8>, Foo>
 end
@@ -27,7 +27,7 @@ pub mod Top
     pub wire io.out <= { 255 }
 end
 
-enum type UartSenderState
+enum shape UartSenderState
     @Idle
     @Sending of Word<4>
 end
@@ -58,7 +58,7 @@ mod Incrementer
   wire io.out <= { io.in0 + io.in1 + 1}
 end
 
-struct type Foo
+struct shape Foo
     field bar : Word<4>
     field baz : Bit
 end

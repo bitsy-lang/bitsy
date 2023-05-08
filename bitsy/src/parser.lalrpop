@@ -38,7 +38,7 @@ pub ModDef: ModDef = {
 }
 
 pub StructDef: StructDef = {
-    <visibility:Visibility> "struct" "type" <name:Ident> <params:TypeDefParams?>
+    <visibility:Visibility> "struct" "shape" <name:Ident> <params:TypeDefParams?>
         <fields:StructField*>
     "end"
     => {
@@ -56,7 +56,7 @@ pub StructField: StructField = {
 }
 
 pub EnumDef: EnumDef = {
-    <visibility:Visibility> "enum" "type" <name:Ident> <params:TypeDefParams?>
+    <visibility:Visibility> "enum" "shape" <name:Ident> <params:TypeDefParams?>
         <alts:EnumAlt*>
     "end"
     => {
