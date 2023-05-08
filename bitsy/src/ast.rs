@@ -251,7 +251,7 @@ impl Component {
 pub struct RegComponent {
     pub shape: ShapeRef,
     pub domain: DomainRef,
-    pub init: Value,
+    pub init: Option<Box<Expr>>,
 }
 
 #[derive(Debug, Clone)]

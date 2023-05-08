@@ -136,8 +136,8 @@ pub Component: Component = {
             Visibility::Public,
             RegComponent {
                 shape,
-                domain ,
-                init: init.unwrap_or(Value::Unobservable),
+                domain,
+                init,
             }
         )
     },
@@ -163,8 +163,8 @@ pub Component: Component = {
     },
 }
 
-pub RegInit: Value = {
-    "init" <value: Value> => value
+pub RegInit: Box<Expr> = {
+    "init" <expr: Expr> => expr
 }
 
 pub Nat: u64 = {

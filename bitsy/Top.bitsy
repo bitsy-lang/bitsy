@@ -20,6 +20,7 @@ pub mod Top
         outgoing out : Word<8> @ d
 
     pub reg state of State @ d
+        init @Idle
 
     pub wire state.set <= @Running(tuple(15, ${ bar = 0, baz = false }))
     pub wire io.out <= 255
