@@ -214,7 +214,7 @@ impl Bitsy {
             driven_terminals.push(sink_terminal_ref.clone());
 
             if let ast::WireSource::Expr(ast_expr) = source {
-                let expr = Expr::from(ast_expr, self);
+                let expr = self.expr(ast_expr);
                 let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
                 let shape = sink_terminal.shape();
                 let mut context = shapecheck::ShapeContext::empty();
@@ -256,9 +256,74 @@ impl Bitsy {
     fn shape(&self, shape_ref: &ShapeRef) -> Shape {
         let ShapeRef(shape_familly_name, args) = shape_ref;
         if let Some(shape_family) = self.shape_family(shape_familly_name) {
-            shape_family.to_shape(&self, args.as_slice())
+            self.shape_from_family(&shape_family, args.as_slice())
         } else {
             panic!("Shape family not defined: {shape_familly_name}")
+        }
+    }
+
+    pub fn expr(&self, expr: &ast::Expr) -> Box<Expr> {
+        Box::new(match expr {
+            ast::Expr::Var(x) => Expr::Var(x.to_string()),
+            ast::Expr::Lit(v) => Expr::Lit(Value::from(v.clone())),
+            ast::Expr::Let(x, def, def_shape, body) => {
+                match def_shape {
+                    Some(def_shape0) => {
+                        Expr::Let(x.to_string(), self.expr(def), Some(self.shape(def_shape0)), self.expr(body))
+                    },
+                    None => {
+                        Expr::Let(x.to_string(), self.expr(def), None, self.expr(body))
+                    },
+                }
+            }
+            ast::Expr::Add(op0, op1) => Expr::Add(self.expr(op0), self.expr(op1)),
+            ast::Expr::Mul(op0, op1) => Expr::Mul(self.expr(op0), self.expr(op1)),
+            ast::Expr::Tuple(es) => Expr::Tuple(es.iter().map(|e| self.expr(e)).collect()),
+            ast::Expr::Struct(fs) => {
+                Expr::Struct(fs.iter().map(|(field_name, e)| {
+                    (field_name.clone(), self.expr(e))
+                }).collect())
+            },
+            ast::Expr::Match(e, arms) => {
+                Expr::Match(self.expr(e), arms.iter().map(|ast::MatchArm(pat, e)| {
+                    MatchArm(pat.clone(), self.expr(e))
+                }).collect())
+            },
+        })
+    }
+
+    fn shape_from_family(&self, shape_family: &ShapeFamily, args: &[ShapeParam]) -> Shape {
+        match shape_family.name.as_str() {
+            "Bit" => Shape::Bit,
+            "Word" => {
+                if let ShapeParam::Nat(n) = args[0] {
+                    Shape::Word(n)
+                } else {
+                    panic!("Improper args for Nat")
+                }
+            },
+            "Tuple" => {
+                let mut params: Vec<Arc<Shape>> = vec![];
+                for arg in args {
+                    if let ShapeParam::Shape(shape_ref) = arg {
+                        let shape = self.shape(shape_ref);
+                        params.push(Arc::new(shape));
+                    } else {
+                        panic!("Improper arg: {arg:?}")
+                    }
+                }
+                Shape::Tuple(params)
+            },
+            _ => {
+                let shape_family = self.shape_family(&shape_family.name).expect("Shape Family not found");
+                if let Some(enum_shape_family) = &shape_family.enum_shape {
+                    Shape::Enum(Arc::new(enum_shape_family.clone()))
+                } else if let Some(struct_shape_family) = &shape_family.struct_shape {
+                    Shape::Struct(Arc::new(struct_shape_family.clone()))
+                } else {
+                    panic!("Expected shape family to either be an enum or struct")
+                }
+            },
         }
     }
 }
@@ -304,40 +369,7 @@ impl ShapeFamily {
         self.struct_shape.is_some()
     }
 
-    fn to_shape(&self, bitsy: &Bitsy, args: &[ShapeParam]) -> Shape {
-        match self.name.as_str() {
-            "Bit" => Shape::Bit,
-            "Word" => {
-                if let ShapeParam::Nat(n) = args[0] {
-                    Shape::Word(n)
-                } else {
-                    panic!("Improper args for Nat")
-                }
-            },
-            "Tuple" => {
-                let mut params: Vec<Arc<Shape>> = vec![];
-                for arg in args {
-                    if let ShapeParam::Shape(shape_ref) = arg {
-                        let shape = bitsy.shape(shape_ref);
-                        params.push(Arc::new(shape));
-                    } else {
-                        panic!("Improper arg: {arg:?}")
-                    }
-                }
-                Shape::Tuple(params)
-            },
-            _ => {
-                let shape_family = bitsy.shape_family(&self.name).expect("Shape Family not found");
-                if let Some(enum_shape_family) = &shape_family.enum_shape {
-                    Shape::Enum(Arc::new(enum_shape_family.clone()))
-                } else if let Some(struct_shape_family) = &shape_family.struct_shape {
-                    Shape::Struct(Arc::new(struct_shape_family.clone()))
-                } else {
-                    panic!("Expected shape family to either be an enum or struct")
-                }
-            },
-        }
-    }
+
 }
 
 #[derive(Debug)]
@@ -446,38 +478,6 @@ pub enum Expr {
     Match(Box<Expr>, Vec<MatchArm>),
     Tuple(Vec<Box<Expr>>),
     Struct(Vec<(FieldName, Box<Expr>)>),
-}
-
-impl Expr {
-    pub fn from(expr: &ast::Expr, bitsy: &Bitsy) -> Box<Expr> {
-        Box::new(match expr {
-            ast::Expr::Var(x) => Expr::Var(x.to_string()),
-            ast::Expr::Lit(v) => Expr::Lit(Value::from(v.clone())),
-            ast::Expr::Let(x, def, def_shape, body) => {
-                match def_shape {
-                    Some(def_shape0) => {
-                        Expr::Let(x.to_string(), Expr::from(def, bitsy), Some(bitsy.shape(def_shape0)), Expr::from(body, bitsy))
-                    },
-                    None => {
-                        Expr::Let(x.to_string(), Expr::from(def, bitsy), None, Expr::from(body, bitsy))
-                    },
-                }
-            }
-            ast::Expr::Add(op0, op1) => Expr::Add(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
-            ast::Expr::Mul(op0, op1) => Expr::Mul(Expr::from(op0, bitsy), Expr::from(op1, bitsy)),
-            ast::Expr::Tuple(es) => Expr::Tuple(es.iter().map(|e| Expr::from(e, bitsy)).collect()),
-            ast::Expr::Struct(fs) => {
-                Expr::Struct(fs.iter().map(|(field_name, e)| {
-                    (field_name.clone(), Expr::from(e, bitsy))
-                }).collect())
-            },
-            ast::Expr::Match(e, arms) => {
-                Expr::Match(Expr::from(e, &bitsy), arms.iter().map(|ast::MatchArm(pat, e)| {
-                    MatchArm(pat.clone(), Expr::from(e, &bitsy))
-                }).collect())
-            },
-        })
-    }
 }
 
 #[derive(Debug, Clone)]

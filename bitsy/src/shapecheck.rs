@@ -231,7 +231,7 @@ mod test {
 
         bitsy.add(&text);
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("true").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("true").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
 
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
@@ -247,22 +247,22 @@ mod test {
         bitsy.add(&text);
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Bit = true; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x : Bit = true; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x = true; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x = true; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert!(check_shape(&ShapeContext::empty(), &*expr, &Shape::Bit));
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<8> = 255; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x : Word<8> = 255; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<0> = 0; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x : Word<0> = 0; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert!(check_shape(&ShapeContext::empty(), &*expr, &shape.unwrap()));
     }
@@ -279,18 +279,18 @@ mod test {
         bitsy.add(&text);
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Bit = 0; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x : Bit = 0; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert_eq!(shape, None);
         assert!(!check_shape(&ShapeContext::empty(), &*expr, &Shape::Bit));
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x = 0; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x = 0; x").unwrap());
         let shape = infer_shape(&ShapeContext::empty(), &expr.clone());
         assert_eq!(shape, None);
 
         let parser = ExprParser::new();
-        let expr: Box<Expr> = Expr::from(&parser.parse("let x : Word<8> = 256; x").unwrap(), &bitsy);
+        let expr: Box<Expr> = bitsy.expr(&parser.parse("let x : Word<8> = 256; x").unwrap());
         assert_eq!(shape, None);
         assert!(!check_shape(&ShapeContext::empty(), &*expr, &Shape::Word(8)));
     }
