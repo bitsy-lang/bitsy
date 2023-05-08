@@ -157,9 +157,16 @@ impl Bitsy {
 
         let mut ports = vec![];
         info!("    Ports:");
-        for ast::Pin(name, direction, shape_ref, domain_ref) in &mod_def.ports {
-            ports.push(Port(name.to_string(), *direction, Arc::new(self.shape(shape_ref))));
-            info!("        port: {}", name);
+        for ast::Port(port_name, port_pins) in &mod_def.ports {
+            let mut pins: Vec<Pin> = vec![];
+            info!("        port: {}", port_name);
+            for ast::Pin(name, direction, shape_ref, domain_ref) in port_pins {
+                info!("            pin: {}", name);
+                let pin = Pin(name.to_string(), *direction, Arc::new(self.shape(&shape_ref)));
+                pins.push(pin);
+            }
+            let port = Port(port_name.clone(), pins);
+            ports.push(port);
         }
 
         let mut terminals_by_ref: HashMap<TerminalRef, Terminal> = HashMap::new();
@@ -169,25 +176,27 @@ impl Bitsy {
 
         info!("    Terminals:");
         for port in &ports {
-            let polarity = match port.direction() {
-                Direction::Incoming => Polarity::Source,
-                Direction::Outgoing => Polarity::Sink,
-            };
-            info!("        terminal: io.{} : {}{}", port.name(), polarity, port.shape());
+            for pin in port.pins() {
+                let polarity = match pin.direction() {
+                    Direction::Incoming => Polarity::Source,
+                    Direction::Outgoing => Polarity::Sink,
+                };
+                info!("        terminal: io.{} : {}{}", port.name(), polarity, pin.shape());
 
-            let terminal = Terminal(
-                "io".to_string(),
-                port.name().to_string(),
-                polarity,
-                port.shape(),
-            );
+                let terminal = Terminal(
+                    port.name().to_string(),
+                    pin.name().to_string(),
+                    polarity,
+                    pin.shape(),
+                );
 
-            if port.direction() == Direction::Incoming {
-                driven_terminals.push(terminal.to_ref());
+                if pin.direction() == Direction::Incoming {
+                    driven_terminals.push(terminal.to_ref());
+                }
+
+                terminals_by_ref.insert(terminal.to_ref(), terminal.clone());
+                terminals.push(terminal);
             }
-
-            terminals_by_ref.insert(terminal.to_ref(), terminal.clone());
-            terminals.push(terminal);
         }
 
         for component in &mod_def.components {
@@ -410,9 +419,22 @@ impl std::fmt::Display for Shape {
 }
 
 #[derive(Debug)]
-pub struct Port(PortName, Direction, Arc<Shape>);
+pub struct Port(PortName, Vec<Pin>);
 
 impl Port {
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+
+    pub fn pins(&self) -> &[Pin] {
+        &self.1
+    }
+}
+
+#[derive(Debug)]
+pub struct Pin(PortName, Direction, Arc<Shape>);
+
+impl Pin {
     pub fn name(&self) -> &str {
         &self.0
     }

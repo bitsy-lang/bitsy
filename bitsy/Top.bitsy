@@ -55,7 +55,7 @@ end
 
 mod Incrementer
   port io
-      incoming in0 : Word<8> @ d
+      incoming in0 : Word<9> @ d
       incoming in1 : Word<8> @ d
       outgoing out : Word<10> @ d
 

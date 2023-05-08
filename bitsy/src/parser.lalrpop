@@ -28,7 +28,6 @@ pub ModDef: ModDef = {
         <wires: Wire*>
     "end"
     => {
-        let ports = ports.iter().flatten().cloned().collect();
         ModDef {
             name,
             visibility,
@@ -92,8 +91,8 @@ pub EnumAlt: EnumAlt = {
     }
 }
 
-pub Port: Vec<Pin> = {
-    "port" <port_name:Ident> <pins:Pin*> => pins
+pub Port: Port = {
+    "port" <port_name:Ident> <pins:Pin*> => Port(port_name.to_string(), pins),
 }
 
 pub Pin: Pin = {
