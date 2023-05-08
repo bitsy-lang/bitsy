@@ -219,21 +219,19 @@ impl Bitsy {
             }
         }
 
-        for ast::Wire(visibility, sink_terminal_ref, source) in &mod_def.wires {
+        for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
             driven_terminals.push(sink_terminal_ref.clone());
 
-            if let ast::WireSource::Expr(ast_expr) = source {
-                let expr = self.expr(ast_expr);
-                let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
-                let shape = sink_terminal.shape();
-                let mut context = shapecheck::ShapeContext::empty();
-                for terminal in &terminals {
-                    context = context.extend(terminal.name(), Shape::clone(&terminal.shape()));
+            let expr = self.expr(ast_expr);
+            let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
+            let shape = sink_terminal.shape();
+            let mut context = shapecheck::ShapeContext::empty();
+            for terminal in &terminals {
+                context = context.extend(terminal.name(), Shape::clone(&terminal.shape()));
 
-                }
-                if !shapecheck::check_shape(&context, &expr, &shape) {
-                    panic!("Shape check failed: {:?} is not {:?}", &expr, &shape);
-                }
+            }
+            if !shapecheck::check_shape(&context, &expr, &shape) {
+                panic!("Shape check failed: {:?} is not {:?}", &expr, &shape);
             }
         }
 

@@ -22,3 +22,17 @@ fn init_logging() {
         .init()
         .unwrap();
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_main() {
+        let filename = "Top.bitsy".to_string();
+        let text = std::fs::read_to_string(filename).unwrap();
+
+        let mut bitsy = Bitsy::new();
+        bitsy.add(&text);
+    }
+}

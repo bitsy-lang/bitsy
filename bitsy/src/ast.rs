@@ -189,14 +189,7 @@ impl ModDef {
 }
 
 #[derive(Debug, Clone)]
-pub struct Wire(pub Visibility, pub TerminalRef, pub WireSource);
-
-#[derive(Debug, Clone)]
-pub enum WireSource {
-    Terminal(TerminalRef),
-    Expr(Box<Expr>),
-}
-
+pub struct Wire(pub Visibility, pub TerminalRef, pub Box<Expr>);
 
 #[derive(Debug, Clone)]
 pub enum Expr {

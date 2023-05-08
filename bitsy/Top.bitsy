@@ -21,11 +21,8 @@ pub mod Top
 
     pub reg state of State @ d
 
-    pub wire state.set <= {
-        @Running(tuple(15, ${ bar = 0, baz = false }))
-    }
-
-    pub wire io.out <= { 255 }
+    pub wire state.set <= @Running(tuple(15, ${ bar = 0, baz = false }))
+    pub wire io.out <= 255
 end
 
 enum shape UartSenderState
@@ -39,27 +36,23 @@ pub mod UartSender
 
     reg state of UartSenderState @ d
 
-    wire state.set <= {
-        @Sending(15)
-    }
+    wire state.set <= @Sending(15)
 end
 
 mod Bar
     port io
         outgoing out : Tuple<Bit, Bit> @ d
 
-    wire io.out <= {
-        tuple(true, false)
-    }
+    wire io.out <= tuple(true, false)
 end
 
 mod Incrementer
   port io
-      incoming in0 : Word<9> @ d
+      incoming in0 : Word<8> @ d
       incoming in1 : Word<8> @ d
       outgoing out : Word<10> @ d
 
-  wire io.out <= { io.in0 + io.in1 + 1}
+  wire io.out <= io.in0 + io.in1 + 1
 end
 
 struct shape Foo
@@ -73,11 +66,8 @@ mod Structs
         incoming in1 : Word<8> @ d
         outgoing out : Bit @ d
 
-    wire io.out <= {
-        match io.in {
-            @Invalid => false;
-            @Valid(bit) => bit;
-        }
+    wire io.out <= match io.in {
+        @Invalid => false;
+        @Valid(bit) => bit;
     }
-
 end

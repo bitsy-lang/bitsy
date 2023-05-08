@@ -202,11 +202,8 @@ pub GateRef: GateRef = {
 }
 
 pub Wire: Wire = {
-    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" <source:TerminalRef> => {
-        Wire(visibility, sink, WireSource::Terminal(source))
-    },
-    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" "{" <expr:Expr> "}" => {
-        Wire(visibility, sink, WireSource::Expr(expr))
+    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" <expr:Expr> => {
+        Wire(visibility, sink, expr)
     },
 }
 
