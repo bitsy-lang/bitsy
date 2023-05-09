@@ -16,6 +16,7 @@ mod common;
 pub mod shapecheck;
 pub mod ast;
 pub mod depends;
+pub mod verilog;
 // pub mod sim;
 // pub mod nettle;
 //
