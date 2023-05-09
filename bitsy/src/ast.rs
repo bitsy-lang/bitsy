@@ -1,7 +1,5 @@
 use crate::common::*;
 
-pub type ComponentName = String;
-
 #[derive(Debug)]
 pub struct Namespace {
     pub decls: Vec<Decl>,

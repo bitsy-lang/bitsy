@@ -12,10 +12,9 @@ fn main() {
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap();
 
-//    let mut bitsy = Bitsy::new();
-//    bitsy.add(&text);
-    //dbg!(&bitsy);
-    //
+    let mut bitsy = Bitsy::new();
+    bitsy.add(&text);
+    dbg!(&bitsy);
 
     let verilog = bitsy::verilog::Verilog {
         filename: "Top.v".to_string(),
@@ -62,7 +61,7 @@ fn main() {
             },
         ],
     };
-    print!("{verilog}");
+    //print!("{verilog}");
 }
 
 fn init_logging() {

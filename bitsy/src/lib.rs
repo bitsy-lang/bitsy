@@ -17,6 +17,7 @@ pub mod shapecheck;
 pub mod ast;
 pub mod depends;
 pub mod verilog;
+// pub mod flatten;
 // pub mod sim;
 // pub mod nettle;
 //
@@ -236,9 +237,29 @@ impl Bitsy {
             }
         }
 
+        let mut components: Vec<Component> = vec![];
+        for component in &mod_def.components {
+            let c = match component {
+                ast::Component::Mod(name, visibility, module)  => {
+                    Component::Mod(name.to_string(), *visibility, ModComponent {})
+                },
+                ast::Component::Reg(name, visibility, reg)     => {
+                    Component::Reg(name.to_string(), *visibility, RegComponent {})
+                },
+                ast::Component::Const(name, visibility, value) => {
+                    Component::Const(name.to_string(), *visibility, value.clone())
+                },
+                ast::Component::Gate(name, visibility, gate)   => {
+                    Component::Gate(name.to_string(), *visibility, GateComponent {})
+                },
+            };
+            components.push(c);
+        }
+        // todo!();
         let module = Module {
             ports,
             terminals,
+            components,
         };
 
         self.modules.push(Arc::new(module));
@@ -359,9 +380,43 @@ impl Terminal {
 pub struct Module {
     pub ports: Vec<Port>,
     pub terminals: Vec<Terminal>,
+    pub components: Vec<Component>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum Component {
+    Reg(ComponentName, Visibility, RegComponent),
+    Mod(ComponentName, Visibility, ModComponent),
+    Gate(ComponentName, Visibility, GateComponent),
+    Const(ComponentName, Visibility, Value),
+}
+
+#[derive(Debug, Clone)]
+pub struct GateComponent {
+    /*
+    pub name: String,
+    pub gate_name: Arc<Module>,
+    */
+}
+
+#[derive(Debug, Clone)]
+pub struct ModComponent {
+    /*
+    pub name: String,
+    pub module: Arc<Module>,
+    */
+}
+
+#[derive(Debug, Clone)]
+pub struct RegComponent {
+    /*
+    pub name: String,
+    pub shape: Arc<Shape>,
+    pub init: Option<Box<Expr>>,
+    */
+}
+
+#[derive(Debug, Clone)]
 pub struct ShapeFamily {
     pub name: String,
     pub args: Option<Vec<ShapeParamType>>, // Option for variadic
@@ -381,7 +436,7 @@ impl ShapeFamily {
 
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ShapeParamType {
     Nat,
     Shape,
@@ -417,7 +472,7 @@ impl std::fmt::Display for Shape {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Port(PortName, Vec<Pin>);
 
 impl Port {
@@ -430,7 +485,7 @@ impl Port {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Pin(PortName, Direction, Arc<Shape>);
 
 impl Pin {
