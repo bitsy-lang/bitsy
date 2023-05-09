@@ -2,7 +2,7 @@
 
 use nettle::ast::Nettle;
 use bitsy::Bitsy;
-use bitsy::verilog::{Verilog, Module, Direction, Port, Reg, Inst};
+use bitsy::verilog::*;
 
 fn main() {
     init_logging();
@@ -54,10 +54,15 @@ fn main() {
                         ].into_iter().collect(),
                     },
                 ],
+                alwayses: vec![
+                    Always {
+                        sensitivity_list: vec![Sensitivity(Edge::PosEdge, "clock_12MHz".to_string())],
+                    },
+                ],
             },
         ],
     };
-    println!("{verilog}");
+    print!("{verilog}");
 }
 
 fn init_logging() {

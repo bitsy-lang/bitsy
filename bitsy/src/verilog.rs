@@ -10,6 +10,7 @@ pub struct Module {
     pub ports: Vec<Port>,
     pub regs: Vec<Reg>,
     pub insts: Vec<Inst>,
+    pub alwayses: Vec<Always>,
 }
 
 pub enum Direction {
@@ -32,6 +33,45 @@ pub struct Inst {
     pub module_name: String,
     pub instance_name: String,
     pub connections: HashMap<String, String>,
+}
+
+pub struct Always {
+    pub sensitivity_list: Vec<Sensitivity>,
+}
+
+pub enum Edge {
+    PosEdge,
+    NegEdge,
+    On,
+}
+
+pub struct Sensitivity(pub Edge, pub String);
+
+impl std::fmt::Display for Always {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "    always @(")?;
+        for (i, sensitivity) in self.sensitivity_list.iter().enumerate() {
+            write!(f, "{sensitivity}")?;
+            if i + 1 < self.sensitivity_list.len() {
+                write!(f, ", ")?;
+            }
+        }
+        writeln!(f, ") begin")?;
+        writeln!(f, "    end")?;
+        Ok(())
+    }
+}
+
+impl std::fmt::Display for Sensitivity {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let edge = match self.0 {
+            Edge::PosEdge => "posedge ",
+            Edge::NegEdge => "posedge ",
+            Edge::On => "",
+        };
+        write!(f, "{edge}{}", &self.1)?;
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for Inst {
@@ -102,6 +142,10 @@ impl std::fmt::Display for Module {
             writeln!(f, "{inst}");
         }
 
+        for always in &self.alwayses {
+            writeln!(f, "{always}");
+        }
+
         writeln!(f, "endmodule")
     }
 }
@@ -109,7 +153,7 @@ impl std::fmt::Display for Module {
 impl std::fmt::Display for Verilog {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         for module in &self.modules {
-            writeln!(f, "{module}");
+            write!(f, "{module}");
         }
         Ok(())
     }
