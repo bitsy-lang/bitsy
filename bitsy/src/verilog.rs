@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 pub struct Verilog {
     pub filename: String,
     pub modules: Vec<Module>,
@@ -6,11 +8,45 @@ pub struct Verilog {
 pub struct Module {
     pub name: String,
     pub ports: Vec<Port>,
+    pub regs: Vec<Reg>,
+    pub insts: Vec<Inst>,
 }
 
 pub enum Direction {
     Input,
     Output,
+}
+
+pub struct Port {
+    pub name: String,
+    pub width: Option<u64>,
+    pub direction: Direction,
+}
+
+pub struct Reg {
+    pub name: String,
+    pub width: Option<u64>,
+}
+
+pub struct Inst {
+    pub module_name: String,
+    pub instance_name: String,
+    pub connections: HashMap<String, String>,
+}
+
+impl std::fmt::Display for Inst {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "    {} {}(", self.module_name, self.instance_name)?;
+        for (i, (port, terminal)) in self.connections.iter().enumerate() {
+            if i + 1 == self.connections.len() {
+                writeln!(f, "        .{port}({terminal})")?;
+            } else {
+                writeln!(f, "        .{port}({terminal}),")?;
+            }
+        }
+        writeln!(f, "    );")?;
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for Direction {
@@ -22,45 +58,59 @@ impl std::fmt::Display for Direction {
     }
 }
 
-pub struct Port {
-    pub name: String,
-    pub width: Option<u64>,
-    pub direction: Direction,
-}
-
 impl std::fmt::Display for Port {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let width_str = match self.width {
-            Some(width) => format!("[{:3}:0]", width - 1),
-            None => "       ".to_string(),
+            Some(width) => format!("[{}:0]", width - 1),
+            None => "".to_string(),
         };
 
-        write!(f, "{} wire {width_str} {}", self.direction, self.name)
+        write!(f, "    {} wire {width_str:>8} {}", self.direction, self.name)
     }
 }
 
-impl Verilog {
-    pub fn dump(&self) {
-        for module in &self.modules {
-            module.dump();
-        }
+impl std::fmt::Display for Reg {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let width_str = match self.width {
+            Some(width) => format!("[{}:0]", width - 1),
+            None => "".to_string(),
+        };
+
+        write!(f, "    reg {width_str:>8} {};", self.name)
     }
 }
 
-impl Module {
-    pub fn dump(&self) {
-        println!("module {}(", self.name);
+impl std::fmt::Display for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        writeln!(f, "module {}(", self.name);
         for (i, port) in self.ports.iter().enumerate() {
-            print!("    {port}");
+            write!(f, "{port}");
             if i + 1 < self.ports.len() {
-                println!(",");
+                writeln!(f, ",");
             } else {
-                println!();
+                writeln!(f, );
             }
         }
 
-        println!(");");
+        writeln!(f, ");");
 
-        println!("endmodule");
+        for reg in &self.regs {
+            writeln!(f, "{reg}");
+        }
+
+        for inst in &self.insts {
+            writeln!(f, "{inst}");
+        }
+
+        writeln!(f, "endmodule")
+    }
+}
+
+impl std::fmt::Display for Verilog {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        for module in &self.modules {
+            writeln!(f, "{module}");
+        }
+        Ok(())
     }
 }

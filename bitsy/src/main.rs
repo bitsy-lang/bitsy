@@ -2,7 +2,7 @@
 
 use nettle::ast::Nettle;
 use bitsy::Bitsy;
-use bitsy::verilog::{Verilog, Module, Direction, Port};
+use bitsy::verilog::{Verilog, Module, Direction, Port, Reg, Inst};
 
 fn main() {
     init_logging();
@@ -34,10 +34,30 @@ fn main() {
                         direction: Direction::Input,
                     },
                 ],
+                regs: vec![
+                    Reg {
+                        name: "foo".to_string(),
+                        width: None,
+                    },
+                    Reg {
+                        name: "bar".to_string(),
+                        width: Some(8),
+                    },
+                ],
+                insts: vec![
+                    Inst {
+                        module_name: "Baz".to_string(),
+                        instance_name: "baz".to_string(),
+                        connections: vec![
+                            ("i_thingy".to_string(), "bar".to_string()),
+                            ("i_dingy".to_string(), "foo".to_string()),
+                        ].into_iter().collect(),
+                    },
+                ],
             },
         ],
     };
-    verilog.dump();
+    println!("{verilog}");
 }
 
 fn init_logging() {
