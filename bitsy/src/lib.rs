@@ -483,12 +483,12 @@ impl std::fmt::Display for Shape {
                 Ok(())
             },
             Shape::Enum(enum_shape) => {
-                // missing parameters
+                // missing parameters todo!()
                 write!(f, "{}", enum_shape.name)?;
                 Ok(())
             }
             Shape::Struct(struct_shape) => {
-                // missing parameters
+                // missing parameters todo!()
                 write!(f, "{}", struct_shape.name)?;
                 Ok(())
             }

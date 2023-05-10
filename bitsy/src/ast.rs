@@ -213,12 +213,6 @@ impl Wire {
     pub fn sink(&self) -> &TerminalRef {
         &self.1
     }
-
-    /*
-    pub fn source(&self) -> &TerminalRef {
-        &self.2
-    }
-    */
 }
 
 #[derive(Debug, Clone)]
@@ -291,17 +285,3 @@ pub enum ShapeDefParam {
     Nat(String),
     Shape(String),
 }
-
-/*
-impl ShapeRef {
-    pub fn shape_refs(&self) -> Vec<ShapeRef> {
-        let mut results = vec![self.0];
-        for shape_param in &self.1 {
-            if let ShapeParam::Shape(shape_ref) = shape_param {
-                results.extend_from_slice(&shape_ref.shape_refs());
-            }
-        }
-        results
-    }
-}
-*/
