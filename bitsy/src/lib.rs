@@ -237,6 +237,7 @@ impl Bitsy {
             }
         }
 
+        let mut wires = vec![];
         for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
             driven_terminals.push(sink_terminal_ref.clone());
 
@@ -251,6 +252,8 @@ impl Bitsy {
             if !shapecheck::check_shape(&context, &expr, &shape) {
                 panic!("Shape check failed: {:?} is not {:?}", &expr, &shape);
             }
+
+            wires.push(Wire(*visibility, sink_terminal.clone(), expr));
         }
 
         let mut components: Vec<Component> = vec![];
@@ -283,6 +286,7 @@ impl Bitsy {
             ports,
             terminals,
             components,
+            wires,
         };
 
         self.modules.push(Arc::new(module));
@@ -410,6 +414,7 @@ pub struct Module {
     pub ports: Vec<Port>,
     pub terminals: Vec<Terminal>,
     pub components: Vec<Component>,
+    pub wires: Vec<Wire>,
 }
 
 #[derive(Debug, Clone)]
@@ -597,10 +602,4 @@ pub enum Expr {
 pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
 
 #[derive(Debug, Clone)]
-pub struct Wire(pub Visibility, pub TerminalRef, pub WireSource);
-
-#[derive(Debug, Clone)]
-pub enum WireSource {
-    Terminal(TerminalRef),
-    Expr(Box<Expr>),
-}
+pub struct Wire(pub Visibility, pub Terminal, pub Box<Expr>);
