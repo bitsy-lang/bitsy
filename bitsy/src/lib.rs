@@ -139,7 +139,7 @@ impl Bitsy {
         ]
     }
 
-    fn enum_shape_family(&self, enum_def: &ast::EnumDef) -> EnumShape {
+    fn enum_shape_family(&self, enum_def: &ast::EnumDef) -> EnumShapeFamily {
         let mut alts: Vec<EnumAlt> = vec![];
 
         for ast::EnumAlt(ctor_name, payload_shape_ref) in &enum_def.alts {
@@ -151,19 +151,19 @@ impl Bitsy {
             alts.push(alt);
         }
 
-        EnumShape {
+        EnumShapeFamily {
             name: enum_def.name.to_string(), // String,
             alts,
         }
     }
 
-    fn struct_shape_family(&self, struct_def: &ast::StructDef) -> StructShape {
+    fn struct_shape_family(&self, struct_def: &ast::StructDef) -> StructShapeFamily {
         let mut fields = vec![];
         for ast::StructField(field_name, shape_ref) in &struct_def.fields {
             fields.push(StructField(field_name.to_string(), self.shape(&shape_ref).into()));
         }
 
-        StructShape {
+        StructShapeFamily {
             name: struct_def.name.to_string(),
             visibility: struct_def.visibility,
             fields,
@@ -513,8 +513,8 @@ pub struct RegComponent {
 pub struct ShapeFamily {
     pub name: String,
     pub args: Option<Vec<ShapeParamType>>, // Option for variadic
-    pub enum_shape: Option<EnumShape>, // todo!() rename this EnumShapeFamily
-    pub struct_shape: Option<StructShape>, // todo!() rename this StructShapeFamily
+    pub enum_shape: Option<EnumShapeFamily>,
+    pub struct_shape: Option<StructShapeFamily>,
 }
 
 impl ShapeFamily {
@@ -600,17 +600,17 @@ pub enum Shape {
     Bit,
     Word(u64),
     Tuple(Vec<Arc<Shape>>),
-    Enum(Arc<EnumShape>),
-    Struct(Arc<StructShape>),
+    Enum(Arc<EnumShapeFamily>),
+    Struct(Arc<StructShapeFamily>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EnumShape {
+pub struct EnumShapeFamily {
     name: String,
     alts: Vec<EnumAlt>,
 }
 
-impl EnumShape {
+impl EnumShapeFamily {
     fn alt_by_ctor(&self, ctor_name: &str) -> Option<&EnumAlt> {
         for alt in &self.alts {
             if alt.ctor_name == ctor_name {
@@ -628,7 +628,7 @@ pub struct EnumAlt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StructShape {
+pub struct StructShapeFamily {
     name: String,
     visibility: Visibility,
     fields: Vec<StructField>,
