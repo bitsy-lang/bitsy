@@ -47,6 +47,12 @@ pub struct ModDefRef(pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct GateRef(pub String);
 
+impl GateRef {
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+
 impl std::fmt::Display for ModDefRef {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&self.0, f)

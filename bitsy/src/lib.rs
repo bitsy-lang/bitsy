@@ -26,6 +26,7 @@ pub use common::*;
 #[derive(Debug)]
 pub struct Bitsy {
     modules: Vec<Arc<Module>>,
+    gates: Vec<Arc<Gate>>,
     shape_families: Vec<Arc<ShapeFamily>>,
 }
 
@@ -33,7 +34,8 @@ impl Bitsy {
     pub fn new() -> Bitsy {
         Bitsy {
             modules: vec![],
-            shape_families: vec![],
+            gates: Bitsy::builtin_gates(),
+            shape_families: Bitsy::builtin_shape_families(),
         }
     }
 
@@ -41,10 +43,10 @@ impl Bitsy {
         info!("Adding text: \"{}...\"", &text[..90].split("\n").collect::<Vec<_>>().join("\\n"));
         let parser = NamespaceParser::new();
         let namespace = parser.parse(text).unwrap();
-        self.add_from(&namespace);
+        self.add_namespace(&namespace);
     }
 
-    fn add_from(&mut self, namespace: &Namespace) {
+    fn add_namespace(&mut self, namespace: &Namespace) {
         let mut depends = depends::Depends::<String>::new();
 
         for shape_def in &namespace.shape_defs() {
@@ -55,7 +57,6 @@ impl Bitsy {
         }
 
         info!("Adding shape families");
-        self.add_builtin_shape_families();
         for shape_ref in depends.sort().expect("Cycle detected") {
             info!("    {shape_ref}");
             // if not defined, define it
@@ -86,19 +87,16 @@ impl Bitsy {
         }
     }
 
-    fn add_builtin_shape_families(&mut self) {
+    fn builtin_shape_families() -> Vec<Arc<ShapeFamily>> {
         use ShapeParamType::{Nat, Shape};
         let enum_shape = None;
         let struct_shape = None;
 
-        let builtins = [
-            ShapeFamily { name: "Tuple".to_string(), args: None, struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
-            ShapeFamily { name: "Bit".to_string(), args: Some(vec![]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
-            ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() },
-        ];
-        for builtin in builtins {
-            self.shape_families.push(Arc::new(builtin));
-        }
+        vec![
+            Arc::new(ShapeFamily { name: "Tuple".to_string(), args: None, struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() }),
+            Arc::new(ShapeFamily { name: "Bit".to_string(), args: Some(vec![]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() }),
+            Arc::new(ShapeFamily { name: "Word".to_string(), args: Some(vec![Nat]), struct_shape: struct_shape.clone(), enum_shape: enum_shape.clone() }),
+        ]
     }
 
     fn add_shape_family(&mut self, shape_def: &ast::ShapeDef) {
@@ -121,6 +119,24 @@ impl Bitsy {
             struct_shape,
         };
         self.shape_families.push(Arc::new(shape_family));
+    }
+
+    fn gate(&self, gate_name: &str) -> Option<Arc<Gate>> {
+        for gate in &self.gates {
+            let Gate(gate_name0) = &**gate;
+            if gate_name == gate_name0 {
+                return Some(gate.clone());
+            }
+        }
+        None
+    }
+
+    fn builtin_gates() -> Vec<Arc<Gate>> {
+        vec![
+            Arc::new(Gate("And".to_string())),
+            Arc::new(Gate("Or".to_string())),
+            Arc::new(Gate("Not".to_string())),
+        ]
     }
 
     fn enum_shape_family(&self, enum_def: &ast::EnumDef) -> EnumShape {
@@ -241,22 +257,29 @@ impl Bitsy {
         for component in &mod_def.components {
             let c = match component {
                 ast::Component::Mod(name, visibility, module)  => {
-                    Component::Mod(name.to_string(), *visibility, ModComponent {})
+                    Component::Mod(name.to_string(), *visibility, ModComponent {
+                        module: self.module(&module.mod_def_ref).expect("Unknown module definition"),
+                    })
                 },
                 ast::Component::Reg(name, visibility, reg)     => {
-                    Component::Reg(name.to_string(), *visibility, RegComponent {})
+                    Component::Reg(name.to_string(), *visibility, RegComponent {
+                        shape: Arc::new(self.shape(&reg.shape)),
+                        init: reg.init.clone().map(|e| self.expr(&e)),
+                    })
                 },
                 ast::Component::Const(name, visibility, value) => {
                     Component::Const(name.to_string(), *visibility, value.clone())
                 },
                 ast::Component::Gate(name, visibility, gate)   => {
-                    Component::Gate(name.to_string(), *visibility, GateComponent {})
+                    Component::Gate(name.to_string(), *visibility, GateComponent {
+                        gate: self.gate(gate.gate_ref.name()).expect("Unknown gate"),
+                    })
                 },
             };
             components.push(c);
         }
-        // todo!();
         let module = Module {
+            name: mod_def.name.to_string(),
             ports,
             terminals,
             components,
@@ -278,8 +301,13 @@ impl Bitsy {
         todo!()
     }
 
-    fn module(&self, name: &str) -> Option<Arc<Module>> {
-        todo!()
+    fn module(&self, mod_def_ref: &ModDefRef) -> Option<Arc<Module>> {
+        for module in &self.modules {
+            if module.name == mod_def_ref.0 {
+                return Some(module.clone());
+            }
+        }
+        None
     }
 
     fn shape(&self, shape_ref: &ShapeRef) -> Shape {
@@ -378,6 +406,7 @@ impl Terminal {
 
 #[derive(Debug)]
 pub struct Module {
+    pub name: String,
     pub ports: Vec<Port>,
     pub terminals: Vec<Terminal>,
     pub components: Vec<Component>,
@@ -393,27 +422,22 @@ pub enum Component {
 
 #[derive(Debug, Clone)]
 pub struct GateComponent {
-    /*
-    pub name: String,
-    pub gate_name: Arc<Module>,
-    */
+    pub gate: Arc<Gate>,
 }
 
 #[derive(Debug, Clone)]
+pub struct Gate(pub String);
+
+#[derive(Debug, Clone)]
 pub struct ModComponent {
-    /*
-    pub name: String,
     pub module: Arc<Module>,
-    */
 }
 
 #[derive(Debug, Clone)]
 pub struct RegComponent {
-    /*
-    pub name: String,
     pub shape: Arc<Shape>,
+    // domain todo!()
     pub init: Option<Box<Expr>>,
-    */
 }
 
 #[derive(Debug, Clone)]
