@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::common::*;
+use crate::context::Context;
 
 grammar;
 
@@ -45,7 +46,7 @@ pub StructDef: StructDef = {
     => {
         StructDef {
             name,
-            params: params.unwrap_or(vec![]),
+            params: Context::from(params.unwrap_or(vec![])),
             visibility,
             fields,
         }
@@ -63,14 +64,14 @@ pub EnumDef: EnumDef = {
     => {
         EnumDef {
             name,
-            params: params.unwrap_or(vec![]),
+            params: Context::from(params.unwrap_or(vec![])),
             visibility,
             alts,
         }
     }
 }
 
-pub TypeDefParams: Vec<ShapeDefParam> = {
+pub TypeDefParams: Vec<(String, Kind)> = {
     "<" <param0:TypeDefParam> <param_rest:("," TypeDefParam)*> ">" => {
         let mut result = vec![param0];
         for (_s, param) in param_rest {
@@ -80,9 +81,9 @@ pub TypeDefParams: Vec<ShapeDefParam> = {
     },
 }
 
-pub TypeDefParam: ShapeDefParam = {
-    <ident:Ident> ":" "Nat" => ShapeDefParam::Nat(ident),
-    <ident:Ident> ":" "Shape" => ShapeDefParam::Shape(ident),
+pub TypeDefParam: (String, Kind) = {
+    <ident:Ident> ":" "Nat" => (ident, Kind::Nat),
+    <ident:Ident> ":" "Shape" => (ident, Kind::Shape),
 }
 
 pub EnumAlt: EnumAlt = {
@@ -106,12 +107,12 @@ pub Direction: Direction = {
 }
 
 pub Shape: ShapeRef = {
-    <ident:Ident> "<" <shape_params:ShapeParams> ">" => ShapeRef(ident, shape_params),
+    <ident:Ident> "<" <shape_params:ShapeArgs> ">" => ShapeRef(ident, shape_params),
     <ident:Ident> => ShapeRef(ident, vec![]),
 }
 
-pub ShapeParams: Vec<ShapeParam> = {
-    <shape_param0:ShapeParam> <shape_param_rest:("," ShapeParam)*> => {
+pub ShapeArgs: Vec<ShapeArg> = {
+    <shape_param0:ShapeArg> <shape_param_rest:("," ShapeArg)*> => {
         let mut result = vec![shape_param0];
         for (_s, shape_param) in shape_param_rest {
             result.push(shape_param);
@@ -120,9 +121,9 @@ pub ShapeParams: Vec<ShapeParam> = {
     }
 }
 
-pub ShapeParam: ShapeParam = {
-    <n:Nat> => ShapeParam::Nat(n),
-    <shape:Shape> => ShapeParam::Shape(shape),
+pub ShapeArg: ShapeArg = {
+    <n:Nat> => ShapeArg::Nat(n),
+    <shape:Shape> => ShapeArg::Shape(shape),
 }
 
 pub Domain: DomainRef = {
@@ -177,8 +178,6 @@ pub Value: Value = {
     <n:r"[0-9]+"> => Value::Word(n.parse().unwrap()),
 }
 
-//pub FieldValues: Vec<(FieldName, Box<Expr...
-
 pub TupleElts: Vec<Box<Expr>> = {
     <e0:Expr> <e_rest:("," <Expr>)*> => {
         let mut result = vec![e0];
@@ -212,8 +211,36 @@ pub Expr: Box<Expr> = {
     "match" <subject:Expr> "{"
         <patterns:MatchArm*>
     "}" => Box::new(Expr::Match(subject, patterns)),
-    <op0:Term> "+" <op1:Expr> => Box::new(Expr::Add(op0, op1)),
-    <expr:Term> => expr,
+    <expr:ExprEq> => expr,
+}
+
+pub ExprEq: Box<Expr> = {
+    <op0:ExprAdd> "==" <op1:ExprEq> => Box::new(Expr::Eq(op0, op1)),
+    <op0:ExprAdd> "!=" <op1:ExprEq> => Box::new(Expr::Neq(op0, op1)),
+    <expr:ExprAdd> => expr,
+}
+
+pub ExprAdd: Box<Expr> = {
+    <op0:ExprBase> "+" <op1:ExprAdd> => Box::new(Expr::Add(op0, op1)),
+    <expr:ExprBase> => expr,
+}
+
+pub ExprBase: Box<Expr> = {
+    <x:Ident> <path_parts:("." Ident)*> => {
+        let mut full_x = String::from(x);
+        for path_part in path_parts {
+            full_x.push_str(".");
+            full_x.push_str(&path_part.1);
+        }
+        Box::new(Expr::Var(full_x))
+    },
+    <value:Value> => Box::new(Expr::Lit(value)),
+    "(" <expr:Expr> ")" => expr,
+    "${" <struct_fields:StructFields> "}" => {
+        Box::new(Expr::Struct(struct_fields))
+    },
+    "@" <ctor_name:Ident> <payload:( "(" Expr ")")?>  => Box::new(Expr::Enum(ctor_name, payload.map(|p| p.1))),
+    "tuple" "(" <elts:TupleElts?>")" => Box::new(Expr::Tuple(elts.unwrap_or_default())),
 }
 
 pub MatchArm: MatchArm = {
@@ -237,28 +264,6 @@ pub MatchPatternArgs: Vec<Box<MatchPattern>> = {
     }
 }
 
-pub Term: Box<Expr> = {
-    <op0:Factor> "*" <op1: Term> => Box::new(Expr::Mul(op0, op1)),
-    <expr:Factor> => expr,
-}
-
-pub Factor: Box<Expr> = {
-    <x:Ident> <path_parts:("." Ident)*> => {
-        let mut full_x = String::from(x);
-        for path_part in path_parts {
-            full_x.push_str(".");
-            full_x.push_str(&path_part.1);
-        }
-        Box::new(Expr::Var(full_x))
-    },
-    <value:Value> => Box::new(Expr::Lit(value)),
-    "(" <expr:Expr> ")" => expr,
-    "${" <struct_fields:StructFields> "}" => {
-        Box::new(Expr::Struct(struct_fields))
-    },
-    "@" <ctor_name:Ident> <payload:( "(" Expr ")")?>  => Box::new(Expr::Enum(ctor_name, payload.map(|p| p.1))),
-    "tuple" "(" <elts:TupleElts?>")" => Box::new(Expr::Tuple(elts.unwrap_or_default())),
-}
 
 pub StructFields: Vec<(FieldName, Box<Expr>)> = {
     <field0:(Ident "=" Expr )> <field_rest:("," Ident "=" Expr)*> ","? => {

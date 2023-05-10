@@ -14,8 +14,9 @@ fn main() {
 
     let mut bitsy = Bitsy::new();
     bitsy.add(&text);
-    dbg!(&bitsy);
+//    dbg!(&bitsy);
 
+    /*
     let verilog = bitsy::verilog::Verilog {
         filename: "Top.v".to_string(),
         modules: vec![
@@ -61,6 +62,7 @@ fn main() {
             },
         ],
     };
+    */
     //print!("{verilog}");
 }
 

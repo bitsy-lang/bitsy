@@ -2,6 +2,7 @@ use crate::{Module, GateComponent};
 use crate::*;
 use crate::common::*;
 
+/*
 impl Module {
     pub fn flatten(&mut self) {
         let mut gensym_id = 0;
@@ -97,6 +98,7 @@ impl Module {
         }
     }
 }
+*/
 
 /*
 impl Bitsy {
@@ -124,3 +126,4 @@ impl Bitsy {
     }
 }
 */
+

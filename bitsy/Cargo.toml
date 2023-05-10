@@ -16,3 +16,4 @@ regex = "1"
 nettle = { path = "../nettle" }
 log = "0.4.17"
 simple_logger = "4.1.0"
+lazy_static = "1.4.0"

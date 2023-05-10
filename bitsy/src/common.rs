@@ -31,13 +31,19 @@ pub enum Visibility {
 }
 
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub enum ShapeParam {
+pub enum ShapeArg {
     Nat(u64),
     Shape(ShapeRef),
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Kind {
+    Nat,
+    Shape,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct ShapeRef(pub String, pub Vec<ShapeParam>);
+pub struct ShapeRef(pub String, pub Vec<ShapeArg>);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct TerminalRef(pub String, pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
@@ -50,6 +56,32 @@ pub struct GateRef(pub String);
 impl GateRef {
     pub fn name(&self) -> &str {
         &self.0
+    }
+}
+
+impl ShapeRef {
+    pub fn shape_family_name(&self) -> &str {
+        &self.0
+    }
+
+    pub fn from(text: &str) -> ShapeRef {
+        use crate::parser::ShapeParser;
+        let parser = ShapeParser::new();
+        parser.parse(text).unwrap()
+    }
+
+    pub fn internal_shape_refs(&self) -> Vec<ShapeRef> {
+        let mut results = vec![];
+        for arg in &self.1 {
+            match arg {
+                ShapeArg::Nat(_n) => (),
+                ShapeArg::Shape(shape_ref) => {
+                    results.push(shape_ref.clone());
+                    results.extend_from_slice(&shape_ref.internal_shape_refs());
+                }
+            }
+        }
+        results
     }
 }
 

@@ -33,3 +33,8 @@ Convenience syntax for reading/saving to registers?
 ... and letting the use of a register just act like a variable in expressions.
 
 
+Ideas
+-----
+* Vecs should be parameterized by the index type (which could be an artibrary shape)
+* Shapes should have both bitwidth and number of elements, since this is easy to calculate.
+* Remove Eq from heavy data structures that should just be ptr-eq'ed
