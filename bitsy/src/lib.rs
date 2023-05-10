@@ -17,10 +17,10 @@ pub mod shapecheck;
 pub mod ast;
 pub mod depends;
 pub mod verilog;
-// pub mod flatten;
+pub mod flatten;
 // pub mod sim;
 // pub mod nettle;
-//
+
 pub use common::*;
 
 #[derive(Debug)]
@@ -270,8 +270,8 @@ impl Bitsy {
                         init: reg.init.clone().map(|e| self.expr(&e)),
                     })
                 },
-                ast::Component::Const(name, visibility, value) => {
-                    Component::Const(name.to_string(), *visibility, value.clone())
+                ast::Component::Const(name, visibility, value, shape_ref) => {
+                    Component::Const(name.to_string(), *visibility, value.clone(), self.shape(shape_ref).into())
                 },
                 ast::Component::Gate(name, visibility, gate)   => {
                     Component::Gate(name.to_string(), *visibility, GateComponent {
@@ -406,6 +406,10 @@ impl Terminal {
     pub fn shape(&self) -> Arc<Shape> {
         self.3.clone()
     }
+
+    pub fn to_expr(&self) -> Box<Expr> {
+        Box::new(Expr::Var(self.name()))
+    }
 }
 
 #[derive(Debug)]
@@ -417,12 +421,72 @@ pub struct Module {
     pub wires: Vec<Wire>,
 }
 
+impl Module {
+    pub fn component(&self, component_name: &str) -> Option<&Component> {
+        for component in &self.components {
+            if component.name() == component_name {
+                return Some(component);
+            }
+        }
+        None
+    }
+
+    pub fn terminal(&self, component_name: &str, port_name: &str) -> Option<&Terminal> {
+        for terminal in &self.terminals {
+            if terminal.0 == component_name && terminal.1 == port_name {
+                return Some(terminal);
+            }
+        }
+        None
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Component {
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
-    Const(ComponentName, Visibility, Value),
+    Const(ComponentName, Visibility, Value, Arc<Shape>),
+}
+
+impl Component {
+    pub fn name(&self) -> &str {
+        match self {
+            Component::Reg(name, _vis, _reg) => name,
+            Component::Mod(name, _vis, _mod) => name,
+            Component::Gate(name, _vis, _gate) => name,
+            Component::Const(name, _vis, _value, _shape) => name,
+        }
+    }
+
+    pub fn ports(&self) -> Vec<Terminal> {
+        match self {
+            Component::Const(name, _vis, val, shape) => {
+                vec![
+                    Terminal(name.to_string(), "val".to_string(), Polarity::Source, shape.clone()),
+                ]
+            },
+            Component::Reg(name, _vis, reg) => {
+                vec![
+                    Terminal(name.to_string(), "val".to_string(), Polarity::Source, reg.shape.clone()),
+                    Terminal(name.to_string(), "set".to_string(), Polarity::Sink, reg.shape.clone()),
+                ]
+            },
+            Component::Gate(name, _vis, gate) => {
+                let gate_name: &str = &gate.gate.0;
+                match gate_name {
+                    "Add" => todo!(),
+                    _ => todo!(),
+                }
+            },
+            // Component::Mod(name, _vis, _mod) => name,
+            _ => { todo!() },
+        }
+    }
+
+    pub fn port(&self, port_name: &str) -> Terminal {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone)]

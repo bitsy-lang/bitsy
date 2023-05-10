@@ -220,7 +220,7 @@ pub enum Component {
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
-    Const(ComponentName, Visibility, Value),
+    Const(ComponentName, Visibility, Value, ShapeRef),
 }
 
 impl Component {
@@ -229,7 +229,7 @@ impl Component {
             Component::Reg(name, _, _) => name,
             Component::Mod(name, _, _) => name,
             Component::Gate(name, _, _) => name,
-            Component::Const(name, _, _) => name,
+            Component::Const(name, _, _, _) => name,
         }
     }
 
