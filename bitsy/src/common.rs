@@ -53,6 +53,15 @@ pub struct ModDefRef(pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct GateRef(pub String);
 
+impl std::fmt::Display for Kind {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Kind::Nat => write!(f, "Nat"),
+            Kind::Shape => write!(f, "Shape"),
+        }
+    }
+}
+
 impl GateRef {
     pub fn name(&self) -> &str {
         &self.0

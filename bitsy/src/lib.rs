@@ -178,6 +178,7 @@ impl Bitsy {
 
     fn add_enum_shape_family(&mut self, enum_def: &ast::EnumDef) {
         let mut context: Context<Kind> = enum_def.params.clone();
+
         let mut alts = vec![];
         for ast::EnumAlt(ctor_name, payload_shape_ref) in &enum_def.alts {
             alts.push(EnumAlt::new(ctor_name.to_string(), payload_shape_ref.as_ref().map(|shape_ref| self.shape(shape_ref, &context)).flatten()));

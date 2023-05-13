@@ -221,7 +221,11 @@ impl StructDef {
             // ignore parameters
             if self.params.lookup(shape_ref.shape_family_name()).is_none() {
                 results.push(shape_ref.clone());
-                results.extend_from_slice(&shape_ref.internal_shape_refs());
+            }
+            for shape_ref0 in &shape_ref.internal_shape_refs() {
+                if self.params.lookup(shape_ref0.shape_family_name()).is_none() {
+                    results.push(shape_ref0.clone());
+                }
             }
         }
         results
@@ -231,10 +235,13 @@ impl StructDef {
 impl EnumDef {
     pub fn shape_refs(&self) -> Vec<ShapeRef> {
         let mut results = vec![];
+
         for EnumAlt(_ctor_name, payload_shape_ref) in &self.alts {
             if let Some(shape_ref) = payload_shape_ref {
-                results.push(shape_ref.clone());
-                results.extend_from_slice(&shape_ref.internal_shape_refs());
+                if self.params.lookup(shape_ref.shape_family_name()).is_none() {
+                    results.push(shape_ref.clone());
+                    results.extend_from_slice(&shape_ref.internal_shape_refs());
+                }
             }
         }
         results

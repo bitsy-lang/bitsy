@@ -8,7 +8,7 @@ impl Context<Shape> {
     pub fn check_shape(&self, expr: Expr, shape: Shape) -> bool {
         match expr.as_node() {
             ExprNode::Var(x) => self.check_shape_var(x, shape),
-            ExprNode::Lit(value) => Self::check_shape_lit(value.clone(), shape),
+            ExprNode::Lit(value) => self.check_shape_lit(value.clone(), shape),
             ExprNode::Let(x, def, ascription, body) => self.check_shape_let(x, def.clone(), ascription.clone(), body.clone(), shape),
             ExprNode::Add(op0, op1) => self.check_shape_add(op0.clone(), op1.clone(), shape),
             ExprNode::Mul(op0, op1) => todo!(),
@@ -24,7 +24,7 @@ impl Context<Shape> {
     pub fn infer_shape(&self, expr: Expr) -> Option<Shape> {
         let result = match expr.as_node() {
             ExprNode::Var(x) => self.infer_shape_var(x),
-            ExprNode::Lit(value) => Self::infer_shape_lit(value),
+            ExprNode::Lit(value) => self.infer_shape_lit(value),
             ExprNode::Let(x, def, def_shape, body) => self.infer_shape_let(x, def.clone(), def_shape.clone(), body.clone()),
             ExprNode::Add(op0, op1) => None,
             ExprNode::Mul(op0, op1) => None,
@@ -49,14 +49,14 @@ impl Context<Shape> {
         Some(self.lookup(&x).expect(&format!("No such variable: {x}")))
     }
 
-    fn infer_shape_lit(value: &Value) -> Option<Shape> {
+    fn infer_shape_lit(&self, value: &Value) -> Option<Shape> {
         match value {
             Value::Bit(_b) => Some(Shape::bit()),
             Value::Word(v) => None, // because you can't infer the bitwidth
             Value::Tuple(vs) => {
                 // try to infer each v in vs, if you can then good.
                 let mut shapes: Vec<Shape> = vec![];
-                for opt_shape in vs.iter().map(|v| Self::infer_shape_lit(v)) {
+                for opt_shape in vs.iter().map(|v| self.infer_shape_lit(v)) {
                     if let Some(shape) = opt_shape {
                         shapes.push(shape.clone());
                     } else {
@@ -265,7 +265,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_lit(value: Value, shape: Shape) -> bool {
+    fn check_shape_lit(&self, value: Value, shape: Shape) -> bool {
         match value {
             Value::Bit(_b) => {
                 shape == Shape::bit()
@@ -283,7 +283,7 @@ impl Context<Shape> {
                         return false;
                     } else {
                         for (v, s) in vs.iter().zip(ss) {
-                            if !Self::check_shape_lit(*v.clone(), s) {
+                            if !self.check_shape_lit(*v.clone(), s) {
                                 return false;
                             }
                         }
@@ -298,7 +298,7 @@ impl Context<Shape> {
                     for ((field_name, field_val), StructField(shape_field_name, shape_field_shape)) in fs.iter().zip(ffs.clone()) {
                         if field_name != &shape_field_name {
                             return false;
-                        } else if !Self::check_shape_lit(*field_val.clone(), shape_field_shape.clone()) {
+                        } else if !self.check_shape_lit(*field_val.clone(), shape_field_shape.clone()) {
                             return false;
                         }
 
