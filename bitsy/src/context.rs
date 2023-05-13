@@ -27,6 +27,14 @@ impl<T: Clone> Context<T> {
         result
     }
 
+    pub fn extend_from(&self, another: &Context<T>) -> Context<T> {
+        let mut result = self.clone();
+        for (v, t) in another.0.iter() {
+            result.0.push((v.clone(), t.clone()));
+        }
+        result
+    }
+
     pub fn into_inner(self) -> Vec<(String, T)> {
         self.0
     }

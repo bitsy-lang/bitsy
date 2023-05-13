@@ -125,7 +125,7 @@ impl Context<Shape> {
     }
 
     fn check_shape_add(&self, op0: Expr, op1: Expr, shape: Shape) -> bool {
-        if let Some(n) = shape.as_word() {
+        if let Some(n) = shape.as_word(self) {
             if n > 0 {
                 if self.check_shape(op0.clone(), Shape::word(n - 1)) {
                     for i in 0..n {
@@ -230,6 +230,7 @@ impl Context<Shape> {
 
     fn check_shape_struct(&self, fs: &[(String, Expr)], shape: Shape) -> bool {
         if let Some(struct_fields) = shape.as_struct() {
+            let mut new_context: Context<Shape> = self.extend_from(&shape.params().unwrap());
             if fs.len() != struct_fields.len() {
                 return false;
             }
@@ -239,7 +240,7 @@ impl Context<Shape> {
             struct_fields_sorted.sort_by_key(|StructField(field_name, _shape)| field_name.clone());
 
             for ((field_name0, e), StructField(field_name1, s)) in fs_sorted.iter().zip(&struct_fields_sorted) {
-                if field_name0 != field_name1 || !self.check_shape(e.clone(), s.clone()) {
+                if field_name0 != field_name1 || !new_context.check_shape(e.clone(), s.clone()) {
                     return false;
                 }
             }
@@ -271,7 +272,7 @@ impl Context<Shape> {
                 shape == Shape::bit()
             },
             Value::Word(v) => {
-                if let Some(n) = shape.as_word() {
+                if let Some(n) = shape.as_word(self) {
                     v < (1 << n)
                 } else {
                     false

@@ -311,7 +311,6 @@ impl Bitsy {
             let mut context: Context<Shape> = Context::empty();
             for terminal in &terminals {
                 context = context.extend(terminal.name().clone(), Shape::clone(&terminal.shape()));
-
             }
             println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
             if !context.check_shape(expr.clone(), shape.clone()) {

@@ -322,15 +322,25 @@ impl Shape {
         }
     }
 
-    pub fn as_word(&self) -> Option<u64> {
+    pub fn as_word(&self, context: &Context<Shape>) -> Option<u64> {
         match self.as_node() {
             ShapeNode::Family(shape_family, args) => {
                 if shape_family == &*WORD_SHAPE_FAMILY {
                     assert_eq!(args.len(), 1);
-                    if let ShapeNode::Nat(n) = args[0].as_node() {
-                        Some(*n)
-                    } else {
-                        panic!("Expected Nat-kinded argument")
+                    match args[0].as_node() {
+                        ShapeNode::Nat(n) => Some(*n),
+                        ShapeNode::Var(x) => {
+                            if let Some(s) = context.lookup(x) {
+                                if let ShapeNode::Nat(n) = s.as_node() {
+                                    Some(*n)
+                                } else {
+                                    panic!("?")
+                                }
+                            } else {
+                                todo!()
+                            }
+                        }
+                        _ => panic!("Expected Nat-kinded argument")
                     }
                 } else {
                     None
@@ -370,6 +380,20 @@ impl Shape {
                     ShapeFamilyDecl::Enum(alts) => None,
                     ShapeFamilyDecl::Struct(fs) => Some(fs.to_vec()),
                 }
+            },
+            _ => None,
+        }
+    }
+
+    pub fn params(&self) -> Option<Context<Shape>> {
+        match self.as_node() {
+            ShapeNode::Family(shape_family, args) => {
+                let mut context = Context::empty();
+                let params: Context<Kind> = shape_family.params().unwrap();
+                for (i, (v, _kind)) in params.iter().enumerate() {
+                    context = context.extend(v.to_string(), args[i].clone());
+                }
+                Some(context)
             },
             _ => None,
         }
