@@ -40,10 +40,61 @@ impl Bitsy {
     }
 
     pub fn add(&mut self, text: &str)  {
-        info!("Adding text: \"{}...\"", &text[..90].split("\n").collect::<Vec<_>>().join("\\n"));
+        use lalrpop_util::ParseError;
+
         let parser = NamespaceParser::new();
-        let namespace = parser.parse(text).unwrap();
-        self.add_namespace(&namespace);
+        match parser.parse(text) {
+            Ok(namespace) => self.add_namespace(&namespace),
+            Err(e) => {
+                match (e) {
+                    ParseError::InvalidToken { location } => {
+                        eprintln!("Syntax error:");
+                        eprintln!("    {e}");
+                    },
+                    ParseError::UnrecognizedToken { token, expected } => {
+                        let (location_start, found, location_end) = token;
+                        eprintln!("Syntax error:");
+                        eprintln!();
+
+                        let mut bad_line_start = 0;
+                        let mut bad_line_end = 0;
+                        let mut bad_lineno = 1;
+
+                        let mut text_lines: Vec<&str> = text.split("\n").collect();
+                        if text_lines[text_lines.len()-1] == "" {
+                            text_lines.pop();
+                        }
+
+                        for line in &text_lines {
+                            if bad_line_start + line.len() >= location_start {
+                                bad_line_end = bad_line_start + line.len() + 1;
+                                break;
+                            } else {
+                                bad_line_start += line.len() + 1;
+                                bad_lineno += 1;
+                            }
+                        }
+
+                        let spaces = String::from(" ").repeat(location_start - bad_line_start);
+                        let carrots = String::from("^").repeat(location_end - location_start);
+
+
+                        for i in 0..text_lines.len() {
+                            if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
+                                eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
+                            }
+                            if i + 1 == bad_lineno {
+                                eprintln!("          {spaces}{carrots}");
+                            }
+                        }
+
+                        eprintln!();
+                        eprintln!("Expected one of {} but found {:?}", expected.join(", "), found.to_string());
+                    },
+                    _ => eprintln!("{e:?}"),
+                }
+            }
+        }
     }
 
     fn add_namespace(&mut self, namespace: &Namespace) {
