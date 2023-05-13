@@ -97,8 +97,8 @@ pub Port: Port = {
 }
 
 pub Pin: Pin = {
-    <direction:Direction> <name:Ident> "of" <shape:Shape> "@" <domain:Domain>
-    => Pin(name, direction, shape, domain)
+    <direction:Direction> <name:Ident> "of" <shape:Shape>
+    => Pin(name, direction, shape, DomainRef::default())
 }
 
 pub Direction: Direction = {
@@ -131,13 +131,13 @@ pub Domain: DomainRef = {
 }
 
 pub Component: Component = {
-    <visibility:Visibility> "reg" <ident:Ident> "of" <shape:Shape> "@" <domain:Domain> <init:RegInit?> => {
+    <visibility:Visibility> "reg" <ident:Ident> "of" <shape:Shape> <domain:("@" Domain)?> <init:RegInit?> => {
         Component::Reg(
             ident,
             Visibility::Public,
             RegComponent {
                 shape,
-                domain,
+                domain: DomainRef::default(),
                 init,
             }
         )

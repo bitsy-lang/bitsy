@@ -53,6 +53,12 @@ pub struct ModDefRef(pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct GateRef(pub String);
 
+impl Default for DomainRef {
+    fn default() -> DomainRef {
+        DomainRef("d".to_string())
+    }
+}
+
 impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

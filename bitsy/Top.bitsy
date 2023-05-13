@@ -21,14 +21,14 @@ end
 
 pub mod Top
     port io
-        incoming in  of Word<8> @ d
-        outgoing out of Word<8> @ d
+        incoming in  of Word<8>
+        outgoing out of Word<8>
 
-    pub reg b of Bit @ d
-    pub reg w1 of Word<1> @ d init 0
-    pub reg w2 of Word<1> @ d init 1
+    pub reg b of Bit
+    pub reg w1 of Word<1> init 0
+    pub reg w2 of Word<1> init 1
 
-    pub reg state of State @ d
+    pub reg state of State
         init @Idle
 
     pub wire b.set <= w1.val == w2.val
@@ -43,34 +43,34 @@ end
 
 pub mod UartSender
     port io
-        outgoing tx of Bit @ d
+        outgoing tx of Bit
 
-    reg state of UartSenderState @ d
+    reg state of UartSenderState
 
     wire state.set <= @Sending(15)
 end
 
 mod Bar
     port io
-        outgoing out of Tuple<Bit, Bit> @ d
+        outgoing out of Tuple<Bit, Bit>
 
     wire io.out <= tuple(true, false)
 end
 
 mod Incrementer
   port io
-      incoming in0 of Word<8> @ d
-      incoming in1 of Word<8> @ d
-      outgoing out of Word<9> @ d
+      incoming in0 of Word<8>
+      incoming in1 of Word<8>
+      outgoing out of Word<9>
 
   wire io.out <= io.in0 + io.in1
 end
 
 mod Structs
     port io
-        incoming in  of ValidBit @ d
-        incoming in1 of Word<8> @ d
-        outgoing out of Bit @ d
+        incoming in  of ValidBit
+        incoming in1 of Word<8>
+        outgoing out of Bit
 
     wire io.out <= match io.in {
         @Invalid => false;
