@@ -1,10 +1,10 @@
 struct shape Foo
-    field baz : ValidBit
-    field bar : Word<8>
+    field baz of ValidBit
+    field bar of Word<8>
 end
 
 // Valid<S> is used when a signal may or may not be valid.
-enum shape Valid<S : Shape>
+enum shape Valid<S of Shape>
     @Invalid
     @Valid of Bit
 end
@@ -21,8 +21,8 @@ end
 
 pub mod Top
     port io
-        incoming in  : Word<8> @ d
-        outgoing out : Word<8> @ d
+        incoming in  of Word<8> @ d
+        outgoing out of Word<8> @ d
 
     pub reg b of Bit @ d
     pub reg w1 of Word<1> @ d init 0
@@ -43,7 +43,7 @@ end
 
 pub mod UartSender
     port io
-        outgoing tx : Bit @ d
+        outgoing tx of Bit @ d
 
     reg state of UartSenderState @ d
 
@@ -52,25 +52,25 @@ end
 
 mod Bar
     port io
-        outgoing out : Tuple<Bit, Bit> @ d
+        outgoing out of Tuple<Bit, Bit> @ d
 
     wire io.out <= tuple(true, false)
 end
 
 mod Incrementer
   port io
-      incoming in0 : Word<8> @ d
-      incoming in1 : Word<8> @ d
-      outgoing out : Word<9> @ d
+      incoming in0 of Word<8> @ d
+      incoming in1 of Word<8> @ d
+      outgoing out of Word<9> @ d
 
   wire io.out <= io.in0 + io.in1
 end
 
 mod Structs
     port io
-        incoming in  : ValidBit @ d
-        incoming in1 : Word<8> @ d
-        outgoing out : Bit @ d
+        incoming in  of ValidBit @ d
+        incoming in1 of Word<8> @ d
+        outgoing out of Bit @ d
 
     wire io.out <= match io.in {
         @Invalid => false;

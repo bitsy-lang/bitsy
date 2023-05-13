@@ -54,7 +54,7 @@ pub StructDef: StructDef = {
 }
 
 pub StructField: StructField = {
-    "field" <ident:Ident> ":" <shape:Shape> => StructField(ident, shape),
+    "field" <ident:Ident> "of" <shape:Shape> => StructField(ident, shape),
 }
 
 pub EnumDef: EnumDef = {
@@ -82,8 +82,8 @@ pub TypeDefParams: Vec<(String, Kind)> = {
 }
 
 pub TypeDefParam: (String, Kind) = {
-    <ident:Ident> ":" "Nat" => (ident, Kind::Nat),
-    <ident:Ident> ":" "Shape" => (ident, Kind::Shape),
+    <ident:Ident> "of" "Nat" => (ident, Kind::Nat),
+    <ident:Ident> "of" "Shape" => (ident, Kind::Shape),
 }
 
 pub EnumAlt: EnumAlt = {
@@ -97,7 +97,7 @@ pub Port: Port = {
 }
 
 pub Pin: Pin = {
-    <direction:Direction> <name:Ident> ":" <shape:Shape> "@" <domain:Domain>
+    <direction:Direction> <name:Ident> "of" <shape:Shape> "@" <domain:Domain>
     => Pin(name, direction, shape, domain)
 }
 
@@ -207,7 +207,7 @@ pub Wire: Wire = {
 }
 
 pub Expr: Box<Expr> = {
-    "let" <v:Ident> <shape:(":" Shape)?> "=" <def:Expr> ";" <body:Expr> => Box::new(Expr::Let(v, def, shape.map(|x| x.1), body)),
+    "let" <v:Ident> <shape:("of" Shape)?> "=" <def:Expr> ";" <body:Expr> => Box::new(Expr::Let(v, def, shape.map(|x| x.1), body)),
     "match" <subject:Expr> "{"
         <patterns:MatchArm*>
     "}" => Box::new(Expr::Match(subject, patterns)),
