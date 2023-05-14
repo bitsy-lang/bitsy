@@ -440,6 +440,13 @@ impl Bitsy {
     pub fn expr(&self, expr: &ast::Expr) -> Expr {
         match expr {
             ast::Expr::Var(x) => Expr::var(x.to_string()),
+            ast::Expr::Field(e, fs) => {
+                if let ast::Expr::Var(x) = e.as_ref() {
+                    Expr::var(format!("{x}.{}", fs.join(".")))
+                } else {
+                    todo!()
+                }
+            },
             ast::Expr::Lit(v) => Expr::lit(Value::from(v.clone())),
             ast::Expr::Let(x, def, def_shape, body) => {
                 match def_shape {

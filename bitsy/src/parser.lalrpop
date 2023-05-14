@@ -226,25 +226,26 @@ pub ExprAdd: Box<Expr> = {
 }
 
 pub ExprSlice: Box<Expr> = {
-    <expr:ExprBase> "[" <index:Slice> "]" <end:"?"?> => {
+    <expr:ExprDot> "[" <index:Slice> "]" <end:"?"?> => {
         Box::new(Expr::Slice(expr, index))
     },
-    <expr:ExprBase> => expr,
+    <expr:ExprDot> => expr,
 }
 
 pub Slice: Box<Expr> = {
     <expr: Expr> => expr,
 }
 
-pub ExprBase: Box<Expr> = {
-    <x:Ident> <path_parts:("." Ident)*> => {
-        let mut full_x = String::from(x);
-        for path_part in path_parts {
-            full_x.push_str(".");
-            full_x.push_str(&path_part.1);
-        }
-        Box::new(Expr::Var(full_x))
+pub ExprDot: Box<Expr> = {
+    <e:ExprBase> <fields:("." Ident)+> => {
+        let fields = fields.iter().map(|(_, f)| f.to_string()).collect();
+        Box::new(Expr::Field(e, fields))
     },
+    <expr:ExprBase> => expr,
+}
+
+pub ExprBase: Box<Expr> = {
+    <x:Ident> => Box::new(Expr::Var(x)),
     <value:Value> => Box::new(Expr::Lit(value)),
     "(" <expr:Expr> ")" => expr,
     "${" <struct_fields:StructFields> "}" => {
