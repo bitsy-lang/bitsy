@@ -221,8 +221,19 @@ pub ExprEq: Box<Expr> = {
 }
 
 pub ExprAdd: Box<Expr> = {
-    <op0:ExprBase> "+" <op1:ExprAdd> => Box::new(Expr::Add(op0, op1)),
+    <op0:ExprSlice> "+" <op1:ExprAdd> => Box::new(Expr::Add(op0, op1)),
+    <expr:ExprSlice> => expr,
+}
+
+pub ExprSlice: Box<Expr> = {
+    <expr:ExprBase> "[" <index:Slice> "]" <end:"?"?> => {
+        Box::new(Expr::Slice(expr, index))
+    },
     <expr:ExprBase> => expr,
+}
+
+pub Slice: Box<Expr> = {
+    <expr: Expr> => expr,
 }
 
 pub ExprBase: Box<Expr> = {

@@ -18,6 +18,8 @@ impl Context<Shape> {
             ExprNode::Tuple(es) => self.check_shape_tuple(es, shape),
             ExprNode::Struct(fs) => self.check_shape_struct(fs, shape),
             ExprNode::Enum(ctor_name, payload) => self.check_shape_enum(ctor_name, payload.clone(), shape.clone()),
+            ExprNode::Slice(subject, index) => todo!(),
+            ExprNode::SliceConst(subject, index) => todo!(),
         }
     }
 

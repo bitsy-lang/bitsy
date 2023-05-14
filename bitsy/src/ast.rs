@@ -67,6 +67,7 @@ pub enum Expr {
     Eq(Box<Expr>, Box<Expr>),
     Neq(Box<Expr>, Box<Expr>),
     Match(Box<Expr>, Vec<MatchArm>),
+    Slice(Box<Expr>, Box<Expr>),
     Tuple(Vec<Box<Expr>>),
     Struct(Vec<(FieldName, Box<Expr>)>),
     Enum(CtorName, Option<Box<Expr>>),

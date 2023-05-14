@@ -470,6 +470,15 @@ impl Bitsy {
                 }).collect();
                 Expr::match_expr(self.expr(e), match_arms)
             },
+            ast::Expr::Slice(subject, index) => {
+                //if is_constant(index) {
+                if false {
+//                    Expr::slice_const(self.expr(subject), self.expr(index))
+                    todo!()
+                } else {
+                    Expr::slice(self.expr(subject), self.expr(index))
+                }
+            },
         }
     }
 

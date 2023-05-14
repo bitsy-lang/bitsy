@@ -28,8 +28,12 @@ pub mod Top
     pub reg w1 of Word<1> init 0
     pub reg w2 of Word<1> init 1
 
+    pub reg b2 of Bit
+
     pub reg state of State
         init @Idle
+
+//    wire b2.set <= w1[0]
 
     pub wire b.set <= w1.val == w2.val
     pub wire state.set <= @Running(tuple(15, ${ bar = 0, baz = @Valid(false) }))

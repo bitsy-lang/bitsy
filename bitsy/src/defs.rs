@@ -82,6 +82,8 @@ pub enum ExprNode {
     Mul(Expr, Expr),
     Eq(Expr, Expr),
     Neq(Expr, Expr),
+    Slice(Expr, Expr),
+    SliceConst(Expr, u64),
     Match(Expr, Vec<MatchArm>),
     Tuple(Vec<Expr>),
     Struct(Vec<(FieldName, Expr)>),
@@ -481,5 +483,13 @@ impl Expr {
 
     pub fn enum_expr(ctor_name: String, payload: Option<Expr>) -> Expr {
         ExprNode::Enum(ctor_name, payload).into()
+    }
+
+    pub fn slice(subject: Expr, index: Expr) -> Expr {
+        ExprNode::Slice(subject, index).into()
+    }
+
+    pub fn slice_const(subject: Expr, index: u64) -> Expr {
+        ExprNode::SliceConst(subject, index).into()
     }
 }
