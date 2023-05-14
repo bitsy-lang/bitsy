@@ -1,40 +1,159 @@
-Bitsy
-=====
+# Bitsy
 Bitsy is a modern hardware description language.
 
-Notes
------
-* It would be nice if you could specify a default value for a struct/enum type to optionally use in a register.
-* Fin<n> and Byte types
-* Do ports go on their own domains?
+## Module Definitions
+You declare modules with `mod`.
+Modules can be marked public with `pub`.
+Non-`pub` modules are free to be inlined by the compiler.
+Module blocks are closed with `end`.
 
+At the top of a module, you declare your ports.
+A port is a collection of related wires (called pins for now).
+The advantage of ports is that they can be connected together in a single statement.
+(To be implemented later).
+In modules with only a few number of wires, you should name the port `io`.
 
-Port decls?
------------
+Each port consists of a number of pins.
+Each pin is marked as `incoming` or `outgoing`.
+Each pin also has a name and a shape (such as `Bit` or `Word<8>`).
 
-    port Wishbone
-        aligned addr        : Valid<Word<32>>
-        flipped read_data   : Valid<Word<32>>
-        aligned write_data  : Valid<Word<32>>
-        aligned cycle       : Bit
-        aligned strobe      : Bit
-        aligned sel         : Word<4>
-    end
+In the future, once multiple clock domain support is added,
+ports will become the unit of clocking as well.
+(In other words, all pins on the same port are clocked the same).
 
+Below the port definitions are the component declarations.
+There are different kinds of components:
 
-Convenience syntax for reading/saving to registers?
----------------------------------------------------
+* `mod` for submodules
+* `reg` for registers
+* `gate` for gates
+* `const` for constant sources
 
-    reg foo of Word<8>
+Every component is given a name.
+Components can be marked public with `pub`.
+These are guaranteed to be preserved during compilation and to have a stable name.
 
-    wire foo.set <= ...
-    set foo <= ...
+For submodules, you declare it with the name of the module definition.
 
-... and letting the use of a register just act like a variable in expressions.
+For registers, you declare them with a shape.
+Optionally, you may include an `init` value.
+This is the reset value for the register.
 
+For gates, you declare the name of the gate primitive to be used.
+These work just like modules.
 
-Ideas
------
-* Vecs should be parameterized by the index type (which could be an artibrary shape)
-* Shapes should have both bitwidth and number of elements, since this is easy to calculate.
-* Remove Eq from heavy data structures that should just be ptr-eq'ed
+For consts, you supply the value and its shape.
+Consts simply drive the constant value to its output.
+
+Every component defined in a module will expose its pins as terminals.
+You must drive every sink terminal, or the module is considered incomplete.
+Any source terminal you fail to sink will (someday) result in a warning.
+
+To drive a sink from a source, you use the `wire` keyword.
+Again, `pub` will make this wire public and prevent optimizations.
+The wire will be guaranteed to have a stable name during simulation.
+
+The source may be a terminal, created from the placement of some component,
+or it may be an expression.
+Unlike in Verilog, you may not wire sinks together.
+
+Every module has an implicit clock and reset.
+
+```
+pub mod Top
+    port io
+        incoming in  of Word<8>
+        outgoing out of Word<8>
+
+    pub reg b of Bit
+    pub reg w1 of Word<1> init 0
+    pub reg w2 of Word<1> init 1
+
+    pub mod adder of Adder
+    pub gate and of And
+
+    pub const v = false of Bit
+
+    pub reg b2 of Bit
+
+    pub reg state of State
+        init @Idle
+
+    pub wire b.set <= w1.val == w2.val
+    pub wire state.set <= @Running(tuple(15, ${ bar = 0, baz = @Valid(false) }))
+    pub wire io.out <= 255
+end
+```
+
+## Tuples
+
+Tuples are useful for when you want to stuff a bunch of data into a register or an enum variant (see below).
+
+A tuple shape is defined as `Tuple<Bit, Word<8>>` to create a pair of a bit and a byte.
+To construct a value of this shape, you use `tuple(false, 0)` (with a lowercase t).
+
+## Structs
+
+One advantage Bitsy offers over Verilog is proper support for user-defined types.
+The first of these is `struct`s.
+
+```
+struct shape Foo
+    field bar of Bit
+    field baz of Word<8>
+end
+```
+
+This defines a new shape (which is a type for hardware values).
+We declare each field with the `field` keyword and give the name and shape of the field.
+
+To construct values of this new shape, we use the struct literal syntax: `${ far = true, baz = 0 }`.
+
+To access a field in a value of a struct shape, you use the familiar dot operator: `foo.bar`.
+(Embarrassingly not impemented yet).
+
+## Enums
+
+The second sort of user-defined shape is the `enum`.
+These are like tagged unions in Verilog.
+
+```
+enum shape Valid<S of Shape>
+    @Invalid
+    @Valid of S
+end
+```
+
+Here, we have a shape with two variants, `@Invalid` is a value for when there "is no data",
+and `@Valid(s)` for when there is a value.
+
+Each variant may carry an optional payload.
+Here, `@Valid` has a payload of shape `S`.
+(The `S` is a parameter, given in the declaration.
+Structs may also have parameters).
+
+To make use of enum values, you use the `match` statement.
+
+Here is an example of using a match to set the value of `io.out` based on the input `io.in`.
+Notice that `io.out` will "default" to `false` whenever `io.in` is invalid:
+
+```
+    wire io.out <= match io.in {
+        @Invalid => false;
+        @Valid(bit) => bit;
+    }
+```
+
+## Typechecking
+
+The real advantage of Bitsy (I hope someday) is that the type system prevents you from engaging in nonsense.
+In particular, there will never be any data loss from implicit truncation (unlike Verilog).
+There will also never be automatic extension, so you always have to choose between sign- and zero-extension.
+Adding values is always done with the peculiar-looking `+&` and +%` operators to remind you that words overflow.
+And so we use `+&` for when we capture the carry bit and `+%` when we want to roll over.
+
+Indexing is another major point of unsafety in Verilog.
+To prevent this, all indexing with `x[i]` must be guaranteed to be in-bounds statically.
+For indexing which may not be in-bounds, the checked version, `x[i]?` is used,
+which returns a value of shape `Valid<S>` rather than `S`.
+(Also not implemented yet).
