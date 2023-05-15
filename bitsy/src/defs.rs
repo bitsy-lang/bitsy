@@ -433,6 +433,29 @@ impl Type {
         }
     }
 
+    pub fn subst(&self, x: &str, t: Type) -> Type {
+        match self.as_node() {
+            TypeNode::Family(shape, args) => self.clone(),
+            TypeNode::Var(y) => {
+                if x == y {
+                    t
+                } else {
+                    self.clone()
+                }
+            },
+            TypeNode::Nat(n) => self.clone(),
+            TypeNode::Ref(r) => self.clone(),
+        }
+    }
+
+    pub fn substs(&self, xts: &[(String, Type)]) -> Type {
+        let mut result = self.clone();
+        for (x, t) in xts {
+            result = result.subst(x, t.clone());
+        }
+        result
+    }
+
     pub fn as_node(&self) -> &TypeNode {
         self.0.as_ref()
     }

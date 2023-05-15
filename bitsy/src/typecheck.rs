@@ -274,38 +274,54 @@ impl Context<Type> {
     }
 
     fn check_type_struct(&self, fs: &[(String, Expr)], typ: Type) -> bool {
-        if let Some(struct_fields) = typ.as_struct() {
-            let mut new_context: Context<Type> = self.extend_from(&typ.params().unwrap());
-            if fs.len() != struct_fields.len() {
-                return false;
-            }
-            let mut fs_sorted = fs.to_vec();
-            fs_sorted.sort_by_key(|(field_name, _val)| field_name.to_string());
-            let mut struct_fields_sorted = struct_fields.clone();
-            struct_fields_sorted.sort_by_key(|StructField(field_name, _type)| field_name.clone());
-
-            for ((field_name0, e), StructField(field_name1, s)) in fs_sorted.iter().zip(&struct_fields_sorted) {
-                if field_name0 != field_name1 || !new_context.check_type(e.clone(), s.clone()) {
+        if let TypeNode::Family(shape, args) = typ.as_node() {
+            let param_names: Vec<String> = shape.clone().params().unwrap().into_inner().iter().map(|(name, _kind)| name.to_string()).collect();
+            if let Some(struct_fields) = typ.as_struct() {
+                let mut new_context: Context<Type> = self.extend_from(&typ.params().unwrap());
+                if fs.len() != struct_fields.len() {
                     return false;
                 }
+                let mut fs_sorted = fs.to_vec();
+                fs_sorted.sort_by_key(|(field_name, _val)| field_name.to_string());
+                let mut struct_fields_sorted = struct_fields.clone();
+                struct_fields_sorted.sort_by_key(|StructField(field_name, _type)| field_name.clone());
+
+                for ((field_name0, e), StructField(field_name1, s)) in fs_sorted.iter().zip(&struct_fields_sorted) {
+                    let field_typ = s.substs(&param_names.clone().into_iter().zip(args.iter().cloned()).collect::<Vec<_>>()).clone();
+                    if field_name0 != field_name1 || !new_context.check_type(e.clone(), field_typ) {
+                        return false;
+                    }
+                }
+                true
+            } else {
+                false
             }
-            true
         } else {
             false
         }
     }
 
     fn check_type_enum(&self, ctor_name: &str, payload: Option<Expr>, typ: Type) -> bool {
-        if let Some(alts) = typ.enum_alts() {
-            if let Some(alt) = typ.enum_alt(ctor_name) {
-                match (payload, &alt.payload()) {
-                    (None, None) => true,
-                    (Some(payload_val), Some(payload_type)) => self.check_type(payload_val, payload_type.clone()),
-                    _ => false
+        debug!("check_type_enum");
+        if let TypeNode::Family(shape, args) = typ.as_node() {
+            let param_names: Vec<String> = shape.clone().params().unwrap().into_inner().iter().map(|(name, _kind)| name.to_string()).collect();
+            debug!("shape = {shape:?} args = {args:?}");
+            if let Some(alts) = typ.enum_alts() {
+                debug!("alts = {alts:?}");
+                if let Some(alt) = typ.enum_alt(ctor_name) {
+                    debug!("alt = {alt:?}");
+                    return match (payload, &alt.payload()) {
+                        (None, None) => true,
+                        (Some(payload_val), Some(payload_type)) => self.check_type(payload_val, payload_type.substs(&param_names.into_iter().zip(args.iter().cloned()).collect::<Vec<_>>()).clone()),
+                        _ => false,
+                    };
+                } else {
+                    return false;
                 }
             } else {
-                false
+                return false;
             }
+            false
         } else {
             false
         }
