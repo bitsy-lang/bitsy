@@ -11,7 +11,7 @@ extern crate lalrpop_util;
 lalrpop_mod!(pub parser);
 
 mod common;
-pub mod shapecheck;
+pub mod typecheck;
 pub mod kindcheck;
 pub mod ast;
 pub mod depends;
@@ -383,7 +383,7 @@ impl Bitsy {
                 context = context.extend(terminal.name().clone(), Type::clone(&terminal.shape()));
             }
             println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
-            if !context.check_shape(expr.clone(), shape.clone()) {
+            if !context.check_type(expr.clone(), shape.clone()) {
                 panic!("Shape check failed: {:?} is not {:?}", expr, shape);
             }
 

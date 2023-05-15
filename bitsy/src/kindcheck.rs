@@ -3,12 +3,12 @@ use crate::defs::{EnumAlt, Type, TypeNode};
 use crate::context::Context;
 
 impl Context<Kind> {
-    pub fn check(&self, shape: Type, kind: Kind) -> bool {
-        match &*shape {
+    pub fn check(&self, typ: Type, kind: Kind) -> bool {
+        match &*typ {
             TypeNode::Var(x) => self.lookup(x).expect("Unknown variable") == kind,
             TypeNode::Nat(_n) => kind == Kind::Nat,
-            TypeNode::Family(shape_family, args) => {
-                match shape_family.params() {
+            TypeNode::Family(shape, args) => {
+                match shape.params() {
                     None => {
                         // tuple
                         for arg in args {
