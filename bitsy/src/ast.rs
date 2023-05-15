@@ -166,20 +166,20 @@ impl Namespace {
         results
     }
 
-    pub fn shape_def(&self, name: &str) -> ShapeDef {
+    pub fn shape_def(&self, name: &str) -> BitsyResult<ShapeDef> {
         for decl in &self.decls {
             if decl.name() == name {
                 if let Decl::EnumDef(enum_def) = decl {
-                    return ShapeDef::EnumDef(enum_def.clone());
+                    return Ok(ShapeDef::EnumDef(enum_def.clone()));
                 } else if let Decl::StructDef(struct_def) = decl {
-                    return ShapeDef::StructDef(struct_def.clone());
+                    return Ok(ShapeDef::StructDef(struct_def.clone()));
                 } else {
-                    panic!("Decl {name} is not a shape decl")
+                    return Err(BitsyError::Unknown(format!("Decl {name} is not a shape decl")));
                 }
             }
         }
 
-        panic!("No such shape def found: {name}")
+        return Err(BitsyError::Unknown(format!("No such shape def found: {name}")))
     }
 }
 

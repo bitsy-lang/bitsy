@@ -354,13 +354,17 @@ impl Type {
                                 if let TypeNode::Nat(n) = s.as_node() {
                                     Some(*n)
                                 } else {
+                                    error!("Panic");
                                     panic!("?")
                                 }
                             } else {
                                 todo!()
                             }
-                        }
-                        _ => panic!("Expected Nat-kinded argument")
+                        },
+                        _ => {
+                            error!("Panic");
+                            panic!("Expected Nat-kinded argument")
+                        },
                     }
                 } else {
                     None

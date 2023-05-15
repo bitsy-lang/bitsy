@@ -209,7 +209,49 @@ impl State {
                     });
                     send_message(message);
                 },
+                BitsyError::Type(start, end, message) => {
+                    let (start_line, start_character) = pos_to_lineno_col(&self.text, start);
+                    let (end_line, end_character) = pos_to_lineno_col(&self.text, end);
+                    let message = json!({
+                        "jsonrpc": "2.0",
+                        "method": "textDocument/publishDiagnostics",
+                        "params": {
+                            "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                            "diagnostics": [
+                                {
+                                    "range": {
+                                        "start": { "line": start_line, "character": start_character },
+                                        "end": { "line": end_line, "character": end_character },
+                                    },
+                                    "severity": 1, // ERROR
+                                    "message": message,
+                                },
+                            ],
+                        },
+                    });
+                    send_message(message);
+                },
                 BitsyError::Unknown(message) => {
+                    let (start_line, start_character) = (0, 0);
+                    let (end_line, end_character) = (0, 1);
+                    let message = json!({
+                        "jsonrpc": "2.0",
+                        "method": "textDocument/publishDiagnostics",
+                        "params": {
+                            "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                            "diagnostics": [
+                                {
+                                    "range": {
+                                        "start": { "line": start_line, "character": start_character },
+                                        "end": { "line": end_line, "character": end_character },
+                                    },
+                                    "severity": 1, // ERROR
+                                    "message": message,
+                                },
+                            ],
+                        },
+                    });
+                    send_message(message);
                 },
             }
         } else {

@@ -3,6 +3,15 @@ pub type PortName = String;
 pub type FieldName = String;
 pub type CtorName = String;
 
+#[derive(Debug)]
+pub enum BitsyError {
+    Parse(usize, usize, String),
+    Type(usize, usize, String),
+    Unknown(String),
+}
+
+pub type BitsyResult<T> = Result<T, BitsyError>;
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Polarity {
     Sink,

@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use log::*;
 
 #[derive(Debug, Clone)]
 pub struct Depends<T> {
@@ -39,6 +40,7 @@ impl<T: Eq + Clone + Ord + std::fmt::Debug> Depends<T> {
                 return i;
             }
         }
+        error!("Panic");
         panic!("Not found: {t:?}")
     }
 

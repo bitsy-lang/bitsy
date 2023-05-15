@@ -36,11 +36,7 @@ pub struct Bitsy {
     shape_families: Vec<Shape>,
 }
 
-#[derive(Debug)]
-pub enum BitsyError {
-    Parse(usize, usize, String),
-    Unknown(String),
-}
+pub use common::{BitsyError, BitsyResult};
 
 impl Bitsy {
     pub fn new() -> Bitsy {
@@ -54,7 +50,7 @@ impl Bitsy {
     pub fn add(&mut self, text: &str) -> Result<(), BitsyError> {
         let parser = NamespaceParser::new();
         match parser.parse(text) {
-            Ok(namespace) => self.add_namespace(&namespace),
+            Ok(namespace) => self.add_namespace(&namespace)?,
             Err(e) => {
                 match e {
                     ParseError::InvalidToken { location } => return Err(BitsyError::Parse(location, location + 1, "Invalid token".to_string())),
@@ -70,12 +66,13 @@ impl Bitsy {
         Ok(())
     }
 
-    fn add_namespace(&mut self, namespace: &ast::Namespace) {
-        self.add_shape_defs(namespace);
-        self.add_module_defs(namespace);
+    fn add_namespace(&mut self, namespace: &ast::Namespace) -> Result<(), BitsyError> {
+        self.add_shape_defs(namespace)?;
+        self.add_module_defs(namespace)?;
+        Ok(())
     }
 
-    fn add_module_defs(&mut self, namespace: &ast::Namespace) {
+    fn add_module_defs(&mut self, namespace: &ast::Namespace) -> Result<(), BitsyError> {
         let mut decl_names = HashSet::new();
         for decl in &namespace.decls {
             assert!(!decl_names.contains(decl.name()), "Duplicate declaration: {}", decl.name());
@@ -93,11 +90,12 @@ impl Bitsy {
 
         info!("Adding modules");
         for mod_name in depends.sort().expect("Cycle detected") {
-            self.add_module(&namespace.mod_def(&mod_name));
+            self.add_module(&namespace.mod_def(&mod_name))?;
         }
+        Ok(())
     }
 
-    fn add_shape_defs(&mut self, namespace: &ast::Namespace) {
+    fn add_shape_defs(&mut self, namespace: &ast::Namespace) -> Result<(), BitsyError> {
         let mut depends = depends::Depends::<String>::new();
 
         let mut shape_defs_by_name: HashMap<&str, &ast::ShapeDef> = HashMap::new();
@@ -116,36 +114,39 @@ impl Bitsy {
 
             if self.shape_family(&shape_ref).is_none() {
             info!("    Adding {shape_ref}");
-                self.add_shape_family(&namespace.shape_def(&shape_ref));
+                self.add_shape_family(&namespace.shape_def(&shape_ref)?)?;
             }
         }
+
+        Ok(())
     }
 
-    fn add_shape_family(&mut self, shape_def: &ast::ShapeDef) {
+    fn add_shape_family(&mut self, shape_def: &ast::ShapeDef) -> Result<(), BitsyError> {
         match shape_def {
             ast::ShapeDef::EnumDef(enum_def) => self.add_enum_shape_family(enum_def),
             ast::ShapeDef::StructDef(struct_def) => self.add_struct_shape_family(struct_def),
         }
     }
 
-    fn add_struct_shape_family(&mut self, struct_def: &ast::StructDef) {
+    fn add_struct_shape_family(&mut self, struct_def: &ast::StructDef) -> Result<(), BitsyError> {
         let mut fields = vec![];
         let context = &struct_def.params;
         for ast::StructField(field_name, shape_ref) in &struct_def.fields {
             if let Some(shape) = self.shape(shape_ref, context) {
                 if !context.check(shape.clone(), Kind::Shape) {
-                    panic!("Not a thing");
+                    return Err(BitsyError::Unknown("Kind check failed".to_string()));
                 }
                 fields.push(StructField(field_name.to_string(), shape.clone()));
             } else {
-                panic!("Uh oh");
+                    return Err(BitsyError::Unknown("Uh oh".to_string()));
             }
         }
         let shape_family = Shape::new_struct(&struct_def.name, struct_def.params.clone(), fields);
         self.shape_families.push(shape_family);
+        Ok(())
     }
 
-    fn add_enum_shape_family(&mut self, enum_def: &ast::EnumDef) {
+    fn add_enum_shape_family(&mut self, enum_def: &ast::EnumDef) -> Result<(), BitsyError> {
         let mut context: Context<Kind> = enum_def.params.clone();
 
         let mut alts = vec![];
@@ -155,6 +156,7 @@ impl Bitsy {
 
         let shape_family = Shape::new_enum(&enum_def.name, enum_def.params.clone(), alts);
         self.shape_families.push(shape_family);
+        Ok(())
     }
 
     fn shape(&self, shape_ref: &ShapeRef, context: &Context<Kind>) -> Option<Type> {
@@ -194,7 +196,7 @@ impl Bitsy {
         None
     }
 
-    fn add_module(&mut self, mod_def: &ast::ModDef) {
+    fn add_module(&mut self, mod_def: &ast::ModDef) -> Result<(), BitsyError> {
         let context: Context<Kind> = Context::empty();
         let module = Module::new(&mod_def.name);
         self.modules.push(module);
@@ -212,7 +214,7 @@ impl Bitsy {
                     let pin = Pin(name.to_string(), *direction, shape);
                     pins.push(pin);
                 } else {
-                    panic!("Unknown shape: {shape_ref:?}");
+                    return Err(BitsyError::Type(0, 0, format!("Unknown shape: {shape_ref:?}")));
                 }
             }
             let port = Port(port_name.clone(), pins);
@@ -263,7 +265,7 @@ impl Bitsy {
                         terminals_by_ref.insert(val_terminal.to_ref(), val_terminal.clone());
                         terminals.push(val_terminal);
                     } else {
-                        panic!("Unknown shape: {:?}", &reg_component.shape);
+                        return Err(BitsyError::Type(0, 0, format!("Unknown shape: {:?}", &reg_component.shape)));
                     }
                 },
                 _ => (),
@@ -319,12 +321,13 @@ impl Bitsy {
             let shape = sink_terminal.shape();
             debug!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
             if !context.check_type(expr.clone(), shape.clone()) {
-                panic!("Shape check failed: {:?} is not {:?}", expr, shape);
+                return Err(BitsyError::Type(0, 0, format!("Shape check failed: {:?} is not {:?}", expr, shape)));
             }
 
             wires.push(Wire(*visibility, sink_terminal.clone(), expr));
         }
 
+        Ok(())
     }
 
     fn shape_family(&self, name: &str) -> Option<Shape> {

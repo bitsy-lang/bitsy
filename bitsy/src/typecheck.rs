@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use crate::context::Context;
+use log::*;
 
 use crate::common::Direction;
 use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
@@ -140,6 +141,7 @@ impl Context<Type> {
         if let Some(type0) = self.lookup(x) {
             typ == type0
         } else {
+            error!("Panic: No such variable: {x}");
             panic!("No such variable: {x}")
         }
     }
@@ -203,12 +205,14 @@ impl Context<Type> {
                                         self.clone()
                                     } else {
                                         if pats.len() != 1 {
+                                            error!("Panic");
                                             panic!("asdf");
                                             return false;
                                         }
                                         if let MatchPattern::Var(x0) = &*pats[0] {
                                             self.extend(x0.to_string(), payload_type.clone())
                                         } else {
+                                            error!("Panic");
                                             panic!("qwer");
                                             return false
                                         }
