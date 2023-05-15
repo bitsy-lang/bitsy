@@ -134,24 +134,24 @@ impl Namespace {
         result
     }
 
-    pub fn mod_def(&self, name: &str) -> &ModDef {
+    pub fn mod_def(&self, name: &str) -> BitsyResult<&ModDef> {
         for mod_def in self.mod_defs() {
             if mod_def.name == name {
-                return &mod_def;
+                return Ok(&mod_def);
             }
         }
 
-        panic!("No such module found: {name}")
+        Err(BitsyError::Unknown(format!("No such module found: {name}")))
     }
 
-    pub fn enum_def(&self, name: &str) -> &EnumDef {
+    pub fn enum_def(&self, name: &str) -> BitsyResult<&EnumDef> {
         for enum_def in self.enum_defs() {
             if enum_def.name == name {
-                return &enum_def;
+                return Ok(&enum_def);
             }
         }
 
-        panic!("No such enum found: {name}")
+        Err(BitsyError::Unknown(format!("No such enum found: {name}")))
     }
 
     pub fn shape_defs(&self) -> Vec<ShapeDef> {

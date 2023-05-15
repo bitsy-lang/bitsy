@@ -90,7 +90,7 @@ impl Bitsy {
 
         info!("Adding modules");
         for mod_name in depends.sort().expect("Cycle detected") {
-            self.add_module(&namespace.mod_def(&mod_name))?;
+            self.add_module(namespace.mod_def(&mod_name)?)?;
         }
         Ok(())
     }
