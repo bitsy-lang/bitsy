@@ -1,19 +1,19 @@
 use std::sync::Arc;
 use crate::context::Context;
 
-use crate::{Bitsy, Expr, Shape, Value, MatchArm, MatchPattern, ShapeNode};
+use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
-impl Context<Shape> {
-    pub fn check_shape(&self, expr: Expr, shape: Shape) -> bool {
+impl Context<Type> {
+    pub fn check_shape(&self, expr: Expr, shape: Type) -> bool {
         match expr.as_node() {
             ExprNode::Var(x) => self.check_shape_var(x, shape),
             ExprNode::Lit(value) => self.check_shape_lit(value.clone(), shape),
             ExprNode::Let(x, def, ascription, body) => self.check_shape_let(x, def.clone(), ascription.clone(), body.clone(), shape),
             ExprNode::Add(op0, op1) => self.check_shape_add(op0.clone(), op1.clone(), shape),
             ExprNode::Mul(op0, op1) => todo!(),
-            ExprNode::Eq(op0, op1) => self.infer_shape(expr.clone()) == Some(Shape::bit()),
-            ExprNode::Neq(op0, op1) => self.infer_shape(expr.clone()) == Some(Shape::bit()),
+            ExprNode::Eq(op0, op1) => self.infer_shape(expr.clone()) == Some(Type::bit()),
+            ExprNode::Neq(op0, op1) => self.infer_shape(expr.clone()) == Some(Type::bit()),
             ExprNode::Match(subject, arms) => self.check_shape_match(subject.clone(), arms, shape),
             ExprNode::Tuple(es) => self.check_shape_tuple(es, shape),
             ExprNode::Struct(fs) => self.check_shape_struct(fs, shape),
@@ -23,7 +23,7 @@ impl Context<Shape> {
         }
     }
 
-    pub fn infer_shape(&self, expr: Expr) -> Option<Shape> {
+    pub fn infer_shape(&self, expr: Expr) -> Option<Type> {
         let result = match expr.as_node() {
             ExprNode::Var(x) => self.infer_shape_var(x),
             ExprNode::Lit(value) => self.infer_shape_lit(value),
@@ -32,13 +32,13 @@ impl Context<Shape> {
             ExprNode::Mul(op0, op1) => None,
             ExprNode::Eq(op0, op1) => {
                 match (self.infer_shape(op0.clone()), self.infer_shape(op1.clone())) {
-                    (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Shape::bit()) } else { None },
+                    (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Type::bit()) } else { None },
                     _ => None,
                 }
             },
             ExprNode::Neq(op0, op1) => {
                 match (self.infer_shape(op0.clone()), self.infer_shape(op1.clone())) {
-                    (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Shape::bit()) } else { None },
+                    (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Type::bit()) } else { None },
                     _ => None,
                 }
             },
@@ -47,17 +47,17 @@ impl Context<Shape> {
         result
     }
 
-    fn infer_shape_var(&self, x: &str) -> Option<Shape> {
+    fn infer_shape_var(&self, x: &str) -> Option<Type> {
         Some(self.lookup(&x).expect(&format!("No such variable: {x}")))
     }
 
-    fn infer_shape_lit(&self, value: &Value) -> Option<Shape> {
+    fn infer_shape_lit(&self, value: &Value) -> Option<Type> {
         match value {
-            Value::Bit(_b) => Some(Shape::bit()),
+            Value::Bit(_b) => Some(Type::bit()),
             Value::Word(v) => None, // because you can't infer the bitwidth
             Value::Tuple(vs) => {
                 // try to infer each v in vs, if you can then good.
-                let mut shapes: Vec<Shape> = vec![];
+                let mut shapes: Vec<Type> = vec![];
                 for opt_shape in vs.iter().map(|v| self.infer_shape_lit(v)) {
                     if let Some(shape) = opt_shape {
                         shapes.push(shape.clone());
@@ -65,13 +65,13 @@ impl Context<Shape> {
                         return None
                     }
                 }
-                Some(Shape::tuple(shapes))
+                Some(Type::tuple(shapes))
             },
             _ => None,
         }
     }
 
-    fn infer_shape_let(&self, x: &str, def: Expr, def_shape: Option<Shape>, body: Expr) -> Option<Shape> {
+    fn infer_shape_let(&self, x: &str, def: Expr, def_shape: Option<Type>, body: Expr) -> Option<Type> {
         match (self.infer_shape(def.clone()), def_shape) {
             (Some(def_shape0), Some(def_shape1)) => {
                 if def_shape0 == def_shape1 {
@@ -97,7 +97,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_var(&self, x: &str, shape: Shape) -> bool {
+    fn check_shape_var(&self, x: &str, shape: Type) -> bool {
         if let Some(shape0) = self.lookup(x) {
             shape == shape0
         } else {
@@ -105,7 +105,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_let(&self, x: &str, def: Expr, ascription: Option<Shape>, body: Expr, shape: Shape) -> bool {
+    fn check_shape_let(&self, x: &str, def: Expr, ascription: Option<Type>, body: Expr, shape: Type) -> bool {
         match ascription {
             None => {
                 if let Some(def_shape) = self.infer_shape(def) {
@@ -126,18 +126,18 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_add(&self, op0: Expr, op1: Expr, shape: Shape) -> bool {
+    fn check_shape_add(&self, op0: Expr, op1: Expr, shape: Type) -> bool {
         if let Some(n) = shape.as_word(self) {
             if n > 0 {
-                if self.check_shape(op0.clone(), Shape::word(n - 1)) {
+                if self.check_shape(op0.clone(), Type::word(n - 1)) {
                     for i in 0..n {
-                        if self.check_shape(op1.clone(), Shape::word(i)) {
+                        if self.check_shape(op1.clone(), Type::word(i)) {
                             return true
                         }
                     }
-                } else if self.check_shape(op1.clone(), Shape::word(n - 1)) {
+                } else if self.check_shape(op1.clone(), Type::word(n - 1)) {
                     for i in 0..n {
-                        if self.check_shape(op0.clone(), Shape::word(i)) {
+                        if self.check_shape(op0.clone(), Type::word(i)) {
                             return true
                         }
                     }
@@ -149,7 +149,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_match(&self, subject: Expr, arms: &[MatchArm], shape: Shape) -> bool {
+    fn check_shape_match(&self, subject: Expr, arms: &[MatchArm], shape: Type) -> bool {
         if let Some(subject_shape) = &self.infer_shape(subject) {
             let enum_alts = if let Some(enum_alts) = subject_shape.enum_alts() { enum_alts } else { return false };
 
@@ -158,7 +158,7 @@ impl Context<Shape> {
                 match &*pat {
                     MatchPattern::Ctor(ctor_name, pats) => {
                         if let Some(alt) = subject_shape.enum_alt(ctor_name) {
-                            let new_context: Context<Shape> = match alt.payload() {
+                            let new_context: Context<Type> = match alt.payload() {
                                 Some(payload_shape) => {
                                     if pats.len() == 0 {
                                         self.clone()
@@ -213,7 +213,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_tuple(&self, es: &[Expr], shape: Shape) -> bool {
+    fn check_shape_tuple(&self, es: &[Expr], shape: Type) -> bool {
         if let Some(params) = shape.as_tuple() {
             if es.len() != params.len() {
                 return false;
@@ -230,9 +230,9 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_struct(&self, fs: &[(String, Expr)], shape: Shape) -> bool {
+    fn check_shape_struct(&self, fs: &[(String, Expr)], shape: Type) -> bool {
         if let Some(struct_fields) = shape.as_struct() {
-            let mut new_context: Context<Shape> = self.extend_from(&shape.params().unwrap());
+            let mut new_context: Context<Type> = self.extend_from(&shape.params().unwrap());
             if fs.len() != struct_fields.len() {
                 return false;
             }
@@ -252,7 +252,7 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_enum(&self, ctor_name: &str, payload: Option<Expr>, shape: Shape) -> bool {
+    fn check_shape_enum(&self, ctor_name: &str, payload: Option<Expr>, shape: Type) -> bool {
         if let Some(alts) = shape.enum_alts() {
             if let Some(alt) = shape.enum_alt(ctor_name) {
                 match (payload, &alt.payload()) {
@@ -268,10 +268,10 @@ impl Context<Shape> {
         }
     }
 
-    fn check_shape_lit(&self, value: Value, shape: Shape) -> bool {
+    fn check_shape_lit(&self, value: Value, shape: Type) -> bool {
         match value {
             Value::Bit(_b) => {
-                shape == Shape::bit()
+                shape == Type::bit()
             },
             Value::Word(v) => {
                 if let Some(n) = shape.as_word(self) {
@@ -357,7 +357,7 @@ mod test {
         let parser = ExprParser::new();
         let expr: Expr = bitsy.expr(&parser.parse("let x = true; x").unwrap());
         let shape = Context::empty().infer_shape(expr.clone());
-        let bit_shape: Shape = Shape::bit();
+        let bit_shape: Type = Type::bit();
         assert!(context.check_shape(expr.clone(), bit_shape));
 
         let parser = ExprParser::new();
@@ -382,8 +382,8 @@ mod test {
         ";
         bitsy.add(&text);
 
-        let bit_shape: Shape = Shape::bit();
-        let word_8_shape: Shape = Shape::word(8);
+        let bit_shape: Type = Type::bit();
+        let word_8_shape: Type = Type::word(8);
 
         let context = Context::empty();
         let parser = ExprParser::new();

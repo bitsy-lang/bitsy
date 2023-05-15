@@ -1,13 +1,13 @@
 use crate::{Bitsy, Kind, StructField};
-use crate::defs::{EnumAlt, Shape, ShapeNode};
+use crate::defs::{EnumAlt, Type, TypeNode};
 use crate::context::Context;
 
 impl Context<Kind> {
-    pub fn check(&self, shape: Shape, kind: Kind) -> bool {
+    pub fn check(&self, shape: Type, kind: Kind) -> bool {
         match &*shape {
-            ShapeNode::Var(x) => self.lookup(x).expect("Unknown variable") == kind,
-            ShapeNode::Nat(_n) => kind == Kind::Nat,
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Var(x) => self.lookup(x).expect("Unknown variable") == kind,
+            TypeNode::Nat(_n) => kind == Kind::Nat,
+            TypeNode::Family(shape_family, args) => {
                 match shape_family.params() {
                     None => {
                         // tuple

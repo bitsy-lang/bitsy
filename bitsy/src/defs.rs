@@ -13,10 +13,10 @@ pub struct Module(Arc<ModuleDef>);
 pub struct Gate(Arc<GateDef>);
 
 #[derive(Debug, Clone)]
-pub struct ShapeFamily(Arc<ShapeFamilyNode>);
+pub struct Shape(Arc<ShapeNode>);
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Shape(Arc<ShapeNode>);
+pub struct Type(Arc<TypeNode>);
 
 #[derive(Debug, Clone)]
 pub struct Expr(Arc<ExprNode>);
@@ -44,7 +44,7 @@ pub struct GateDef {
 
 
 #[derive(Debug, Clone)]
-pub struct ShapeFamilyNode {
+pub struct ShapeNode {
     name: String,
     params: Option<Context<Kind>>, // Option for variadic
     decl: ShapeFamilyDecl,
@@ -60,15 +60,15 @@ pub enum ShapeFamilyDecl {
 #[derive(Debug, Clone)]
 pub struct EnumAlt {
     ctor_name: String,
-    payload: Option<Shape>,
+    payload: Option<Type>,
 }
 
 #[derive(Debug, Clone)]
-pub struct StructField(pub FieldName, pub Shape);
+pub struct StructField(pub FieldName, pub Type);
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum ShapeNode {
-    Family(ShapeFamily, Vec<Shape>),
+pub enum TypeNode {
+    Family(Shape, Vec<Type>),
     Var(String),
     Nat(u64),
 }
@@ -77,7 +77,7 @@ pub enum ShapeNode {
 pub enum ExprNode {
     Var(String),
     Lit(Value),
-    Let(String, Expr, Option<Shape>, Expr),
+    Let(String, Expr, Option<Type>, Expr),
     Add(Expr, Expr),
     Mul(Expr, Expr),
     Eq(Expr, Expr),
@@ -95,16 +95,16 @@ pub enum ExprNode {
 // Traits
 //////////////////////////
 
-impl std::ops::Deref for Shape {
-    type Target = ShapeNode;
+impl std::ops::Deref for Type {
+    type Target = TypeNode;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl std::ops::Deref for ShapeFamily {
-    type Target = ShapeFamilyNode;
+impl std::ops::Deref for Shape {
+    type Target = ShapeNode;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -127,26 +127,26 @@ impl PartialEq for Gate {
 
 impl Eq for Gate {}
 
-impl PartialEq for ShapeFamily {
+impl PartialEq for Shape {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
-impl Eq for ShapeFamily {}
+impl Eq for Shape {}
 
 
 //////////////////////////
 // Other
 //////////////////////////
 
-impl std::fmt::Display for Shape {
+impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let shape_def: &ShapeNode = &self.0;
+        let shape_def: &TypeNode = &self.0;
         match shape_def {
-            ShapeNode::Var(x) => write!(f, "{x}"),
-            ShapeNode::Nat(n) => write!(f, "{n}"),
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Var(x) => write!(f, "{x}"),
+            TypeNode::Nat(n) => write!(f, "{n}"),
+            TypeNode::Family(shape_family, args) => {
                 write!(f, "{}", shape_family.name())?;
                 if args.len() > 0 {
                     write!(f, "<")?;
@@ -199,8 +199,8 @@ impl Module {
     }
 }
 
-impl ShapeFamily {
-    pub fn builtins() -> Vec<ShapeFamily> {
+impl Shape {
+    pub fn builtins() -> Vec<Shape> {
         vec![
             BIT_SHAPE_FAMILY.clone(),
             WORD_SHAPE_FAMILY.clone(),
@@ -212,26 +212,26 @@ impl ShapeFamily {
         name: &str,
         args: Context<Kind>,
         alts: Vec<EnumAlt>,
-    ) -> ShapeFamily {
-        let shape_family_def = ShapeFamilyNode {
+    ) -> Shape {
+        let shape_family_def = ShapeNode {
             name: name.to_string(),
             params: Some(args),
             decl: ShapeFamilyDecl::Enum(alts),
         };
-        ShapeFamily(Arc::new(shape_family_def))
+        Shape(Arc::new(shape_family_def))
     }
 
     pub fn new_struct(
         name: &str,
         args: Context<Kind>,
         fields: Vec<StructField>,
-    ) -> ShapeFamily {
-        let shape_family_def = ShapeFamilyNode {
+    ) -> Shape {
+        let shape_family_def = ShapeNode {
             name: name.to_string(),
             params: Some(args),
             decl: ShapeFamilyDecl::Struct(fields),
         };
-        ShapeFamily(Arc::new(shape_family_def))
+        Shape(Arc::new(shape_family_def))
     }
 
     pub fn name(&self) -> &str {
@@ -248,24 +248,24 @@ impl ShapeFamily {
 }
 
 lazy_static! {
-    static ref BIT_SHAPE_FAMILY: ShapeFamily = {
-        ShapeFamily(Arc::new(ShapeFamilyNode {
+    static ref BIT_SHAPE_FAMILY: Shape = {
+        Shape(Arc::new(ShapeNode {
             name: "Bit".to_string(),
             params: Some(Context::empty()),
             decl: ShapeFamilyDecl::Builtin,
         }))
     };
 
-    static ref WORD_SHAPE_FAMILY: ShapeFamily = {
-        ShapeFamily(Arc::new(ShapeFamilyNode {
+    static ref WORD_SHAPE_FAMILY: Shape = {
+        Shape(Arc::new(ShapeNode {
             name: "Word".to_string(),
             params: Some(Context::from(vec![("n".to_string(), Kind::Nat)])),
             decl: ShapeFamilyDecl::Builtin,
         }))
     };
 
-    static ref TUPLE_SHAPE_FAMILY: ShapeFamily = {
-        ShapeFamily(Arc::new(ShapeFamilyNode {
+    static ref TUPLE_SHAPE_FAMILY: Shape = {
+        Shape(Arc::new(ShapeNode {
             name: "Tuple".to_string(),
             params: None, // None means variadic
             decl: ShapeFamilyDecl::Builtin,
@@ -273,34 +273,34 @@ lazy_static! {
     };
 }
 
-impl Shape {
-    pub fn bit() -> Shape {
-        Shape::family(BIT_SHAPE_FAMILY.clone(), vec![])
+impl Type {
+    pub fn bit() -> Type {
+        Type::family(BIT_SHAPE_FAMILY.clone(), vec![])
     }
 
-    pub fn word(n: u64) -> Shape {
-        Shape::family(WORD_SHAPE_FAMILY.clone(), vec![Shape::nat(n)])
+    pub fn word(n: u64) -> Type {
+        Type::family(WORD_SHAPE_FAMILY.clone(), vec![Type::nat(n)])
     }
 
-    pub fn tuple(args: Vec<Shape>) -> Shape {
-        Shape::family(TUPLE_SHAPE_FAMILY.clone(), args)
+    pub fn tuple(args: Vec<Type>) -> Type {
+        Type::family(TUPLE_SHAPE_FAMILY.clone(), args)
     }
 
-    pub fn family(shape_family: ShapeFamily, args: Vec<Shape>) -> Shape {
-        Shape(Arc::new(ShapeNode::Family(shape_family, args)))
+    pub fn family(shape_family: Shape, args: Vec<Type>) -> Type {
+        Type(Arc::new(TypeNode::Family(shape_family, args)))
     }
 
-    pub fn nat(n: u64) -> Shape {
-        Shape(Arc::new(ShapeNode::Nat(n)))
+    pub fn nat(n: u64) -> Type {
+        Type(Arc::new(TypeNode::Nat(n)))
     }
 
-    pub fn var(x: String) -> Shape {
-        Shape(Arc::new(ShapeNode::Var(x)))
+    pub fn var(x: String) -> Type {
+        Type(Arc::new(TypeNode::Var(x)))
     }
 
     pub fn enum_alts(&self) -> Option<Vec<EnumAlt>> {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 match shape_family.decl() {
                     ShapeFamilyDecl::Builtin => None,
                     ShapeFamilyDecl::Enum(alts) => Some(alts.to_vec()),
@@ -311,9 +311,9 @@ impl Shape {
         }
     }
 
-    pub fn as_tuple(&self) -> Option<Vec<Shape>> {
+    pub fn as_tuple(&self) -> Option<Vec<Type>> {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 if shape_family == &*TUPLE_SHAPE_FAMILY {
                     Some(args.clone())
                 } else {
@@ -324,16 +324,16 @@ impl Shape {
         }
     }
 
-    pub fn as_word(&self, context: &Context<Shape>) -> Option<u64> {
+    pub fn as_word(&self, context: &Context<Type>) -> Option<u64> {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 if shape_family == &*WORD_SHAPE_FAMILY {
                     assert_eq!(args.len(), 1);
                     match args[0].as_node() {
-                        ShapeNode::Nat(n) => Some(*n),
-                        ShapeNode::Var(x) => {
+                        TypeNode::Nat(n) => Some(*n),
+                        TypeNode::Var(x) => {
                             if let Some(s) = context.lookup(x) {
-                                if let ShapeNode::Nat(n) = s.as_node() {
+                                if let TypeNode::Nat(n) = s.as_node() {
                                     Some(*n)
                                 } else {
                                     panic!("?")
@@ -354,7 +354,7 @@ impl Shape {
 
     pub fn is_builtin(&self) -> bool {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 match shape_family.decl() {
                     ShapeFamilyDecl::Builtin => true,
                     ShapeFamilyDecl::Enum(alts) => false,
@@ -376,7 +376,7 @@ impl Shape {
 
     pub fn as_struct(&self) -> Option<Vec<StructField>> {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 match shape_family.decl() {
                     ShapeFamilyDecl::Builtin => None,
                     ShapeFamilyDecl::Enum(alts) => None,
@@ -387,9 +387,9 @@ impl Shape {
         }
     }
 
-    pub fn params(&self) -> Option<Context<Shape>> {
+    pub fn params(&self) -> Option<Context<Type>> {
         match self.as_node() {
-            ShapeNode::Family(shape_family, args) => {
+            TypeNode::Family(shape_family, args) => {
                 let mut context = Context::empty();
                 let params: Context<Kind> = shape_family.params().unwrap();
                 for (i, (v, _kind)) in params.iter().enumerate() {
@@ -401,13 +401,13 @@ impl Shape {
         }
     }
 
-    pub fn as_node(&self) -> &ShapeNode {
+    pub fn as_node(&self) -> &TypeNode {
         self.0.as_ref()
     }
 }
 
 impl EnumAlt {
-    pub fn new(ctor_name: String, payload: Option<Shape>) -> EnumAlt {
+    pub fn new(ctor_name: String, payload: Option<Type>) -> EnumAlt {
         EnumAlt { ctor_name, payload }
     }
 
@@ -415,7 +415,7 @@ impl EnumAlt {
         &self.ctor_name
     }
 
-    pub fn payload(&self) -> Option<Shape> {
+    pub fn payload(&self) -> Option<Type> {
         self.payload.clone()
     }
 }
@@ -453,7 +453,7 @@ impl Expr {
         ExprNode::Lit(v).into()
     }
 
-    pub fn let_expr(x: String, def: Expr, ascription: Option<Shape>, body: Expr) -> Expr {
+    pub fn let_expr(x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {
         ExprNode::Let(x, def, ascription, body).into()
     }
 

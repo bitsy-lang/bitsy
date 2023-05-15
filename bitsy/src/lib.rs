@@ -22,7 +22,7 @@ pub mod context;
 // pub mod sim;
 // pub mod nettle;
 
-use defs::{Module, Gate, Shape, ShapeFamily, StructField, ShapeNode, Expr, EnumAlt};
+use defs::{Module, Gate, Type, Shape, StructField, TypeNode, Expr, EnumAlt};
 pub use context::Context;
 
 pub use common::*;
@@ -31,7 +31,7 @@ pub use common::*;
 pub struct Bitsy {
     modules: Vec<Module>,
     gates: Vec<Gate>,
-    shape_families: Vec<ShapeFamily>,
+    shape_families: Vec<Shape>,
 }
 
 impl Bitsy {
@@ -39,7 +39,7 @@ impl Bitsy {
         Bitsy {
             modules: vec![],
             gates: Gate::builtins(),
-            shape_families: ShapeFamily::builtins(),
+            shape_families: Shape::builtins(),
         }
     }
 
@@ -242,7 +242,7 @@ impl Bitsy {
                 panic!("Uh oh");
             }
         }
-        let shape_family = ShapeFamily::new_struct(&struct_def.name, struct_def.params.clone(), fields);
+        let shape_family = Shape::new_struct(&struct_def.name, struct_def.params.clone(), fields);
         self.shape_families.push(shape_family);
     }
 
@@ -254,11 +254,11 @@ impl Bitsy {
             alts.push(EnumAlt::new(ctor_name.to_string(), payload_shape_ref.as_ref().map(|shape_ref| self.shape(shape_ref, &context)).flatten()));
         }
 
-        let shape_family = ShapeFamily::new_enum(&enum_def.name, enum_def.params.clone(), alts);
+        let shape_family = Shape::new_enum(&enum_def.name, enum_def.params.clone(), alts);
         self.shape_families.push(shape_family);
     }
 
-    fn shape(&self, shape_ref: &ShapeRef, context: &Context<Kind>) -> Option<Shape> {
+    fn shape(&self, shape_ref: &ShapeRef, context: &Context<Kind>) -> Option<Type> {
         info!("Looking up shape {shape_ref:?} in context {context:?}");
         let ShapeRef(shape_family_name, shape_args) = shape_ref;
 
@@ -266,7 +266,7 @@ impl Bitsy {
         if let Some(_kind) = context.lookup(shape_family_name) {
             info!("    ... YES");
             if shape_args.len() == 0 {
-                return Some(Shape::var(shape_family_name.to_string()));
+                return Some(Type::var(shape_family_name.to_string()));
             } else {
                 return None;
             }
@@ -275,15 +275,15 @@ impl Bitsy {
 
         let shape_family = self.shape_family(shape_family_name).expect(&format!("Unknown shape family {shape_family_name}"));
 
-        let mut shapes: Vec<Shape> = vec![];
+        let mut shapes: Vec<Type> = vec![];
         for shape_arg in shape_args {
-            let shape_arg: Shape = match shape_arg {
-                ShapeArg::Nat(n) => Shape::nat(*n),
+            let shape_arg: Type = match shape_arg {
+                ShapeArg::Nat(n) => Type::nat(*n),
                 ShapeArg::Shape(shape_ref) => self.shape(shape_ref, context).expect("Unknown shape"),
             };
             shapes.push(shape_arg);
         }
-        Some(Shape::family(shape_family, shapes))
+        Some(Type::family(shape_family, shapes))
     }
 
     fn gate(&self, gate_name: &str) -> Option<Gate> {
@@ -378,9 +378,9 @@ impl Bitsy {
             let expr = self.expr(ast_expr);
             let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
             let shape = sink_terminal.shape();
-            let mut context: Context<Shape> = Context::empty();
+            let mut context: Context<Type> = Context::empty();
             for terminal in &terminals {
-                context = context.extend(terminal.name().clone(), Shape::clone(&terminal.shape()));
+                context = context.extend(terminal.name().clone(), Type::clone(&terminal.shape()));
             }
             println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
             if !context.check_shape(expr.clone(), shape.clone()) {
@@ -419,7 +419,7 @@ impl Bitsy {
         }
     }
 
-    fn shape_family(&self, name: &str) -> Option<ShapeFamily> {
+    fn shape_family(&self, name: &str) -> Option<Shape> {
         for shape_family in &self.shape_families {
             if shape_family.name() == name {
                 return Some(shape_family.clone());
@@ -502,7 +502,7 @@ impl Bitsy {
 
 
 #[derive(Debug, Clone)]
-pub struct Terminal(ComponentName, PortName, Polarity, Shape);
+pub struct Terminal(ComponentName, PortName, Polarity, Type);
 
 impl Terminal {
     pub fn name(&self) -> String {
@@ -513,7 +513,7 @@ impl Terminal {
         TerminalRef(self.0.clone(), self.1.clone())
     }
 
-    pub fn shape(&self) -> Shape {
+    pub fn shape(&self) -> Type {
         self.3.clone()
     }
 
@@ -527,7 +527,7 @@ pub enum Component {
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
-    Const(ComponentName, Visibility, Value, Shape),
+    Const(ComponentName, Visibility, Value, Type),
 }
 
 impl Component {
@@ -582,7 +582,7 @@ pub struct ModComponent {
 
 #[derive(Debug, Clone)]
 pub struct RegComponent {
-    pub shape: Shape,
+    pub shape: Type,
     // domain todo!()
     pub init: Option<Expr>,
 }
@@ -601,7 +601,7 @@ impl Port {
 }
 
 #[derive(Debug, Clone)]
-pub struct Pin(PortName, Direction, Shape);
+pub struct Pin(PortName, Direction, Type);
 
 impl Pin {
     pub fn name(&self) -> &str {
@@ -612,7 +612,7 @@ impl Pin {
         self.1
     }
 
-    pub fn shape(&self) -> Shape {
+    pub fn shape(&self) -> Type {
         self.2.clone()
     }
 }
