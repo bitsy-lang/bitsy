@@ -143,7 +143,7 @@ pub enum MatchPattern {
     Otherwise,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Unknown,
     Unobservable,
@@ -151,6 +151,7 @@ pub enum Value {
     Word(u64),
     Tuple(Vec<Box<Value>>),
     Struct(Vec<(FieldName, Box<Value>)>),
+    Component(Box<crate::Component>),
 }
 
 impl std::fmt::Display for Value {
@@ -180,6 +181,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")?;
             },
+            Value::Component(component) => write!(f, "{}", component.name())?,
         }
         Ok(())
     }
