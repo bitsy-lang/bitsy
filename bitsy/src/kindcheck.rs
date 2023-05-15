@@ -31,6 +31,7 @@ impl Context<Kind> {
                     },
                 }
             },
+            TypeNode::Ref(_ref) => kind == Kind::Reference,
         }
     }
 }

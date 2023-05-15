@@ -40,6 +40,7 @@ pub enum ShapeArg {
 pub enum Kind {
     Nat,
     Shape,
+    Reference,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -64,6 +65,7 @@ impl std::fmt::Display for Kind {
         match self {
             Kind::Nat => write!(f, "Nat"),
             Kind::Shape => write!(f, "Shape"),
+            Kind::Reference => write!(f, "Reference"),
         }
     }
 }
@@ -143,7 +145,7 @@ pub enum MatchPattern {
     Otherwise,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Unknown,
     Unobservable,
@@ -151,7 +153,7 @@ pub enum Value {
     Word(u64),
     Tuple(Vec<Box<Value>>),
     Struct(Vec<(FieldName, Box<Value>)>),
-    Component(Box<crate::Component>),
+    Component(Box<crate::defs::Type>),
 }
 
 impl std::fmt::Display for Value {
@@ -181,7 +183,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")?;
             },
-            Value::Component(component) => write!(f, "{}", component.name())?,
+            Value::Component(_typ) => write!(f, "(*component*)")?,
         }
         Ok(())
     }

@@ -1,5 +1,6 @@
 #![allow(unused, dead_code)]
 
+use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
 
 use log::*;
@@ -371,26 +372,7 @@ impl Bitsy {
             }
         }
 
-        let mut wires = vec![];
-        for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
-            driven_terminals.push(sink_terminal_ref.clone());
-
-            let expr = self.expr(ast_expr);
-            let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
-            let shape = sink_terminal.shape();
-            let mut context: Context<Type> = Context::empty();
-            for terminal in &terminals {
-                context = context.extend(terminal.name().clone(), Type::clone(&terminal.shape()));
-            }
-            println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
-            if !context.check_type(expr.clone(), shape.clone()) {
-                panic!("Shape check failed: {:?} is not {:?}", expr, shape);
-            }
-
-            wires.push(Wire(*visibility, sink_terminal.clone(), expr));
-        }
-
-        let mut components: Vec<Component> = vec![];
+        let mut components: Vec<Arc<Component>> = vec![];
         for component in &mod_def.components {
             let c = match component {
                 ast::Component::Mod(name, visibility, module)  => {
@@ -407,7 +389,7 @@ impl Bitsy {
                 },
                 ast::Component::Const(name, visibility, value, shape_ref) => {
                     let shape = self.shape(shape_ref, &context).expect("Unknown shape");
-                    Component::Const(name.to_string(), *visibility, value.clone(), shape)
+                    Component::Const(name.to_string(), *visibility, Box::new(value.clone()), shape)
                 },
                 ast::Component::Gate(name, visibility, gate)   => {
                     Component::Gate(name.to_string(), *visibility, GateComponent {
@@ -415,8 +397,37 @@ impl Bitsy {
                     })
                 },
             };
-            components.push(c);
+            components.push(Arc::new(c));
         }
+
+        let mut context: Context<Type> = Context::empty();
+        println!("Context:");
+        for component in &components {
+            println!("    B {} : {}", component.name(), Type::ref_(component.clone()));
+            context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
+        }
+        for port in &ports {
+            let typ = Type::ref_(Component::Port(port.clone()).into());
+            println!("    C {} : {}", port.name(), &typ);
+            context = context.extend(port.name().to_string(), typ);
+        }
+        println!();
+
+        let mut wires = vec![];
+        for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
+            driven_terminals.push(sink_terminal_ref.clone());
+
+            let expr = self.expr(ast_expr);
+            let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
+            let shape = sink_terminal.shape();
+            println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
+            if !context.check_type(expr.clone(), shape.clone()) {
+                panic!("Shape check failed: {:?} is not {:?}", expr, shape);
+            }
+
+            wires.push(Wire(*visibility, sink_terminal.clone(), expr));
+        }
+
     }
 
     fn shape_family(&self, name: &str) -> Option<Shape> {
@@ -440,13 +451,7 @@ impl Bitsy {
     pub fn expr(&self, expr: &ast::Expr) -> Expr {
         match expr {
             ast::Expr::Var(x) => Expr::var(x.to_string()),
-            ast::Expr::Field(e, fs) => {
-                if let ast::Expr::Var(x) = e.as_ref() {
-                    Expr::var(format!("{x}.{}", fs.join(".")))
-                } else {
-                    todo!()
-                }
-            },
+            ast::Expr::Field(e, field) => Expr::field(self.expr(e), field.to_string()),
             ast::Expr::Lit(v) => Expr::lit(Value::from(v.clone())),
             ast::Expr::Let(x, def, def_shape, body) => {
                 match def_shape {
@@ -527,7 +532,8 @@ pub enum Component {
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
-    Const(ComponentName, Visibility, Value, Type),
+    Const(ComponentName, Visibility, Box<Value>, Type),
+    Port(Port),
 }
 
 impl Component {
@@ -537,6 +543,7 @@ impl Component {
             Component::Mod(name, _vis, _mod) => name,
             Component::Gate(name, _vis, _gate) => name,
             Component::Const(name, _vis, _value, _shape) => name,
+            Component::Port(port) => port.name(),
         }
     }
 
@@ -569,13 +576,13 @@ impl Component {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GateComponent {
     pub gate: Gate,
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModComponent {
     pub module: Module,
 }

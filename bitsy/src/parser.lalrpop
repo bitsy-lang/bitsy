@@ -238,8 +238,11 @@ pub Slice: Box<Expr> = {
 
 pub ExprDot: Box<Expr> = {
     <e:ExprBase> <fields:("." Ident)+> => {
-        let fields = fields.iter().map(|(_, f)| f.to_string()).collect();
-        Box::new(Expr::Field(e, fields))
+        let mut result = e;
+        for (_dot, field) in &fields {
+            result = Box::new(Expr::Field(result, field.to_string()))
+        }
+        result
     },
     <expr:ExprBase> => expr,
 }

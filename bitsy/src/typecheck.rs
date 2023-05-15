@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::context::Context;
 
-use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode};
+use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
 impl Context<Type> {
@@ -9,6 +9,7 @@ impl Context<Type> {
         match expr.as_node() {
             ExprNode::Var(x) => self.check_type_var(x, typ),
             ExprNode::Lit(value) => self.check_type_lit(value.clone(), typ),
+            ExprNode::Field(subject, field) => self.check_type_field(subject.clone(), &field, typ),
             ExprNode::Let(x, def, ascription, body) => self.check_type_let(x, def.clone(), ascription.clone(), body.clone(), typ),
             ExprNode::Add(op0, op1) => self.check_type_add(op0.clone(), op1.clone(), typ),
             ExprNode::Mul(op0, op1) => todo!(),
@@ -312,6 +313,25 @@ impl Context<Type> {
                 }
             },
             _ => false,
+        }
+    }
+
+    fn check_type_field(&self, subject: Expr, field: &str, typ: Type) -> bool {
+        let subject_type: Type = self.infer_type(subject).expect("Can't infer type");
+        if let Some(component) = subject_type.as_ref() {
+            match component {
+                Component::Port(Port(_name, pins)) => {
+                    for Pin(name, direction, pin_typ) in pins {
+                        if name == field {
+                            return pin_typ == &typ
+                        }
+                    }
+                    false
+                },
+                _ => todo!(),
+            }
+        } else {
+            false
         }
     }
 }

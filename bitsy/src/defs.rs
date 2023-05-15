@@ -15,7 +15,7 @@ pub struct Gate(Arc<GateDef>);
 #[derive(Debug, Clone)]
 pub struct Shape(Arc<ShapeNode>);
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Type(Arc<TypeNode>);
 
 #[derive(Debug, Clone)]
@@ -66,9 +66,13 @@ pub struct EnumAlt {
 #[derive(Debug, Clone)]
 pub struct StructField(pub FieldName, pub Type);
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
+pub struct Reference(Arc<crate::Component>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypeNode {
     Family(Shape, Vec<Type>),
+    Ref(Reference),
     Var(String),
     Nat(u64),
 }
@@ -77,6 +81,7 @@ pub enum TypeNode {
 pub enum ExprNode {
     Var(String),
     Lit(Value),
+    Field(Expr, String),
     Let(String, Expr, Option<Type>, Expr),
     Add(Expr, Expr),
     Mul(Expr, Expr),
@@ -135,6 +140,14 @@ impl PartialEq for Shape {
 
 impl Eq for Shape {}
 
+impl PartialEq for Reference {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Reference {}
+
 
 //////////////////////////
 // Other
@@ -159,7 +172,8 @@ impl std::fmt::Display for Type {
                     write!(f, ">")?;
                 }
                 Ok(())
-            }
+            },
+            TypeNode::Ref(component) => write!(f, "Ref<{}>", component.0.name()),
         }
     }
 }
@@ -298,6 +312,10 @@ impl Type {
         Type(Arc::new(TypeNode::Var(x)))
     }
 
+    pub fn ref_(component: Arc<Component>) -> Type {
+        Type(Arc::new(TypeNode::Ref(Reference(component))))
+    }
+
     pub fn enum_alts(&self) -> Option<Vec<EnumAlt>> {
         match self.as_node() {
             TypeNode::Family(shape_family, args) => {
@@ -348,6 +366,16 @@ impl Type {
                     None
                 }
             },
+            _ => None,
+        }
+    }
+
+    pub fn as_ref(&self) -> Option<&Component> {
+        match self.as_node() {
+            TypeNode::Ref(Reference(reference)) => {
+                let component: &Component = reference.as_ref();
+                Some(component)
+            }
             _ => None,
         }
     }
@@ -451,6 +479,10 @@ impl Expr {
 
     pub fn lit(v: Value) -> Expr {
         ExprNode::Lit(v).into()
+    }
+
+    pub fn field(subject: Expr, field: String) -> Expr {
+        ExprNode::Field(subject, field).into()
     }
 
     pub fn let_expr(x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {

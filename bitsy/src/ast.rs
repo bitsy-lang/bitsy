@@ -60,7 +60,7 @@ pub struct Wire(pub Visibility, pub TerminalRef, pub Box<Expr>);
 #[derive(Debug, Clone)]
 pub enum Expr {
     Var(String),
-    Field(Box<Expr>, Vec<String>),
+    Field(Box<Expr>, String),
     Lit(Value),
     Let(String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
     Add(Box<Expr>, Box<Expr>),
