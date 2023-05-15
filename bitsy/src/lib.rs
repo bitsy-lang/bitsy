@@ -403,12 +403,12 @@ impl Bitsy {
         let mut context: Context<Type> = Context::empty();
         println!("Context:");
         for component in &components {
-            println!("    B {} : {}", component.name(), Type::ref_(component.clone()));
+            println!("    {} : {}", component.name(), Type::ref_(component.clone()));
             context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
         }
         for port in &ports {
             let typ = Type::ref_(Component::Port(port.clone()).into());
-            println!("    C {} : {}", port.name(), &typ);
+            println!("    {} : {}", port.name(), &typ);
             context = context.extend(port.name().to_string(), typ);
         }
         println!();

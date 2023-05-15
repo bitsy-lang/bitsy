@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use crate::context::Context;
 
+use crate::common::Direction;
 use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
@@ -28,6 +29,7 @@ impl Context<Type> {
         let result = match expr.as_node() {
             ExprNode::Var(x) => self.infer_type_var(x),
             ExprNode::Lit(value) => self.infer_type_lit(value),
+            ExprNode::Field(subject, field) => self.infer_type_field(subject.clone(), &field),
             ExprNode::Let(x, def, def_shape, body) => self.infer_type_let(x, def.clone(), def_shape.clone(), body.clone()),
             ExprNode::Add(op0, op1) => None,
             ExprNode::Mul(op0, op1) => None,
@@ -69,6 +71,42 @@ impl Context<Type> {
                 Some(Type::tuple(shapes))
             },
             _ => None,
+        }
+    }
+
+    fn infer_type_field(&self, subject: Expr, field: &str) -> Option<Type> {
+        let subject_type: Type = self.infer_type(subject).expect("Can't infer type");
+        if let Some(component) = subject_type.as_ref() {
+            match component {
+                Component::Port(Port(_name, pins)) => {
+                    for Pin(name, direction, pin_typ) in pins {
+                        if name == field {
+                            if direction == &Direction::Incoming {
+                                return Some(pin_typ.clone());
+                            } else {
+                                // output ports can't drive a value
+                                return None;
+                            }
+                        }
+                    }
+                    None
+                },
+                Component::Reg(_name, _vis, reg) => {
+                    Some(reg.shape.clone())
+                },
+                Component::Mod(_name, _vis, mod_) => todo!(),
+                Component::Gate(_name, _vis, gate) => todo!(),
+                Component::Const(_name, _vis, val, const_type) => todo!(),
+            }
+        } else if let Some(fields) = subject_type.as_struct() {
+            for StructField(name, typ) in &fields {
+                if name == field {
+                    return Some(typ.clone());
+                }
+            }
+            None
+        } else {
+            None
         }
     }
 
@@ -317,19 +355,8 @@ impl Context<Type> {
     }
 
     fn check_type_field(&self, subject: Expr, field: &str, typ: Type) -> bool {
-        let subject_type: Type = self.infer_type(subject).expect("Can't infer type");
-        if let Some(component) = subject_type.as_ref() {
-            match component {
-                Component::Port(Port(_name, pins)) => {
-                    for Pin(name, direction, pin_typ) in pins {
-                        if name == field {
-                            return pin_typ == &typ
-                        }
-                    }
-                    false
-                },
-                _ => todo!(),
-            }
+        if let Some(typ0) = self.infer_type_field(subject, field) {
+             typ0 == typ
         } else {
             false
         }
