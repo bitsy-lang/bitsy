@@ -162,8 +162,11 @@ impl State {
     fn text_document_did_open(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
         let text = message["params"]["textDocument"]["text"].as_str().unwrap();
+        self.text = text.to_string();
+        warn!("text is {text:?}");
         self.bitsy = Bitsy::new();
-        self.bitsy.add(text);
+        let result = self.bitsy.add(&self.text);
+        self.send_diagnostics(result);
     }
 
     fn text_document_did_change(&mut self, message: Value) {
@@ -176,11 +179,10 @@ impl State {
     }
 
     fn text_document_did_save(&mut self, message: Value) {
-        warn!("{}", serde_json::to_string_pretty(&message).unwrap());
+        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
         self.bitsy = Bitsy::new();
         let result = self.bitsy.add(&self.text);
         self.send_diagnostics(result);
-        debug!("DID IT");
     }
 
     fn send_diagnostics(&self, result: Result<(), BitsyError>) {
