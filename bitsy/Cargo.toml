@@ -17,3 +17,9 @@ nettle = { path = "../nettle" }
 log = "0.4.17"
 simple_logger = "4.1.0"
 lazy_static = "1.4.0"
+serde_json = "1.0.96"
+fern = "0.6.2"
+
+[[bin]]
+name = "bitsy-lsp"
+path = "src/lsp.rs"
