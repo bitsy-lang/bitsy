@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 use std::collections::{HashSet, HashMap};
+use lalrpop_util::ParseError;
 
 use log::*;
 use parser::NamespaceParser;
@@ -35,6 +36,12 @@ pub struct Bitsy {
     shape_families: Vec<Shape>,
 }
 
+#[derive(Debug)]
+pub enum BitsyError {
+    Parse(usize, usize, String),
+    Unknown(String),
+}
+
 impl Bitsy {
     pub fn new() -> Bitsy {
         Bitsy {
@@ -44,132 +51,23 @@ impl Bitsy {
         }
     }
 
-    pub fn add(&mut self, text: &str)  {
-        use lalrpop_util::ParseError;
-
+    pub fn add(&mut self, text: &str) -> Result<(), BitsyError> {
         let parser = NamespaceParser::new();
         match parser.parse(text) {
             Ok(namespace) => self.add_namespace(&namespace),
             Err(e) => {
-                match (e) {
-                    ParseError::InvalidToken { location } => {
-                        eprintln!("Syntax error: Invalid token");
-                        eprintln!();
-
-                        let mut bad_line_start = 0;
-                        let mut bad_line_end = 0;
-                        let mut bad_lineno = 1;
-
-                        let mut text_lines: Vec<&str> = text.split("\n").collect();
-                        if text_lines[text_lines.len()-1] == "" {
-                            text_lines.pop();
-                        }
-
-                        for line in &text_lines {
-                            if bad_line_start + line.len() >= location {
-                                bad_line_end = bad_line_start + line.len() + 1;
-                                break;
-                            } else {
-                                bad_line_start += line.len() + 1;
-                                bad_lineno += 1;
-                            }
-                        }
-
-                        let spaces = String::from(" ").repeat(location - bad_line_start);
-                        let carrots = String::from("^");
-
-
-                        for i in 0..text_lines.len() {
-                            if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
-                                eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
-                            }
-                            if i + 1 == bad_lineno {
-                                eprintln!("          {spaces}{carrots}");
-                            }
-                        }
-
-                        eprintln!();
-                    },
+                match e {
+                    ParseError::InvalidToken { location } => return Err(BitsyError::Parse(location, location + 1, "Invalid token".to_string())),
+                    ParseError::UnrecognizedEOF { location, expected } => return Err(BitsyError::Parse(location, location + 1, "Unexpected end of file".to_string())),
                     ParseError::UnrecognizedToken { token, expected } => {
                         let (location_start, found, location_end) = token;
-                        eprintln!("Syntax error: Expected one of {} but found {:?}", expected.join(", "), found.to_string());
-                        eprintln!();
-
-                        let mut bad_line_start = 0;
-                        let mut bad_line_end = 0;
-                        let mut bad_lineno = 1;
-
-                        let mut text_lines: Vec<&str> = text.split("\n").collect();
-                        if text_lines[text_lines.len()-1] == "" {
-                            text_lines.pop();
-                        }
-
-                        for line in &text_lines {
-                            if bad_line_start + line.len() >= location_start {
-                                bad_line_end = bad_line_start + line.len() + 1;
-                                break;
-                            } else {
-                                bad_line_start += line.len() + 1;
-                                bad_lineno += 1;
-                            }
-                        }
-
-                        let spaces = String::from(" ").repeat(location_start - bad_line_start);
-                        let carrots = String::from("^").repeat(location_end - location_start);
-
-
-                        for i in 0..text_lines.len() {
-                            if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
-                                eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
-                            }
-                            if i + 1 == bad_lineno {
-                                eprintln!("          {spaces}{carrots}");
-                            }
-                        }
-
-                        eprintln!();
+                        return Err(BitsyError::Parse(location_start, location_end, "Unrecognized token".to_string()));
                     },
-                    ParseError::UnrecognizedEOF { location, expected } => {
-                        eprintln!("Syntax error: Expected {} but found the end of the file", expected.join(", "));
-                        eprintln!();
-
-                        let mut bad_line_start = 0;
-                        let mut bad_line_end = 0;
-                        let mut bad_lineno = 1;
-
-                        let mut text_lines: Vec<&str> = text.split("\n").collect();
-                        if text_lines[text_lines.len()-1] == "" {
-                            text_lines.pop();
-                        }
-
-                        for line in &text_lines {
-                            if bad_line_start + line.len() >= location {
-                                bad_line_end = bad_line_start + line.len() + 1;
-                                break;
-                            } else {
-                                bad_line_start += line.len() + 1;
-                                bad_lineno += 1;
-                            }
-                        }
-
-                        let spaces = String::from(" ").repeat(location - bad_line_start);
-                        let carrots = String::from("^");
-
-                        for i in 0..text_lines.len() {
-                            if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
-                                eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
-                            }
-                            if i + 1 == bad_lineno {
-                                eprintln!("          {spaces}{carrots}");
-                            }
-                        }
-
-                        eprintln!();
-                    },
-                    _ => eprintln!("{e:?}"),
+                    _ => return Err(BitsyError::Unknown(format!("{e:?}"))),
                 }
             }
         }
+        Ok(())
     }
 
     fn add_namespace(&mut self, namespace: &ast::Namespace) {
@@ -401,17 +299,16 @@ impl Bitsy {
         }
 
         let mut context: Context<Type> = Context::empty();
-        println!("Context:");
+        debug!("Context:");
         for component in &components {
-            println!("    {} : {}", component.name(), Type::ref_(component.clone()));
+            debug!("    {} : {}", component.name(), Type::ref_(component.clone()));
             context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
         }
         for port in &ports {
             let typ = Type::ref_(Component::Port(port.clone()).into());
-            println!("    {} : {}", port.name(), &typ);
+            debug!("    {} : {}", port.name(), &typ);
             context = context.extend(port.name().to_string(), typ);
         }
-        println!();
 
         let mut wires = vec![];
         for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
@@ -420,7 +317,7 @@ impl Bitsy {
             let expr = self.expr(ast_expr);
             let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
             let shape = sink_terminal.shape();
-            println!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
+            debug!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
             if !context.check_type(expr.clone(), shape.clone()) {
                 panic!("Shape check failed: {:?} is not {:?}", expr, shape);
             }

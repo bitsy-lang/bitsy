@@ -13,9 +13,133 @@ fn main() {
     let text = std::fs::read_to_string(filename).unwrap();
 
     let mut bitsy = Bitsy::new();
-    bitsy.add(&text);
-//    dbg!(&bitsy);
+    if let Err(err) = bitsy.add(&text) {
+        eprintln!("{err:?}");
+    }
 
+    /*
+    {
+        Err(e) => {
+            match (e) {
+                ParseError::InvalidToken { location } => {
+                    eprintln!("Syntax error: Invalid token");
+                    eprintln!();
+
+                    let mut bad_line_start = 0;
+                    let mut bad_line_end = 0;
+                    let mut bad_lineno = 1;
+
+                    let mut text_lines: Vec<&str> = text.split("\n").collect();
+                    if text_lines[text_lines.len()-1] == "" {
+                        text_lines.pop();
+                    }
+
+                    for line in &text_lines {
+                        if bad_line_start + line.len() >= location {
+                            bad_line_end = bad_line_start + line.len() + 1;
+                            break;
+                        } else {
+                            bad_line_start += line.len() + 1;
+                            bad_lineno += 1;
+                        }
+                    }
+
+                    let spaces = String::from(" ").repeat(location - bad_line_start);
+                    let carrots = String::from("^");
+
+
+                    for i in 0..text_lines.len() {
+                        if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
+                            eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
+                        }
+                        if i + 1 == bad_lineno {
+                            eprintln!("          {spaces}{carrots}");
+                        }
+                    }
+
+                    eprintln!();
+                },
+                ParseError::UnrecognizedToken { token, expected } => {
+                    let (location_start, found, location_end) = token;
+                    eprintln!("Syntax error: Expected one of {} but found {:?}", expected.join(", "), found.to_string());
+                    eprintln!();
+
+                    let mut bad_line_start = 0;
+                    let mut bad_line_end = 0;
+                    let mut bad_lineno = 1;
+
+                    let mut text_lines: Vec<&str> = text.split("\n").collect();
+                    if text_lines[text_lines.len()-1] == "" {
+                        text_lines.pop();
+                    }
+
+                    for line in &text_lines {
+                        if bad_line_start + line.len() >= location_start {
+                            bad_line_end = bad_line_start + line.len() + 1;
+                            break;
+                        } else {
+                            bad_line_start += line.len() + 1;
+                            bad_lineno += 1;
+                        }
+                    }
+
+                    let spaces = String::from(" ").repeat(location_start - bad_line_start);
+                    let carrots = String::from("^").repeat(location_end - location_start);
+
+
+                    for i in 0..text_lines.len() {
+                        if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
+                            eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
+                        }
+                        if i + 1 == bad_lineno {
+                            eprintln!("          {spaces}{carrots}");
+                        }
+                    }
+
+                    eprintln!();
+                },
+                ParseError::UnrecognizedEOF { location, expected } => {
+                    eprintln!("Syntax error: Expected {} but found the end of the file", expected.join(", "));
+                    eprintln!();
+
+                    let mut bad_line_start = 0;
+                    let mut bad_line_end = 0;
+                    let mut bad_lineno = 1;
+
+                    let mut text_lines: Vec<&str> = text.split("\n").collect();
+                    if text_lines[text_lines.len()-1] == "" {
+                        text_lines.pop();
+                    }
+
+                    for line in &text_lines {
+                        if bad_line_start + line.len() >= location {
+                            bad_line_end = bad_line_start + line.len() + 1;
+                            break;
+                        } else {
+                            bad_line_start += line.len() + 1;
+                            bad_lineno += 1;
+                        }
+                    }
+
+                    let spaces = String::from(" ").repeat(location - bad_line_start);
+                    let carrots = String::from("^");
+
+                    for i in 0..text_lines.len() {
+                        if i + 5 >= bad_lineno && i <= bad_lineno + 5 {
+                            eprintln!("{:>6}    {}", i + 1, &text_lines[i]);
+                        }
+                        if i + 1 == bad_lineno {
+                            eprintln!("          {spaces}{carrots}");
+                        }
+                    }
+
+                    eprintln!();
+                },
+                _ => eprintln!("{e:?}"),
+            }
+        }
+    }
+    */
     /*
     let verilog = bitsy::verilog::Verilog {
         filename: "Top.v".to_string(),

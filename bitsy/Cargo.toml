@@ -3,6 +3,7 @@ name = "bitsy"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
+default-run = "bitsy"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,6 +20,11 @@ simple_logger = "4.1.0"
 lazy_static = "1.4.0"
 serde_json = "1.0.96"
 fern = "0.6.2"
+chrono = "0.4.24"
+
+[[bin]]
+name = "bitsy"
+path = "src/main.rs"
 
 [[bin]]
 name = "bitsy-lsp"
