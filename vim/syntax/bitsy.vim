@@ -4,8 +4,10 @@ elseif exists("b:current_syntax")
     finish
 endif
 
-syn match lineComment "//.*"
+syn region lineComment start="//" end="\n"
+syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
+hi link blockComment Comment
 
 syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin
 hi link bitsyKeyword Keyword
