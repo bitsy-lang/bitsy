@@ -32,3 +32,12 @@ Convenience syntax for reading/saving to registers?
     set foo <= ...
 
 ... and letting the use of a register just act like a variable in expressions.
+
+Todo
+----
+* Location markers in AST
+* Error recovery in parser.
+* Ability to replace definitions
+* Hover information
+* Code Actions
+* Remove hardcoded paths.

@@ -49,6 +49,8 @@ fn main() {
                     "textDocument/didOpen" => state.text_document_did_open(message),
                     "textDocument/didChange" => state.text_document_did_change(message),
                     "textDocument/didSave" => state.text_document_did_save(message),
+                    "textDocument/hover" => state.text_document_hover(message),
+                    "textDocument/definition" => state.text_document_definition(message),
                     _ => (),
                 }
             },
@@ -94,7 +96,7 @@ fn send_message(message: Value) {
 fn init_logging() {
     use chrono::{DateTime, Utc};
 
-    fern::Dispatch::new()
+    let mut dispatch = fern::Dispatch::new()
         .format(|out, message, record| {
             let now: DateTime<Utc> = Utc::now();
             out.finish(format_args!(
@@ -105,11 +107,17 @@ fn init_logging() {
                 message
             ))
         })
-        .level(log::LevelFilter::Debug)
-//        .level(log::LevelFilter::Info)
-        .chain(fern::log_file("/home/tac-tics/bitsy-lsp.txt").unwrap())
-        .apply()
-        .unwrap();
+        .chain(fern::log_file("/home/tac-tics/bitsy-lsp.txt").unwrap());
+
+    let level = std::env::var("LEVEL").unwrap_or_default().to_string();
+
+    if level == "DEBUG" {
+        dispatch = dispatch.level(log::LevelFilter::Debug);
+    } else {
+        dispatch = dispatch.level(log::LevelFilter::Info);
+    }
+
+    dispatch.apply().unwrap();
 }
 
 struct State {
@@ -136,55 +144,6 @@ fn pos_to_lineno_col(text: &str, pos: usize) -> (usize, usize) {
 }
 
 impl State {
-    fn initialize(&mut self, request: Value) {
-        let response: Value = json!({
-            "jsonrpc": "2.0",
-            "id": request["id"],
-            "result": {
-                "capabilities": {
-                    "positionEncoding": "utf-8",
-                    "textDocumentSync": 1, // TextDocumentSyncKind.FULL
-                    "hoverProvider": true,
-                    "declarationProvider": true,
-                    "definitionProvider": true,
-                    "typeDefinitionProvider": true,
-                    "referencesProvider": true,
-                    "documentHighlightProvider": true,
-                    "documentSymbolProvider": true,
-                    "renameProvider": true,
-                },
-            },
-        });
-
-        send_message(response);
-    }
-
-    fn text_document_did_open(&mut self, message: Value) {
-        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
-        let text = message["params"]["textDocument"]["text"].as_str().unwrap();
-        self.text = text.to_string();
-        warn!("text is {text:?}");
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
-    }
-
-    fn text_document_did_change(&mut self, message: Value) {
-        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
-        self.text = message["params"]["contentChanges"][0]["text"].as_str().unwrap().to_string();
-        debug!("{}", self.text);
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
-    }
-
-    fn text_document_did_save(&mut self, message: Value) {
-        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
-    }
-
     fn send_diagnostics(&self, result: Result<(), BitsyError>) {
         if let Err(e) = result {
             warn!("Error: {e:?}");
@@ -267,6 +226,88 @@ impl State {
             });
             send_message(message);
         }
+    }
+
+    fn initialize(&mut self, request: Value) {
+        let response: Value = json!({
+            "jsonrpc": "2.0",
+            "id": request["id"],
+            "result": {
+                "capabilities": {
+                    "positionEncoding": "utf-8",
+                    "textDocumentSync": 1, // TextDocumentSyncKind.FULL
+                    "hoverProvider": true,
+                    "declarationProvider": true,
+                    "definitionProvider": true,
+                    "typeDefinitionProvider": true,
+                    "referencesProvider": true,
+                    "documentHighlightProvider": true,
+                    "documentSymbolProvider": true,
+//                    "renameProvider": true,
+                },
+            },
+        });
+
+        send_message(response);
+    }
+
+    fn text_document_did_open(&mut self, message: Value) {
+        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
+        let text = message["params"]["textDocument"]["text"].as_str().unwrap();
+        self.text = text.to_string();
+        warn!("text is {text:?}");
+        self.bitsy = Bitsy::new();
+        let result = self.bitsy.add(&self.text);
+        self.send_diagnostics(result);
+    }
+
+    fn text_document_did_change(&mut self, message: Value) {
+        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
+        self.text = message["params"]["contentChanges"][0]["text"].as_str().unwrap().to_string();
+        debug!("{}", self.text);
+        self.bitsy = Bitsy::new();
+        let result = self.bitsy.add(&self.text);
+        self.send_diagnostics(result);
+    }
+
+    fn text_document_did_save(&mut self, message: Value) {
+        debug!("{}", serde_json::to_string_pretty(&message).unwrap());
+        self.bitsy = Bitsy::new();
+        let result = self.bitsy.add(&self.text);
+        self.send_diagnostics(result);
+    }
+
+    fn text_document_hover(&mut self, message: Value) {
+        let response: Value = json!({
+            "jsonrpc": "2.0",
+            "id": message["id"],
+            "result": {
+                "contents": {
+                    "kind": "markdown",
+                    "value": "Please construct additional pylons",
+                },
+            },
+        });
+
+        send_message(response);
+    }
+
+    fn text_document_definition(&mut self, message: Value) {
+        let (start_line, start_character) = (0, 0);
+        let (end_line, end_character) = (0, 1);
+        let response: Value = json!({
+            "jsonrpc": "2.0",
+            "id": message["id"],
+            "result": {
+                "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                "range": {
+                    "start": { "line": start_line, "character": start_character },
+                    "end": { "line": end_line, "character": end_character },
+                },
+            },
+        });
+
+        send_message(response);
     }
 }
 
