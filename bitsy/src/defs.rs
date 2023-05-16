@@ -108,6 +108,14 @@ impl std::ops::Deref for Type {
     }
 }
 
+impl std::ops::Deref for Module {
+    type Target = ModuleDef;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl std::ops::Deref for Shape {
     type Target = ShapeNode;
 
@@ -211,6 +219,20 @@ impl Module {
         }
         None
     }
+
+    pub fn wires(&self) -> &[Wire] {
+        &self.0.wires
+    }
+
+    pub fn ports(&self) -> &[Port] {
+        &self.0.ports
+    }
+
+    /*
+    pub fn add_port(&mut self, port: Port) {
+        self.0.ports.push(port)
+    }
+    */
 }
 
 impl Shape {
@@ -454,6 +476,15 @@ impl Type {
             result = result.subst(x, t.clone());
         }
         result
+    }
+
+    pub fn width(&self) -> Option<u64> {
+        match self.as_node() {
+            TypeNode::Family(shape, args) => {
+                Some(32) // todo!()
+            },
+            _ => None,
+        }
     }
 
     pub fn as_node(&self) -> &TypeNode {

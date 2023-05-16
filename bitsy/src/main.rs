@@ -15,7 +15,13 @@ fn main() {
     let mut bitsy = Bitsy::new();
     if let Err(err) = bitsy.add(&text) {
         eprintln!("{err:?}");
+        std::process::exit(-1);
     }
+
+    let top = bitsy.module_by_name(&"Top").unwrap();
+    use bitsy::flatten::*;
+    let verilog = top.to_verilog();
+    print!("{verilog}");
 
     /*
     {
@@ -187,7 +193,6 @@ fn main() {
         ],
     };
     */
-    //print!("{verilog}");
 }
 
 fn init_logging() {

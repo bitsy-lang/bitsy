@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Verilog {
     pub filename: String,
     pub modules: Vec<Module>,
 }
 
+#[derive(Debug)]
 pub struct Module {
     pub name: String,
     pub ports: Vec<Port>,
@@ -13,38 +15,45 @@ pub struct Module {
     pub alwayses: Vec<Always>,
 }
 
+#[derive(Debug)]
 pub enum Direction {
     Input,
     Output,
 }
 
+#[derive(Debug)]
 pub struct Port {
     pub name: String,
     pub width: Option<u64>,
     pub direction: Direction,
 }
 
+#[derive(Debug)]
 pub struct Reg {
     pub name: String,
     pub width: Option<u64>,
 }
 
+#[derive(Debug)]
 pub struct Inst {
     pub module_name: String,
     pub instance_name: String,
     pub connections: HashMap<String, String>,
 }
 
+#[derive(Debug)]
 pub struct Always {
     pub sensitivity_list: Vec<Sensitivity>,
 }
 
+#[derive(Debug)]
 pub enum Edge {
     PosEdge,
     NegEdge,
     On,
 }
 
+#[derive(Debug)]
 pub struct Sensitivity(pub Edge, pub String);
 
 impl std::fmt::Display for Always {

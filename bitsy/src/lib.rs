@@ -198,12 +198,10 @@ impl Bitsy {
 
     fn add_module(&mut self, mod_def: &ast::ModDef) -> Result<(), BitsyError> {
         let context: Context<Kind> = Context::empty();
-        let module = Module::new(&mod_def.name);
-        self.modules.push(module);
+        let mut module = Module::new(&mod_def.name);
 
         info!("add_module: {}", &mod_def.name);
 
-        let mut ports = vec![];
         info!("    Ports:");
         for ast::Port(port_name, port_pins) in &mod_def.ports {
             let mut pins: Vec<Pin> = vec![];
@@ -218,7 +216,7 @@ impl Bitsy {
                 }
             }
             let port = Port(port_name.clone(), pins);
-            ports.push(port);
+            //module.add_port(port);
         }
 
         let mut terminals_by_ref: HashMap<TerminalRef, Terminal> = HashMap::new();
@@ -227,7 +225,7 @@ impl Bitsy {
         // let mut floating_terminals = vec![]; // todo!()
 
         info!("    Terminals:");
-        for port in &ports {
+        for port in module.ports() {
             for pin in port.pins() {
                 let polarity = match pin.direction() {
                     Direction::Incoming => Polarity::Source,
@@ -306,7 +304,7 @@ impl Bitsy {
             debug!("    {} : {}", component.name(), Type::ref_(component.clone()));
             context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
         }
-        for port in &ports {
+        for port in module.ports() {
             let typ = Type::ref_(Component::Port(port.clone()).into());
             debug!("    {} : {}", port.name(), &typ);
             context = context.extend(port.name().to_string(), typ);
@@ -327,6 +325,7 @@ impl Bitsy {
             wires.push(Wire(*visibility, sink_terminal.clone(), expr));
         }
 
+        self.modules.push(module);
         Ok(())
     }
 
@@ -334,6 +333,15 @@ impl Bitsy {
         for shape_family in &self.shape_families {
             if shape_family.name() == name {
                 return Some(shape_family.clone());
+            }
+        }
+        None
+    }
+
+    pub fn module_by_name(&self, module_name: &str) -> Option<Module> {
+        for module in &self.modules {
+            if module.name() == module_name {
+                return Some(module.clone());
             }
         }
         None

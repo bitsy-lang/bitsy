@@ -41,3 +41,4 @@ Todo
 * Hover information
 * Code Actions
 * Remove hardcoded paths.
+* Add hole support.
