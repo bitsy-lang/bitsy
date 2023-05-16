@@ -32,7 +32,6 @@ pub ModDef: ModDef = {
         ModDef {
             name,
             visibility,
-            ports,
             components,
             wires,
         }
@@ -92,8 +91,8 @@ pub EnumAlt: EnumAlt = {
     }
 }
 
-pub Port: Port = {
-    "port" <port_name:Ident> <pins:Pin*> => Port(port_name.to_string(), pins),
+pub Port: Component = {
+    "port" <port_name:Ident> <pins:Pin*> => Component::Port(port_name.to_string(), Port { pins }),
 }
 
 pub Pin: Pin = {

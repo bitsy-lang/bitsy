@@ -49,7 +49,6 @@ pub struct EnumAlt(pub String, pub Option<ShapeRef>);
 pub struct ModDef {
     pub name: String,
     pub visibility: Visibility,
-    pub ports: Vec<Port>,
     pub components: Vec<Component>,
     pub wires: Vec<Wire>,
 }
@@ -79,6 +78,7 @@ pub struct MatchArm(pub Box<MatchPattern>, pub Box<Expr>);
 
 #[derive(Debug, Clone)]
 pub enum Component {
+    Port(ComponentName, Port),
     Reg(ComponentName, Visibility, RegComponent),
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
@@ -103,7 +103,9 @@ pub struct GateComponent {
 }
 
 #[derive(Debug, Clone)]
-pub struct Port(pub String, pub Vec<Pin>);
+pub struct Port {
+    pub pins: Vec<Pin>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Pin(pub String, pub Direction, pub ShapeRef, pub DomainRef);
@@ -263,6 +265,7 @@ impl Wire {
 impl Component {
     pub fn name(&self) -> &str {
         match self {
+            Component::Port(name, _) => name,
             Component::Reg(name, _, _) => name,
             Component::Mod(name, _, _) => name,
             Component::Gate(name, _, _) => name,
@@ -300,6 +303,16 @@ impl ModDef {
         for component in &self.components {
             if let Component::Mod(_name, _visibility, mod_component) = component {
                 result.push(mod_component.mod_def_ref.clone());
+            }
+        }
+        result
+    }
+
+    pub fn ports(&self) -> Vec<(String, Port)> {
+        let mut result = vec![];
+        for component in &self.components {
+            if let Component::Port(name, port) = component {
+                result.push((name.to_string(), port.clone()));
             }
         }
         result

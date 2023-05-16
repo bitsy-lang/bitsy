@@ -79,7 +79,7 @@ impl Context<Type> {
         let subject_type: Type = self.infer_type(subject).expect("Can't infer type");
         if let Some(component) = subject_type.as_ref() {
             match component {
-                Component::Port(Port(_name, pins)) => {
+                Component::Port(name, Port(pins)) => {
                     for Pin(name, direction, pin_typ) in pins {
                         if name == field {
                             if direction == &Direction::Incoming {

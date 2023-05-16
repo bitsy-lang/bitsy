@@ -203,54 +203,26 @@ impl Bitsy {
 
         info!("add_module: {}", &mod_def.name);
 
-        let mut ports = vec![];
-        info!("    Ports:");
-        for ast::Port(port_name, port_pins) in &mod_def.ports {
-            let mut pins: Vec<Pin> = vec![];
-            info!("        port: {}", port_name);
-            for ast::Pin(name, direction, shape_ref, domain_ref) in port_pins {
-                info!("            pin: {}", name);
-                if let Some(shape) = self.shape(&shape_ref, &Context::empty()) {
-                    let pin = Pin(name.to_string(), *direction, shape);
-                    pins.push(pin);
-                } else {
-                    return Err(BitsyError::Type(0, 0, format!("Unknown shape: {shape_ref:?}")));
-                }
-            }
-            let port = Port(port_name.clone(), pins);
-            ports.push(port);
-        }
+        let mut terminals: Vec<Terminal> = self.add_module_terminals(&mod_def);
 
-        let mut terminals_by_ref: HashMap<TerminalRef, Terminal> = HashMap::new();
-        let mut terminals: Vec<Terminal> = vec![];
-        let mut driven_terminals: Vec<TerminalRef> = vec![];
-        // let mut floating_terminals = vec![]; // todo!()
+//        let mut ports = self.add_module_ports();
+//        let mut components: Vec<Arc<Component>> = self.add_module_components(&mod_def);
+//
+//        let mut context: Context<Type> = Context::empty();
+//        debug!("Context:");
+//        for component in &components {
+//            debug!("    {} : {}", component.name(), Type::ref_(component.clone()));
+//            context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
+//        }
+//
+//        let mut wires = self.add_wires(&mod_def);
 
+        Ok(())
+    }
+
+    fn add_module_terminals(&self, mod_def: &ast::ModDef) -> Vec<Terminal> {
+        let mut terminals = vec![];
         info!("    Terminals:");
-        for port in &ports {
-            for pin in port.pins() {
-                let polarity = match pin.direction() {
-                    Direction::Incoming => Polarity::Source,
-                    Direction::Outgoing => Polarity::Sink,
-                };
-                info!("        terminal: io.{} : {}{}", port.name(), polarity, pin.shape());
-
-                let terminal = Terminal(
-                    port.name().to_string(),
-                    pin.name().to_string(),
-                    polarity,
-                    pin.shape(),
-                );
-
-                if pin.direction() == Direction::Incoming {
-                    driven_terminals.push(terminal.to_ref());
-                }
-
-                terminals_by_ref.insert(terminal.to_ref(), terminal.clone());
-                terminals.push(terminal);
-            }
-        }
-
         for component in &mod_def.components {
             match component {
                 ast::Component::Reg(name, visibility, reg_component) => {
@@ -272,9 +244,59 @@ impl Bitsy {
             }
         }
 
+/*
+        for port in &ports {
+            for pin in port.pins() {
+                let polarity = match pin.direction() {
+                    Direction::Incoming => Polarity::Source,
+                    Direction::Outgoing => Polarity::Sink,
+                };
+                info!("        terminal: io.{} : {}{}", port.name(), polarity, pin.shape());
+
+                let terminal = Terminal(
+                    port.name().to_string(),
+                    pin.name().to_string(),
+                    polarity,
+                    pin.shape(),
+                );
+
+                terminals_by_ref.insert(terminal.to_ref(), terminal.clone());
+                terminals.push(terminal);
+            }
+        }
+*/
+        terminals
+    }
+
+    /*
+    fn add_module_ports(&self) -> Vec<Port> {
+        info!("    Ports:");
+        for (port_name, port) in &mod_def.ports() {
+            let port_pins = port.pins.clone();
+            let mut pins: Vec<Pin> = vec![];
+            info!("        port: {}", port_name);
+            for ast::Pin(name, direction, shape_ref, domain_ref) in port_pins {
+                info!("            pin: {}", name);
+                if let Some(shape) = self.shape(&shape_ref, &Context::empty()) {
+                    let pin = Pin(name.to_string(), direction, shape);
+                    pins.push(pin);
+                } else {
+                    return Err(BitsyError::Type(0, 0, format!("Unknown shape: {shape_ref:?}")));
+                }
+            }
+            let port = Port(port_name.clone(), pins);
+            ports.push(port);
+        }
+
+    }
+    */
+
+
+    fn add_module_components(&self, mod_def: &ast::ModDef) -> Vec<Component> {
         let mut components: Vec<Arc<Component>> = vec![];
         for component in &mod_def.components {
             let c = match component {
+                ast::Component::Port(name, port)  => Component::Port(name.to_string(), port.clone()),
                 ast::Component::Mod(name, visibility, module)  => {
                     Component::Mod(name.to_string(), *visibility, ModComponent {
                         module: self.module(&module.mod_def_ref).expect("Unknown module definition"),
@@ -299,23 +321,11 @@ impl Bitsy {
             };
             components.push(Arc::new(c));
         }
+    }
 
-        let mut context: Context<Type> = Context::empty();
-        debug!("Context:");
-        for component in &components {
-            debug!("    {} : {}", component.name(), Type::ref_(component.clone()));
-            context = context.extend(component.name().to_string(), Type::ref_(component.clone()));
-        }
-        for port in &ports {
-            let typ = Type::ref_(Component::Port(port.clone()).into());
-            debug!("    {} : {}", port.name(), &typ);
-            context = context.extend(port.name().to_string(), typ);
-        }
-
+    fn add_module_wires(&self, mod_def: &ast::ModDef) -> Vec<Wire> {
         let mut wires = vec![];
         for ast::Wire(visibility, sink_terminal_ref, ast_expr) in &mod_def.wires {
-            driven_terminals.push(sink_terminal_ref.clone());
-
             let expr = self.expr(ast_expr);
             let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
             let shape = sink_terminal.shape();
@@ -326,8 +336,7 @@ impl Bitsy {
 
             wires.push(Wire(*visibility, sink_terminal.clone(), expr));
         }
-
-        Ok(())
+        wires
     }
 
     fn shape_family(&self, name: &str) -> Option<Shape> {
@@ -433,7 +442,7 @@ pub enum Component {
     Mod(ComponentName, Visibility, ModComponent),
     Gate(ComponentName, Visibility, GateComponent),
     Const(ComponentName, Visibility, Box<Value>, Type),
-    Port(Port),
+    Port(ComponentName, Port),
 }
 
 impl Component {
@@ -443,7 +452,7 @@ impl Component {
             Component::Mod(name, _vis, _mod) => name,
             Component::Gate(name, _vis, _gate) => name,
             Component::Const(name, _vis, _value, _shape) => name,
-            Component::Port(port) => port.name(),
+            Component::Port(name, port) => name,
         }
     }
 
@@ -495,13 +504,9 @@ pub struct RegComponent {
 }
 
 #[derive(Debug, Clone)]
-pub struct Port(PortName, Vec<Pin>);
+pub struct Port(Vec<Pin>);
 
 impl Port {
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-
     pub fn pins(&self) -> &[Pin] {
         &self.1
     }
