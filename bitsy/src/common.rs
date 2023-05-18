@@ -5,8 +5,8 @@ pub type CtorName = String;
 
 #[derive(Debug)]
 pub enum BitsyError {
-    Parse(usize, usize, String),
-    Type(usize, usize, String),
+    Parse(Loc, String),
+    Type(Loc, String),
     Unknown(String),
 }
 
@@ -163,6 +163,31 @@ pub enum Value {
     Tuple(Vec<Box<Value>>),
     Struct(Vec<(FieldName, Box<Value>)>),
     Component(Box<crate::defs::Type>),
+}
+
+pub type Filename = String;
+pub type StartPos = usize;
+pub type EndPos = usize;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Loc(String, StartPos, EndPos);
+
+impl Loc {
+    pub fn new(filename: String, start_pos: usize, end_pos: usize) -> Loc {
+        Loc(filename, start_pos, end_pos)
+    }
+
+    pub fn unknown() -> Loc {
+        Loc("UNKNOWN".to_string(), 0, 0)
+    }
+
+    pub fn start_pos(&self) -> usize {
+        self.1
+    }
+
+    pub fn end_pos(&self) -> usize {
+        self.2
+    }
 }
 
 impl std::fmt::Display for Value {

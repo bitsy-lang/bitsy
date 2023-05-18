@@ -19,7 +19,7 @@ pub struct Shape(Arc<ShapeNode>);
 pub struct Type(Arc<TypeNode>);
 
 #[derive(Debug, Clone)]
-pub struct Expr(Arc<ExprNode>);
+pub struct Expr(Arc<ExprNode>, Loc);
 
 
 //////////////////////////
@@ -461,6 +461,13 @@ impl Type {
     }
 }
 
+impl ExprNode {
+    pub fn at(self, loc: Loc) -> Expr {
+        Expr(Arc::new(self), loc)
+    }
+}
+
+
 impl EnumAlt {
     pub fn new(ctor_name: String, payload: Option<Type>) -> EnumAlt {
         EnumAlt { ctor_name, payload }
@@ -489,66 +496,64 @@ impl Gate {
     }
 }
 
-impl From<ExprNode> for Expr {
-    fn from(node: ExprNode) -> Expr {
-        Expr(Arc::new(node))
-    }
-}
-
 impl Expr {
+    pub fn loc(&self) -> &Loc {
+        &self.1
+    }
+
     pub fn as_node(&self) -> &ExprNode {
         &self.0
     }
 
-    pub fn var(s: String) -> Expr {
-        ExprNode::Var(s).into()
+    pub fn var(loc: Loc, s: String) -> Expr {
+        ExprNode::Var(s).at(loc)
     }
 
-    pub fn lit(v: Value) -> Expr {
-        ExprNode::Lit(v).into()
+    pub fn lit(loc: Loc, v: Value) -> Expr {
+        ExprNode::Lit(v).at(loc)
     }
 
-    pub fn field(subject: Expr, field: String) -> Expr {
-        ExprNode::Field(subject, field).into()
+    pub fn field(loc: Loc, subject: Expr, field: String) -> Expr {
+        ExprNode::Field(subject, field).at(loc)
     }
 
-    pub fn let_expr(x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {
-        ExprNode::Let(x, def, ascription, body).into()
+    pub fn let_expr(loc: Loc, x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {
+        ExprNode::Let(x, def, ascription, body).at(loc)
     }
 
-    pub fn add(a: Expr, b: Expr) -> Expr {
-        ExprNode::Add(a, b).into()
+    pub fn add(loc: Loc, a: Expr, b: Expr) -> Expr {
+        ExprNode::Add(a, b).at(loc)
     }
 
-    pub fn eq(a: Expr, b: Expr) -> Expr {
-        ExprNode::Eq(a, b).into()
+    pub fn eq(loc: Loc, a: Expr, b: Expr) -> Expr {
+        ExprNode::Eq(a, b).at(loc)
     }
 
-    pub fn neq(a: Expr, b: Expr) -> Expr {
-        ExprNode::Neq(a, b).into()
+    pub fn neq(loc: Loc, a: Expr, b: Expr) -> Expr {
+        ExprNode::Neq(a, b).at(loc)
     }
 
-    pub fn match_expr(subject: Expr, arms: Vec<MatchArm>) -> Expr {
-        ExprNode::Match(subject, arms).into()
+    pub fn match_expr(loc: Loc, subject: Expr, arms: Vec<MatchArm>) -> Expr {
+        ExprNode::Match(subject, arms).at(loc)
     }
 
-    pub fn tuple(exprs: Vec<Expr>) -> Expr {
-        ExprNode::Tuple(exprs).into()
+    pub fn tuple(loc: Loc, exprs: Vec<Expr>) -> Expr {
+        ExprNode::Tuple(exprs).at(loc)
     }
 
-    pub fn struct_expr(field_values: Vec<(FieldName, Expr)>) -> Expr {
-        ExprNode::Struct(field_values).into()
+    pub fn struct_expr(loc: Loc, field_values: Vec<(FieldName, Expr)>) -> Expr {
+        ExprNode::Struct(field_values).at(loc)
     }
 
-    pub fn enum_expr(ctor_name: String, payload: Option<Expr>) -> Expr {
-        ExprNode::Enum(ctor_name, payload).into()
+    pub fn enum_expr(loc: Loc, ctor_name: String, payload: Option<Expr>) -> Expr {
+        ExprNode::Enum(ctor_name, payload).at(loc)
     }
 
-    pub fn slice(subject: Expr, index: Expr) -> Expr {
-        ExprNode::Slice(subject, index).into()
+    pub fn slice(loc: Loc, subject: Expr, index: Expr) -> Expr {
+        ExprNode::Slice(subject, index).at(loc)
     }
 
-    pub fn slice_const(subject: Expr, index: u64) -> Expr {
-        ExprNode::SliceConst(subject, index).into()
+    pub fn slice_const(loc: Loc, subject: Expr, index: u64) -> Expr {
+        ExprNode::SliceConst(subject, index).at(loc)
     }
 }

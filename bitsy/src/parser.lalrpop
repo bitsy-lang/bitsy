@@ -207,27 +207,43 @@ pub Wire: Wire = {
 }
 
 pub Expr: Box<Expr> = {
-    "let" <v:Ident> <shape:("of" Shape)?> "=" <def:Expr> ";" <body:Expr> => Box::new(Expr::Let(v, def, shape.map(|x| x.1), body)),
-    "match" <subject:Expr> "{"
+    <l:@L> "let" <v:Ident> <shape:("of" Shape)?> "=" <def:Expr> ";" <body:Expr> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Let(loc, v, def, shape.map(|x| x.1), body))
+    },
+    <l:@L> "match" <subject:Expr> "{"
         <patterns:MatchArm*>
-    "}" => Box::new(Expr::Match(subject, patterns)),
+    "}" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Match(loc, subject, patterns))
+    },
     <expr:ExprEq> => expr,
 }
 
 pub ExprEq: Box<Expr> = {
-    <op0:ExprAdd> "==" <op1:ExprEq> => Box::new(Expr::Eq(op0, op1)),
-    <op0:ExprAdd> "!=" <op1:ExprEq> => Box::new(Expr::Neq(op0, op1)),
+    <l:@L> <op0:ExprAdd> "==" <op1:ExprEq> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Eq(loc, op0, op1))
+    },
+    <l:@L> <op0:ExprAdd> "!=" <op1:ExprEq> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Neq(loc, op0, op1))
+    },
     <expr:ExprAdd> => expr,
 }
 
 pub ExprAdd: Box<Expr> = {
-    <op0:ExprSlice> "+" <op1:ExprAdd> => Box::new(Expr::Add(op0, op1)),
+    <l:@L> <op0:ExprSlice> "+" <op1:ExprAdd> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Add(loc, op0, op1))
+    },
     <expr:ExprSlice> => expr,
 }
 
 pub ExprSlice: Box<Expr> = {
-    <expr:ExprDot> "[" <index:Slice> "]" <end:"?"?> => {
-        Box::new(Expr::Slice(expr, index))
+    <l:@L> <expr:ExprDot> "[" <index:Slice> "]" <end:"?"?> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Slice(loc, expr, index))
     },
     <expr:ExprDot> => expr,
 }
@@ -237,10 +253,11 @@ pub Slice: Box<Expr> = {
 }
 
 pub ExprDot: Box<Expr> = {
-    <e:ExprBase> <fields:("." Ident)+> => {
+    <l:@L> <e:ExprBase> <fields:("." Ident)+> <r:@R> => {
         let mut result = e;
         for (_dot, field) in &fields {
-            result = Box::new(Expr::Field(result, field.to_string()))
+            let loc = Loc::new("Top.bitsy".to_string(), l, r);
+            result = Box::new(Expr::Field(loc, result, field.to_string()))
         }
         result
     },
@@ -248,14 +265,27 @@ pub ExprDot: Box<Expr> = {
 }
 
 pub ExprBase: Box<Expr> = {
-    <x:Ident> => Box::new(Expr::Var(x)),
-    <value:Value> => Box::new(Expr::Lit(value)),
-    "(" <expr:Expr> ")" => expr,
-    "${" <struct_fields:StructFields> "}" => {
-        Box::new(Expr::Struct(struct_fields))
+    <l:@L> <x:Ident> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Var(loc, x))
     },
-    "@" <ctor_name:Ident> <payload:( "(" Expr ")")?>  => Box::new(Expr::Enum(ctor_name, payload.map(|p| p.1))),
-    "tuple" "(" <elts:TupleElts?>")" => Box::new(Expr::Tuple(elts.unwrap_or_default())),
+    <l:@L> <value:Value> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Lit(loc, value))
+    },
+    <l:@L> "${" <struct_fields:StructFields> "}" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Struct(loc, struct_fields))
+    },
+    <l:@L> "@" <ctor_name:Ident> <payload:( "(" Expr ")")?>  <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Enum(loc, ctor_name, payload.map(|p| p.1)))
+    },
+    <l:@L> "tuple" "(" <elts:TupleElts?>")" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Tuple(loc, elts.unwrap_or_default()))
+    },
+    "(" <expr:Expr> ")" => expr,
 }
 
 pub MatchArm: MatchArm = {

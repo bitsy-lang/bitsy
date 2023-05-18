@@ -148,9 +148,9 @@ impl State {
         if let Err(e) = result {
             warn!("Error: {e:?}");
             match e {
-                BitsyError::Parse(start, end, message) => {
-                    let (start_line, start_character) = pos_to_lineno_col(&self.text, start);
-                    let (end_line, end_character) = pos_to_lineno_col(&self.text, end);
+                BitsyError::Parse(loc, message) => {
+                    let (start_line, start_character) = pos_to_lineno_col(&self.text, loc.start_pos());
+                    let (end_line, end_character) = pos_to_lineno_col(&self.text, loc.end_pos());
                     let message = json!({
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",
@@ -170,9 +170,9 @@ impl State {
                     });
                     send_message(message);
                 },
-                BitsyError::Type(start, end, message) => {
-                    let (start_line, start_character) = pos_to_lineno_col(&self.text, start);
-                    let (end_line, end_character) = pos_to_lineno_col(&self.text, end);
+                BitsyError::Type(loc, message) => {
+                    let (start_line, start_character) = pos_to_lineno_col(&self.text, loc.start_pos());
+                    let (end_line, end_character) = pos_to_lineno_col(&self.text, loc.end_pos());
                     let message = json!({
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",

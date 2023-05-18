@@ -53,11 +53,15 @@ impl Bitsy {
             Ok(namespace) => self.add_namespace(&namespace)?,
             Err(e) => {
                 match e {
-                    ParseError::InvalidToken { location } => return Err(BitsyError::Parse(location, location + 1, "Invalid token".to_string())),
-                    ParseError::UnrecognizedEOF { location, expected } => return Err(BitsyError::Parse(location, location + 1, "Unexpected end of file".to_string())),
+                    ParseError::InvalidToken { location } => {
+                        let loc = Loc::new("Top.bitsy".to_string(), location, location + 1);
+                        return Err(BitsyError::Parse(loc, "Invalid token".to_string()));
+                    },
+                    ParseError::UnrecognizedEOF { location, expected } => return Err(BitsyError::Parse(Loc::new("Top.bitsy".to_string(), location, location + 1), "Unexpected end of file".to_string())),
                     ParseError::UnrecognizedToken { token, expected } => {
                         let (location_start, found, location_end) = token;
-                        return Err(BitsyError::Parse(location_start, location_end, "Unrecognized token".to_string()));
+                        let loc = Loc::new("Top.bitsy".to_string(), location_start, location_end);
+                        return Err(BitsyError::Parse(loc, "Unrecognized token".to_string()));
                     },
                     _ => return Err(BitsyError::Unknown(format!("{e:?}"))),
                 }
@@ -214,7 +218,7 @@ impl Bitsy {
                     let pin = Pin(name.to_string(), *direction, shape);
                     pins.push(pin);
                 } else {
-                    return Err(BitsyError::Type(0, 0, format!("Unknown shape: {shape_ref:?}")));
+                    return Err(BitsyError::Type(Loc::unknown(), format!("Unknown shape: {shape_ref:?}")));
                 }
             }
             let port = Port(port_name.clone(), pins);
@@ -265,7 +269,7 @@ impl Bitsy {
                         terminals_by_ref.insert(val_terminal.to_ref(), val_terminal.clone());
                         terminals.push(val_terminal);
                     } else {
-                        return Err(BitsyError::Type(0, 0, format!("Unknown shape: {:?}", &reg_component.shape)));
+                        return Err(BitsyError::Type(Loc::unknown(), format!("Unknown shape: {:?}", &reg_component.shape)));
                     }
                 },
                 _ => (),
@@ -320,11 +324,7 @@ impl Bitsy {
             let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
             let shape = sink_terminal.shape();
             debug!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
-            match context.check_type(expr.clone(), shape.clone()) {
-                Ok(false) => return Err(BitsyError::Type(0, 0, format!("Shape check failed: {:?} is not {}", expr, shape))),
-                Err(err) => return Err(err),
-                Ok(true) => (),
-            }
+            context.check_type(expr.clone(), shape.clone())?;
 
             wires.push(Wire(*visibility, sink_terminal.clone(), expr));
         }
@@ -352,45 +352,45 @@ impl Bitsy {
 
     pub fn expr(&self, expr: &ast::Expr) -> Expr {
         match expr {
-            ast::Expr::Var(x) => Expr::var(x.to_string()),
-            ast::Expr::Field(e, field) => Expr::field(self.expr(e), field.to_string()),
-            ast::Expr::Lit(v) => Expr::lit(Value::from(v.clone())),
-            ast::Expr::Let(x, def, def_shape, body) => {
+            ast::Expr::Var(loc, x) => Expr::var(loc.clone(), x.to_string()),
+            ast::Expr::Field(loc, e, field) => Expr::field(loc.clone(), self.expr(e), field.to_string()),
+            ast::Expr::Lit(loc, v) => Expr::lit(loc.clone(), Value::from(v.clone())),
+            ast::Expr::Let(loc, x, def, def_shape, body) => {
                 match def_shape {
                     Some(def_shape0) => {
                         // todo!() context shouldn't be empty here?
                         let shape = self.shape(def_shape0, &Context::empty()).expect("Unknown shape");
-                        Expr::let_expr(x.to_string(), self.expr(def), Some(shape), self.expr(body))
+                        Expr::let_expr(loc.clone(), x.to_string(), self.expr(def), Some(shape), self.expr(body))
                     },
                     None => {
-                        Expr::let_expr(x.to_string(), self.expr(def), None, self.expr(body))
+                        Expr::let_expr(loc.clone(), x.to_string(), self.expr(def), None, self.expr(body))
                     },
                 }
             }
-            ast::Expr::Add(op0, op1) => Expr::add(self.expr(op0), self.expr(op1)),
-            ast::Expr::Mul(op0, op1) => todo!(),
-            ast::Expr::Eq(op0, op1) => Expr::eq(self.expr(op0), self.expr(op1)),
-            ast::Expr::Neq(op0, op1) => Expr::neq(self.expr(op0), self.expr(op1)),
-            ast::Expr::Tuple(es) => Expr::tuple(es.iter().map(|e| self.expr(e)).collect()),
-            ast::Expr::Struct(fs) => {
-                Expr::struct_expr(fs.iter().map(|(field_name, e)| {
+            ast::Expr::Add(loc, op0, op1) => Expr::add(loc.clone(), self.expr(op0), self.expr(op1)),
+            ast::Expr::Mul(loc, op0, op1) => todo!(),
+            ast::Expr::Eq(loc, op0, op1) => Expr::eq(loc.clone(), self.expr(op0), self.expr(op1)),
+            ast::Expr::Neq(loc, op0, op1) => Expr::neq(loc.clone(), self.expr(op0), self.expr(op1)),
+            ast::Expr::Tuple(loc, es) => Expr::tuple(loc.clone(), es.iter().map(|e| self.expr(e)).collect()),
+            ast::Expr::Struct(loc, fs) => {
+                Expr::struct_expr(loc.clone(), fs.iter().map(|(field_name, e)| {
                     (field_name.clone(), self.expr(e))
                 }).collect())
             },
-            ast::Expr::Enum(ctor_name, payload) => Expr::enum_expr(ctor_name.to_string(), payload.as_ref().map(|e| self.expr(e))),
-            ast::Expr::Match(e, arms) => {
+            ast::Expr::Enum(loc, ctor_name, payload) => Expr::enum_expr(loc.clone(), ctor_name.to_string(), payload.as_ref().map(|e| self.expr(e))),
+            ast::Expr::Match(loc, e, arms) => {
                 let match_arms = arms.iter().map(|ast::MatchArm(pat, e)| {
                     MatchArm(*pat.clone(), self.expr(e))
                 }).collect();
-                Expr::match_expr(self.expr(e), match_arms)
+                Expr::match_expr(loc.clone(), self.expr(e), match_arms)
             },
-            ast::Expr::Slice(subject, index) => {
+            ast::Expr::Slice(loc, subject, index) => {
                 //if is_constant(index) {
                 if false {
 //                    Expr::slice_const(self.expr(subject), self.expr(index))
                     todo!()
                 } else {
-                    Expr::slice(self.expr(subject), self.expr(index))
+                    Expr::slice(loc.clone(), self.expr(subject), self.expr(index))
                 }
             },
         }
@@ -424,9 +424,11 @@ impl Terminal {
         self.3.clone()
     }
 
+    /*
     pub fn to_expr(&self) -> Box<Expr> {
         Box::new(Expr::var(self.name()))
     }
+    */
 }
 
 #[derive(Debug, Clone)]

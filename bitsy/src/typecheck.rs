@@ -2,7 +2,7 @@ use std::sync::Arc;
 use crate::context::Context;
 use log::*;
 
-use crate::common::{Direction, BitsyResult, BitsyError};
+use crate::common::{Direction, BitsyResult, BitsyError, Loc};
 use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
@@ -248,7 +248,7 @@ impl Context<Type> {
                         }
                     },
                     MatchPattern::Lit(v) => {
-                        if !self.check_type(Expr::lit(v.clone()), subject_type.clone())? {
+                        if !self.check_type(Expr::lit(Loc::unknown(), v.clone()), subject_type.clone())? {
                             return Ok(false);
                         }
                         if !self.check_type(expr0.clone(), typ.clone())? {

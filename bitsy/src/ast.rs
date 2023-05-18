@@ -59,19 +59,19 @@ pub struct Wire(pub Visibility, pub TerminalRef, pub Box<Expr>);
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Var(String),
-    Field(Box<Expr>, String),
-    Lit(Value),
-    Let(String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
-    Add(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Eq(Box<Expr>, Box<Expr>),
-    Neq(Box<Expr>, Box<Expr>),
-    Match(Box<Expr>, Vec<MatchArm>),
-    Slice(Box<Expr>, Box<Expr>),
-    Tuple(Vec<Box<Expr>>),
-    Struct(Vec<(FieldName, Box<Expr>)>),
-    Enum(CtorName, Option<Box<Expr>>),
+    Var(Loc, String),
+    Field(Loc, Box<Expr>, String),
+    Lit(Loc, Value),
+    Let(Loc, String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
+    Add(Loc, Box<Expr>, Box<Expr>),
+    Mul(Loc, Box<Expr>, Box<Expr>),
+    Eq(Loc, Box<Expr>, Box<Expr>),
+    Neq(Loc, Box<Expr>, Box<Expr>),
+    Match(Loc, Box<Expr>, Vec<MatchArm>),
+    Slice(Loc, Box<Expr>, Box<Expr>),
+    Tuple(Loc, Vec<Box<Expr>>),
+    Struct(Loc, Vec<(FieldName, Box<Expr>)>),
+    Enum(Loc, CtorName, Option<Box<Expr>>),
 }
 
 #[derive(Debug, Clone)]
