@@ -94,6 +94,7 @@ pub enum ExprNode {
     Tuple(Vec<Expr>),
     Struct(Vec<(FieldName, Expr)>),
     Enum(CtorName, Option<Expr>),
+    Hole(String),
 }
 
 
@@ -563,5 +564,9 @@ impl Expr {
 
     pub fn slice_const(loc: Loc, subject: Expr, index: u64) -> Expr {
         ExprNode::SliceConst(subject, index).at(loc)
+    }
+
+    pub fn hole_expr(loc: Loc, contents: String) -> Expr {
+        ExprNode::Hole(contents).at(loc)
     }
 }

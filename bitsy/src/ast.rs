@@ -73,6 +73,7 @@ pub enum Expr {
     Tuple(Loc, Vec<Box<Expr>>),
     Struct(Loc, Vec<(FieldName, Box<Expr>)>),
     Enum(Loc, CtorName, Option<Box<Expr>>),
+    Hole(Loc, String),
 }
 
 #[derive(Debug, Clone)]

@@ -45,6 +45,7 @@ syn match bitsyNeqOp "!="
 syn match bitsyArrow "=>"
 syn match bitsyAdd "+"
 syn match bitsyMul "*"
+syn match bitsyHole "?"
 hi link bitsyAt Keyword
 hi link bitsyColon Keyword
 hi link bitsyArrow Keyword
@@ -54,6 +55,7 @@ hi link bitsyEqOp Keyword
 hi link bitsyNeqOp Keyword
 hi link bitsyAdd Keyword
 hi link bitsyMul Keyword
+hi link bitsyHole Comment
 
 syn match bitsyCtor "@\<[a-zA-Z_][A-Za-z0-9_]*"
 syn match bitsyOtherwise "otherwise"

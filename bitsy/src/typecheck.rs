@@ -26,6 +26,7 @@ impl Context<Type> {
             ExprNode::Enum(ctor_name, payload) => self.check_type_enum(loc, ctor_name, payload.clone(), typ.clone())?,
             ExprNode::Slice(subject, index) => todo!(),
             ExprNode::SliceConst(subject, index) => todo!(),
+            ExprNode::Hole(_contents) => (),
         }
         Ok(())
     }

@@ -397,6 +397,7 @@ impl Bitsy {
                     Expr::slice(loc.clone(), self.expr(subject), self.expr(index))
                 }
             },
+            ast::Expr::Hole(loc, contents) => Expr::hole_expr(loc.clone(), contents.to_string()),
         }
     }
 

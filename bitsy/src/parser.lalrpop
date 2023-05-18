@@ -301,6 +301,11 @@ pub ExprBase: Box<Expr> = {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Tuple(loc, elts.unwrap_or_default()))
     },
+    <l:@L> "?" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        let contents = "";
+        Box::new(Expr::Hole(loc, contents.to_string()))
+    },
     "(" <expr:Expr> ")" => expr,
 }
 
