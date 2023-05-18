@@ -63,6 +63,13 @@ pub struct ModDefRef(pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct GateRef(pub String);
 
+#[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
+pub enum BinOp {
+    Add,
+    Sub,
+}
+
+
 impl Default for DomainRef {
     fn default() -> DomainRef {
         DomainRef("d".to_string())

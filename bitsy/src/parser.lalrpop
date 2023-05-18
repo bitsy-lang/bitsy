@@ -247,7 +247,11 @@ pub ExprEq: Box<Expr> = {
 pub ExprAdd: Box<Expr> = {
     <l:@L> <op0:ExprSlice> "+" <op1:ExprAdd> <r:@R> => {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
-        Box::new(Expr::Add(loc, op0, op1))
+        Box::new(Expr::BinOp(loc, BinOp::Add, op0, op1))
+    },
+    <l:@L> <op0:ExprSlice> "-" <op1:ExprAdd> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::BinOp(loc, BinOp::Sub, op0, op1))
     },
     <expr:ExprSlice> => expr,
 }

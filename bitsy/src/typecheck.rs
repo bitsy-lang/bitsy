@@ -2,7 +2,7 @@ use std::sync::Arc;
 use crate::context::Context;
 use log::*;
 
-use crate::common::{Direction, BitsyResult, BitsyError, Loc};
+use crate::common::{Direction, BitsyResult, BitsyError, Loc, BinOp};
 use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
@@ -16,8 +16,7 @@ impl Context<Type> {
             ExprNode::Field(subject, field) => self.check_type_field(loc, subject.clone(), &field, typ)?,
             ExprNode::Cast(e, t) => self.check_type_cast(loc, e.clone(), t.clone(), typ)?,
             ExprNode::Let(x, def, ascription, body) => self.check_type_let(loc, x, def.clone(), ascription.clone(), body.clone(), typ)?,
-            ExprNode::Add(op0, op1) => self.check_type_add(loc, op0.clone(), op1.clone(), typ)?,
-            ExprNode::Mul(op0, op1) => todo!(),
+            ExprNode::BinOp(op, op0, op1) => self.check_type_binop(loc, *op, op0.clone(), op1.clone(), typ)?,
             ExprNode::Eq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
             ExprNode::Neq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
             ExprNode::Match(subject, arms) => self.check_type_match(loc, subject.clone(), arms, typ)?,
@@ -44,8 +43,7 @@ impl Context<Type> {
                 }
             },
             ExprNode::Let(x, def, def_shape, body) => self.infer_type_let(x, def.clone(), def_shape.clone(), body.clone()),
-            ExprNode::Add(op0, op1) => None,
-            ExprNode::Mul(op0, op1) => None,
+            ExprNode::BinOp(op, op0, op1) => None,
             ExprNode::Eq(op0, op1) => {
                 match (self.infer_type(op0.clone()), self.infer_type(op1.clone())) {
                     (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Type::bit()) } else { None },
@@ -188,26 +186,30 @@ impl Context<Type> {
         Ok(())
     }
 
-    fn check_type_add(&self, loc: &Loc, op0: Expr, op1: Expr, typ: Type) -> BitsyResult<()> {
-        if let Some(n) = typ.as_word(self) {
-            if n > 0 {
-                if let Ok(()) = self.check_type(op0.clone(), Type::word(n - 1)) {
-                    for i in 0..n {
-                        if let Ok(()) = self.check_type(op1.clone(), Type::word(i)) {
-                            return Ok(())
+    fn check_type_binop(&self, loc: &Loc, op: BinOp, op0: Expr, op1: Expr, typ: Type) -> BitsyResult<()> {
+        if op == BinOp::Add || op == BinOp::Sub {
+            if let Some(n) = typ.as_word(self) {
+                if n > 0 {
+                    if let Ok(()) = self.check_type(op0.clone(), Type::word(n - 1)) {
+                        for i in 0..n {
+                            if let Ok(()) = self.check_type(op1.clone(), Type::word(i)) {
+                                return Ok(())
+                            }
                         }
-                    }
-                } else if let Ok(()) = self.check_type(op1.clone(), Type::word(n - 1)) {
-                    for i in 0..n {
-                        if let Ok(()) = self.check_type(op0.clone(), Type::word(i)) {
-                            return Ok(())
+                    } else if let Ok(()) = self.check_type(op1.clone(), Type::word(n - 1)) {
+                        for i in 0..n {
+                            if let Ok(()) = self.check_type(op0.clone(), Type::word(i)) {
+                                return Ok(())
+                            }
                         }
                     }
                 }
+                Err(BitsyError::Type(loc.clone(), format!("{op:?} didn't typecheck")))
+            } else {
+                Err(BitsyError::Type(loc.clone(), format!("{op:?} didn't typecheck because something wasn't a {typ}")))
             }
-            Err(BitsyError::Type(loc.clone(), format!("Addition didn't typecheck")))
         } else {
-            Err(BitsyError::Type(loc.clone(), format!("Addition didn't typecheck because something wasn't a {typ}")))
+            unreachable!()
         }
     }
 

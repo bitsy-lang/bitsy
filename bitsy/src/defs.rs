@@ -84,8 +84,7 @@ pub enum ExprNode {
     Field(Expr, String),
     Cast(Expr, Type),
     Let(String, Expr, Option<Type>, Expr),
-    Add(Expr, Expr),
-    Mul(Expr, Expr),
+    BinOp(BinOp, Expr, Expr),
     Eq(Expr, Expr),
     Neq(Expr, Expr),
     Slice(Expr, Expr),
@@ -526,8 +525,8 @@ impl Expr {
         ExprNode::Let(x, def, ascription, body).at(loc)
     }
 
-    pub fn add(loc: Loc, a: Expr, b: Expr) -> Expr {
-        ExprNode::Add(a, b).at(loc)
+    pub fn binop(loc: Loc, op: BinOp, a: Expr, b: Expr) -> Expr {
+        ExprNode::BinOp(op, a, b).at(loc)
     }
 
     pub fn eq(loc: Loc, a: Expr, b: Expr) -> Expr {

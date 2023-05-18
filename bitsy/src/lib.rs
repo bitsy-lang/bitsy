@@ -371,8 +371,7 @@ impl Bitsy {
                     },
                 }
             }
-            ast::Expr::Add(loc, op0, op1) => Expr::add(loc.clone(), self.expr(op0), self.expr(op1)),
-            ast::Expr::Mul(loc, op0, op1) => todo!(),
+            ast::Expr::BinOp(loc, op, op0, op1) => Expr::binop(loc.clone(), *op, self.expr(op0), self.expr(op1)),
             ast::Expr::Eq(loc, op0, op1) => Expr::eq(loc.clone(), self.expr(op0), self.expr(op1)),
             ast::Expr::Neq(loc, op0, op1) => Expr::neq(loc.clone(), self.expr(op0), self.expr(op1)),
             ast::Expr::Tuple(loc, es) => Expr::tuple(loc.clone(), es.iter().map(|e| self.expr(e)).collect()),
