@@ -14,11 +14,12 @@ impl Context<Type> {
             ExprNode::Var(x) => self.check_type_var(loc, x, typ)?,
             ExprNode::Lit(value) => self.check_type_lit(loc, value.clone(), typ)?,
             ExprNode::Field(subject, field) => self.check_type_field(loc, subject.clone(), &field, typ)?,
+            ExprNode::Cast(e, t) => self.check_type_cast(loc, e.clone(), t.clone(), typ)?,
             ExprNode::Let(x, def, ascription, body) => self.check_type_let(loc, x, def.clone(), ascription.clone(), body.clone(), typ)?,
             ExprNode::Add(op0, op1) => self.check_type_add(loc, op0.clone(), op1.clone(), typ)?,
             ExprNode::Mul(op0, op1) => todo!(),
-            ExprNode::Eq(op0, op1) => self.check_type_is(loc, expr.clone(), Type::bit())?,
-            ExprNode::Neq(op0, op1) => self.check_type_is(loc, expr.clone(), Type::bit())?,
+            ExprNode::Eq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
+            ExprNode::Neq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
             ExprNode::Match(subject, arms) => self.check_type_match(loc, subject.clone(), arms, typ)?,
             ExprNode::If(e, t, f) => self.check_type_if(loc, e.clone(), t.clone(), f.clone(), typ)?,
             ExprNode::Tuple(es) => self.check_type_tuple(loc, es, typ)?,
@@ -35,6 +36,13 @@ impl Context<Type> {
             ExprNode::Var(x) => Some(self.infer_type_var(x)),
             ExprNode::Lit(value) => self.infer_type_lit(value),
             ExprNode::Field(subject, field) => self.infer_type_field(subject.clone(), &field),
+            ExprNode::Cast(e, t) => {
+                if let Ok(()) = self.check_type(e.clone(), t.clone()) {
+                    Some(t.clone())
+                } else {
+                    None
+                }
+            },
             ExprNode::Let(x, def, def_shape, body) => self.infer_type_let(x, def.clone(), def_shape.clone(), body.clone()),
             ExprNode::Add(op0, op1) => None,
             ExprNode::Mul(op0, op1) => None,
@@ -51,15 +59,6 @@ impl Context<Type> {
                 }
             },
             _ => None,
-        }
-    }
-
-    fn check_type_is(&self, loc: &Loc, expr: Expr, typ: Type) -> BitsyResult<()> {
-        let inferred_type = self.infer_type(expr.clone());
-        if inferred_type.as_ref() == Some(&typ) {
-            Ok(())
-        } else {
-            Err(BitsyError::Type(loc.clone(), format!("{expr:?} is not expected type {typ}")))
         }
     }
 
@@ -212,6 +211,22 @@ impl Context<Type> {
         }
     }
 
+    fn check_type_eq(&self, loc: &Loc, op0: Expr, op1: Expr, typ: Type) -> BitsyResult<()> {
+        if typ != Type::bit() {
+            return Err(BitsyError::Type(loc.clone(), format!("Result of a comparison is Bit not {typ}")));
+        }
+        match (self.infer_type(op0.clone()), self.infer_type(op1.clone())) {
+            (Some(shape0), Some(shape1)) => if shape0 == shape1 {
+                Ok(())
+            } else {
+                Err(BitsyError::Type(loc.clone(), format!("Branches of if statement are not the same shapes: {shape0} vs {shape1}")))
+            },
+            (Some(shape0), None) => self.check_type(op1, shape0),
+            (None, Some(shape1)) => self.check_type(op0, shape1),
+            (None, None) => Err(BitsyError::Type(loc.clone(), format!("Couldn't infer either side of a comparison statement"))),
+        }
+    }
+
     fn check_type_match(&self, loc: &Loc, subject: Expr, arms: &[MatchArm], typ: Type) -> BitsyResult<()> {
         if let Some(subject_type) = &self.infer_type(subject) {
             let enum_alts = if let Some(enum_alts) = subject_type.enum_alts() { enum_alts } else { return Err(BitsyError::Type(loc.clone(), format!("Not an enum."))) }; // todo!()
@@ -269,7 +284,7 @@ impl Context<Type> {
     }
 
     fn check_type_if(&self, loc: &Loc, subject: Expr, true_branch: Expr, false_branch: Expr, typ: Type) -> BitsyResult<()> {
-        self.check_type_is(loc, subject.clone(), Type::bit())?;
+        self.check_type(subject, Type::bit())?;
         self.check_type(true_branch.clone(), typ.clone())?;
         self.check_type(false_branch.clone(), typ)?;
         Ok(())
@@ -416,6 +431,13 @@ impl Context<Type> {
         } else {
             Err(BitsyError::Unknown(loc.clone(), "subject_type is None".to_string()))
         }
+    }
+
+    fn check_type_cast(&self, loc: &Loc, e: Expr, ascribed_type: Type, typ: Type) -> BitsyResult<()> {
+        if ascribed_type != typ {
+            return Err(BitsyError::Type(loc.clone(), format!("Ascribed type was {ascribed_type} but expected type was {typ}")));
+        }
+        self.check_type(e, ascribed_type)
     }
 }
 /*

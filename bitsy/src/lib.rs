@@ -355,6 +355,10 @@ impl Bitsy {
             ast::Expr::Var(loc, x) => Expr::var(loc.clone(), x.to_string()),
             ast::Expr::Field(loc, e, field) => Expr::field(loc.clone(), self.expr(e), field.to_string()),
             ast::Expr::Lit(loc, v) => Expr::lit(loc.clone(), Value::from(v.clone())),
+            ast::Expr::Cast(loc, e, shape) => {
+                let shape = self.shape(shape, &Context::empty()).expect("Unknown shape");
+                Expr::cast_expr(loc.clone(), self.expr(e), shape)
+            },
             ast::Expr::Let(loc, x, def, def_shape, body) => {
                 match def_shape {
                     Some(def_shape0) => {

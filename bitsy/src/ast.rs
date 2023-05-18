@@ -62,6 +62,7 @@ pub enum Expr {
     Var(Loc, String),
     Field(Loc, Box<Expr>, String),
     Lit(Loc, Value),
+    Cast(Loc, Box<Expr>, ShapeRef),
     Let(Loc, String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
     Add(Loc, Box<Expr>, Box<Expr>),
     Mul(Loc, Box<Expr>, Box<Expr>),

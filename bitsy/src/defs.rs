@@ -82,6 +82,7 @@ pub enum ExprNode {
     Var(String),
     Lit(Value),
     Field(Expr, String),
+    Cast(Expr, Type),
     Let(String, Expr, Option<Type>, Expr),
     Add(Expr, Expr),
     Mul(Expr, Expr),
@@ -516,6 +517,9 @@ impl Expr {
 
     pub fn field(loc: Loc, subject: Expr, field: String) -> Expr {
         ExprNode::Field(subject, field).at(loc)
+    }
+    pub fn cast_expr(loc: Loc, e: Expr, typ: Type) -> Expr {
+        ExprNode::Cast(e, typ).at(loc)
     }
 
     pub fn let_expr(loc: Loc, x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {

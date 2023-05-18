@@ -40,6 +40,8 @@ syn match bitsyAt "@"
 syn match bitsyColon ":"
 syn match bitsyRevArrow "<="
 syn match bitsyEq "="
+syn match bitsyEqOp "=="
+syn match bitsyNeqOp "!="
 syn match bitsyArrow "=>"
 syn match bitsyAdd "+"
 syn match bitsyMul "*"
@@ -48,6 +50,8 @@ hi link bitsyColon Keyword
 hi link bitsyArrow Keyword
 hi link bitsyRevArrow Keyword
 hi link bitsyEq Keyword
+hi link bitsyEqOp Keyword
+hi link bitsyNeqOp Keyword
 hi link bitsyAdd Keyword
 hi link bitsyMul Keyword
 

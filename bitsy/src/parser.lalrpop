@@ -207,6 +207,10 @@ pub Wire: Wire = {
 }
 
 pub Expr: Box<Expr> = {
+    <l:@L> "cast" <e:Expr> "as" <shape:Shape> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Cast(loc, e, shape))
+    },
     <l:@L> "let" <v:Ident> <shape:("of" Shape)?> "=" <def:Expr> ";" <body:Expr> <r:@R> => {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Let(loc, v, def, shape.map(|x| x.1), body))
