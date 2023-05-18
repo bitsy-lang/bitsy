@@ -141,7 +141,7 @@ impl Namespace {
             }
         }
 
-        Err(BitsyError::Unknown(format!("No such module found: {name}")))
+        Err(BitsyError::Unknown(Loc::unknown(), format!("No such module found: {name}")))
     }
 
     pub fn enum_def(&self, name: &str) -> BitsyResult<&EnumDef> {
@@ -151,7 +151,7 @@ impl Namespace {
             }
         }
 
-        Err(BitsyError::Unknown(format!("No such enum found: {name}")))
+        Err(BitsyError::Unknown(Loc::unknown(), format!("No such enum found: {name}")))
     }
 
     pub fn shape_defs(&self) -> Vec<ShapeDef> {
@@ -174,12 +174,12 @@ impl Namespace {
                 } else if let Decl::StructDef(struct_def) = decl {
                     return Ok(ShapeDef::StructDef(struct_def.clone()));
                 } else {
-                    return Err(BitsyError::Unknown(format!("Decl {name} is not a shape decl")));
+                    return Err(BitsyError::Unknown(Loc::unknown(), format!("Decl {name} is not a shape decl")));
                 }
             }
         }
 
-        return Err(BitsyError::Unknown(format!("No such shape def found: {name}")))
+        return Err(BitsyError::Unknown(Loc::unknown(), format!("No such shape def found: {name}")))
     }
 }
 

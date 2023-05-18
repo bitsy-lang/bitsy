@@ -192,9 +192,9 @@ impl State {
                     });
                     send_message(message);
                 },
-                BitsyError::Unknown(message) => {
-                    let (start_line, start_character) = (0, 0);
-                    let (end_line, end_character) = (0, 1);
+                BitsyError::Unknown(loc, message) => {
+                    let (start_line, start_character) = pos_to_lineno_col(&self.text, loc.start_pos());
+                    let (end_line, end_character) = pos_to_lineno_col(&self.text, loc.end_pos());
                     let message = json!({
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",

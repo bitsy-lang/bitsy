@@ -63,7 +63,7 @@ impl Bitsy {
                         let loc = Loc::new("Top.bitsy".to_string(), location_start, location_end);
                         return Err(BitsyError::Parse(loc, "Unrecognized token".to_string()));
                     },
-                    _ => return Err(BitsyError::Unknown(format!("{e:?}"))),
+                    _ => return Err(BitsyError::Unknown(Loc::unknown(), format!("{e:?}"))),
                 }
             }
         }
@@ -138,11 +138,11 @@ impl Bitsy {
         for ast::StructField(field_name, shape_ref) in &struct_def.fields {
             if let Some(shape) = self.shape(shape_ref, context) {
                 if !context.check(shape.clone(), Kind::Shape) {
-                    return Err(BitsyError::Unknown("Kind check failed".to_string()));
+                    return Err(BitsyError::Unknown(Loc::unknown(), "Kind check failed".to_string()));
                 }
                 fields.push(StructField(field_name.to_string(), shape.clone()));
             } else {
-                    return Err(BitsyError::Unknown("Uh oh".to_string()));
+                    return Err(BitsyError::Unknown(Loc::unknown(), "Uh oh".to_string()));
             }
         }
         let shape_family = Shape::new_struct(&struct_def.name, struct_def.params.clone(), fields);

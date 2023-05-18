@@ -7,7 +7,7 @@ pub type CtorName = String;
 pub enum BitsyError {
     Parse(Loc, String),
     Type(Loc, String),
-    Unknown(String),
+    Unknown(Loc, String),
 }
 
 pub type BitsyResult<T> = Result<T, BitsyError>;
