@@ -22,16 +22,27 @@ pub mod Gcd
     reg state of GcdState init @Idle
 
     wire state.set <= match state.val {
-        @Idle => match io.ops {
-            @Invalid => @Idle;
-            @Valid(operands) => @Running(${x = operands.x, y = operands.y});
-        };
+        @Idle => (
+            match io.ops {
+                @Invalid => @Idle;
+                @Valid(operands) => @Running(${
+                    x = operands.x,
+                    y = operands.y,
+                });
+            }
+        );
         @Running(running) => (
             if running.x < running.y {
-                @Running(${x = running.x, y = running.y - running.x})
+                @Running(${
+                    x = running.x,
+                    y = running.y - running.x,
+                })
             } else {
                 if running.y < running.x {
-                    @Running(${x = running.x - running.y, y = running.y })
+                    @Running(${
+                        x = running.x - running.y,
+                        y = running.y,
+                    })
                 } else {
                     @Done(running.x)
                 }
