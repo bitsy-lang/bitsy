@@ -33,7 +33,7 @@ impl Context<Type> {
 
     fn infer_type(&self, expr: Expr) -> Option<Type> {
         match expr.as_node() {
-            ExprNode::Var(x) => Some(self.infer_type_var(x)),
+            ExprNode::Var(x) => self.infer_type_var(x),
             ExprNode::Lit(value) => self.infer_type_lit(value),
             ExprNode::Field(subject, field) => self.infer_type_field(subject.clone(), &field),
             ExprNode::Cast(e, t) => {
@@ -61,12 +61,12 @@ impl Context<Type> {
         }
     }
 
-    fn infer_type_var(&self, x: &str) -> Type {
+    fn infer_type_var(&self, x: &str) -> Option<Type> {
         if let Some(typ) = self.lookup(&x) {
-            typ
+            Some(typ)
         } else {
             error!("No such variable: {x}");
-            panic!("No such variable: {x}")
+            None
         }
     }
 
