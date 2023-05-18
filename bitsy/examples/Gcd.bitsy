@@ -1,0 +1,47 @@
+pub enum shape Valid<S of Shape>
+    @Invalid
+    @Valid of S
+end
+
+enum shape GcdState
+    @Idle
+    @Running of GcdOps
+    @Done of Word<16>
+end
+
+struct shape GcdOps
+    field x of Word<16>
+    field y of Word<16>
+end
+
+pub mod Gcd
+    port io
+        incoming ops of Valid<GcdOps>
+        outgoing gcd of Valid<Word<16>>
+
+    reg state of GcdState init @Idle
+
+    wire state.set <= match state.val {
+        @Idle => match io.ops {
+            @Invalid => @Idle;
+            @Valid(operands) => @Running(${x = operands.x, y = operands.y});
+        };
+        @Running(running) => (
+            if running.x < running.y {
+                @Running(${x = running.x, y = running.y - running.x})
+            } else {
+                if running.y < running.x {
+                    @Running(${x = running.x - running.y, y = running.y })
+                } else {
+                    @Done(running.x)
+                }
+            }
+        );
+        @Done(result) => @Idle;
+    }
+
+    wire io.gcd <= match state.val {
+        @Done(result) => @Valid(result);
+        otherwise => @Invalid;
+    }
+end
