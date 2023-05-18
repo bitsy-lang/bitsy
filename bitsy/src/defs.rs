@@ -90,6 +90,7 @@ pub enum ExprNode {
     Slice(Expr, Expr),
     SliceConst(Expr, u64),
     Match(Expr, Vec<MatchArm>),
+    If(Expr, Expr, Expr),
     Tuple(Vec<Expr>),
     Struct(Vec<(FieldName, Expr)>),
     Enum(CtorName, Option<Expr>),
@@ -535,6 +536,10 @@ impl Expr {
 
     pub fn match_expr(loc: Loc, subject: Expr, arms: Vec<MatchArm>) -> Expr {
         ExprNode::Match(subject, arms).at(loc)
+    }
+
+    pub fn if_expr(loc: Loc, subject: Expr, true_branch: Expr, false_branch: Expr) -> Expr {
+        ExprNode::If(subject, true_branch, false_branch).at(loc)
     }
 
     pub fn tuple(loc: Loc, exprs: Vec<Expr>) -> Expr {

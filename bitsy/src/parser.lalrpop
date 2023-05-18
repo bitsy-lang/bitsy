@@ -217,6 +217,14 @@ pub Expr: Box<Expr> = {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Match(loc, subject, patterns))
     },
+    <l:@L> "if" <subject:Expr> "{"
+        <expr0:Expr>
+    "}" "else" "{"
+        <expr1:Expr>
+    "}" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::If(loc, subject, expr0, expr1))
+    },
     <expr:ExprEq> => expr,
 }
 

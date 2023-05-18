@@ -20,6 +20,7 @@ impl Context<Type> {
             ExprNode::Eq(op0, op1) => self.check_type_is(loc, expr.clone(), Type::bit())?,
             ExprNode::Neq(op0, op1) => self.check_type_is(loc, expr.clone(), Type::bit())?,
             ExprNode::Match(subject, arms) => self.check_type_match(loc, subject.clone(), arms, typ)?,
+            ExprNode::If(e, t, f) => self.check_type_if(loc, e.clone(), t.clone(), f.clone(), typ)?,
             ExprNode::Tuple(es) => self.check_type_tuple(loc, es, typ)?,
             ExprNode::Struct(fs) => self.check_type_struct(loc, fs, typ)?,
             ExprNode::Enum(ctor_name, payload) => self.check_type_enum(loc, ctor_name, payload.clone(), typ.clone())?,
@@ -54,11 +55,12 @@ impl Context<Type> {
     }
 
     fn check_type_is(&self, loc: &Loc, expr: Expr, typ: Type) -> BitsyResult<()> {
-         if self.infer_type(expr.clone()).as_ref() == Some(&typ) {
-             Ok(())
-         } else {
-             Err(BitsyError::Type(loc.clone(), format!("Expected {typ}")))
-         }
+        let inferred_type = self.infer_type(expr.clone());
+        if inferred_type.as_ref() == Some(&typ) {
+            Ok(())
+        } else {
+            Err(BitsyError::Type(loc.clone(), format!("{expr:?} is not expected type {typ}")))
+        }
     }
 
     fn infer_type_var(&self, x: &str) -> Type {
@@ -228,7 +230,11 @@ impl Context<Type> {
                                             return Err(BitsyError::Type(loc.clone(), format!("pats isn't the right length")));
                                         }
                                         if let MatchPattern::Var(x0) = &*pats[0] {
-                                            self.extend(x0.to_string(), payload_type.clone())
+                                            let payload_type0 = payload_type.substs(&subject_type.params().unwrap_or_else(|| {
+                                                error!("This shouldn't happen");
+                                                panic!("This shouldn't happen")
+                                            }));
+                                            self.extend(x0.to_string(), payload_type0)
                                         } else {
                                             return Err(BitsyError::Type(loc.clone(), format!("Pats wasn't a var or something")));
                                         }
@@ -260,6 +266,13 @@ impl Context<Type> {
         } else {
             Err(BitsyError::Type(loc.clone(), format!("Couldn't infer type of the subject")))
         }
+    }
+
+    fn check_type_if(&self, loc: &Loc, subject: Expr, true_branch: Expr, false_branch: Expr, typ: Type) -> BitsyResult<()> {
+        self.check_type_is(loc, subject.clone(), Type::bit())?;
+        self.check_type(true_branch.clone(), typ.clone())?;
+        self.check_type(false_branch.clone(), typ)?;
+        Ok(())
     }
 
     fn check_type_tuple(&self, loc: &Loc, es: &[Expr], typ: Type) -> BitsyResult<()> {

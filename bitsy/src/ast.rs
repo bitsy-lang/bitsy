@@ -68,6 +68,7 @@ pub enum Expr {
     Eq(Loc, Box<Expr>, Box<Expr>),
     Neq(Loc, Box<Expr>, Box<Expr>),
     Match(Loc, Box<Expr>, Vec<MatchArm>),
+    If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
     Slice(Loc, Box<Expr>, Box<Expr>),
     Tuple(Loc, Vec<Box<Expr>>),
     Struct(Loc, Vec<(FieldName, Box<Expr>)>),
