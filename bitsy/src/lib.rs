@@ -320,8 +320,10 @@ impl Bitsy {
             let sink_terminal: &Terminal = &terminals_by_ref.get(sink_terminal_ref).unwrap();
             let shape = sink_terminal.shape();
             debug!("Checking {:?} has shape {} in context {}", &expr, &shape, &context);
-            if !context.check_type(expr.clone(), shape.clone()) {
-                return Err(BitsyError::Type(0, 0, format!("Shape check failed: {:?} is not {}", expr, shape)));
+            match context.check_type(expr.clone(), shape.clone()) {
+                Ok(false) => return Err(BitsyError::Type(0, 0, format!("Shape check failed: {:?} is not {}", expr, shape))),
+                Err(err) => return Err(err),
+                Ok(true) => (),
             }
 
             wires.push(Wire(*visibility, sink_terminal.clone(), expr));

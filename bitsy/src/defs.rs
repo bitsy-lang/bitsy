@@ -374,7 +374,7 @@ impl Type {
         }
     }
 
-    pub fn as_ref(&self) -> Option<&Component> {
+    pub fn as_reference(&self) -> Option<&Component> {
         match self.as_node() {
             TypeNode::Ref(Reference(reference)) => {
                 let component: &Component = reference.as_ref();

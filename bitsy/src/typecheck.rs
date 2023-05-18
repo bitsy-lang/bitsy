@@ -2,57 +2,64 @@ use std::sync::Arc;
 use crate::context::Context;
 use log::*;
 
-use crate::common::Direction;
+use crate::common::{Direction, BitsyResult, BitsyError};
 use crate::{Bitsy, Expr, Type, Value, MatchArm, MatchPattern, TypeNode, Component, Port, Pin};
 use crate::defs::{EnumAlt, StructField, ExprNode};
 
+
 impl Context<Type> {
-    pub fn check_type(&self, expr: Expr, typ: Type) -> bool {
-        match expr.as_node() {
+    pub fn check_type(&self, expr: Expr, typ: Type) -> BitsyResult<bool> {
+        let result = match expr.as_node() {
             ExprNode::Var(x) => self.check_type_var(x, typ),
             ExprNode::Lit(value) => self.check_type_lit(value.clone(), typ),
-            ExprNode::Field(subject, field) => self.check_type_field(subject.clone(), &field, typ),
-            ExprNode::Let(x, def, ascription, body) => self.check_type_let(x, def.clone(), ascription.clone(), body.clone(), typ),
-            ExprNode::Add(op0, op1) => self.check_type_add(op0.clone(), op1.clone(), typ),
+            ExprNode::Field(subject, field) => self.check_type_field(subject.clone(), &field, typ)?,
+            ExprNode::Let(x, def, ascription, body) => self.check_type_let(x, def.clone(), ascription.clone(), body.clone(), typ)?,
+            ExprNode::Add(op0, op1) => self.check_type_add(op0.clone(), op1.clone(), typ)?,
             ExprNode::Mul(op0, op1) => todo!(),
-            ExprNode::Eq(op0, op1) => self.infer_type(expr.clone()) == Some(Type::bit()),
-            ExprNode::Neq(op0, op1) => self.infer_type(expr.clone()) == Some(Type::bit()),
-            ExprNode::Match(subject, arms) => self.check_type_match(subject.clone(), arms, typ),
-            ExprNode::Tuple(es) => self.check_type_tuple(es, typ),
-            ExprNode::Struct(fs) => self.check_type_struct(fs, typ),
-            ExprNode::Enum(ctor_name, payload) => self.check_type_enum(ctor_name, payload.clone(), typ.clone()),
+            ExprNode::Eq(op0, op1) => self.infer_type(expr.clone())? == Some(Type::bit()),
+            ExprNode::Neq(op0, op1) => self.infer_type(expr.clone())? == Some(Type::bit()),
+            ExprNode::Match(subject, arms) => self.check_type_match(subject.clone(), arms, typ)?,
+            ExprNode::Tuple(es) => self.check_type_tuple(es, typ)?,
+            ExprNode::Struct(fs) => self.check_type_struct(fs, typ)?,
+            ExprNode::Enum(ctor_name, payload) => self.check_type_enum(ctor_name, payload.clone(), typ.clone())?,
             ExprNode::Slice(subject, index) => todo!(),
             ExprNode::SliceConst(subject, index) => todo!(),
-        }
+        };
+        Ok(result)
     }
 
-    pub fn infer_type(&self, expr: Expr) -> Option<Type> {
+    pub fn infer_type(&self, expr: Expr) -> BitsyResult<Option<Type>> {
         let result = match expr.as_node() {
-            ExprNode::Var(x) => self.infer_type_var(x),
+            ExprNode::Var(x) => self.infer_type_var(x)?,
             ExprNode::Lit(value) => self.infer_type_lit(value),
-            ExprNode::Field(subject, field) => self.infer_type_field(subject.clone(), &field),
-            ExprNode::Let(x, def, def_shape, body) => self.infer_type_let(x, def.clone(), def_shape.clone(), body.clone()),
+            ExprNode::Field(subject, field) => self.infer_type_field(subject.clone(), &field)?,
+            ExprNode::Let(x, def, def_shape, body) => self.infer_type_let(x, def.clone(), def_shape.clone(), body.clone())?,
             ExprNode::Add(op0, op1) => None,
             ExprNode::Mul(op0, op1) => None,
             ExprNode::Eq(op0, op1) => {
-                match (self.infer_type(op0.clone()), self.infer_type(op1.clone())) {
+                match (self.infer_type(op0.clone())?, self.infer_type(op1.clone())?) {
                     (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Type::bit()) } else { None },
                     _ => None,
                 }
             },
             ExprNode::Neq(op0, op1) => {
-                match (self.infer_type(op0.clone()), self.infer_type(op1.clone())) {
+                match (self.infer_type(op0.clone())?, self.infer_type(op1.clone())?) {
                     (Some(shape0), Some(shape1)) => if shape0 == shape1 { Some(Type::bit()) } else { None },
                     _ => None,
                 }
             },
             _ => None,
         };
-        result
+        Ok(result)
     }
 
-    fn infer_type_var(&self, x: &str) -> Option<Type> {
-        Some(self.lookup(&x).expect(&format!("No such variable: {x}")))
+    fn infer_type_var(&self, x: &str) -> BitsyResult<Option<Type>> {
+        if let Some(typ) = self.lookup(&x) {
+            Ok(Some(typ))
+        } else {
+            error!("No such variable: {x}");
+            Err(BitsyError::Unknown(format!("No such variable: {x}")))
+        }
     }
 
     fn infer_type_lit(&self, value: &Value) -> Option<Type> {
@@ -75,25 +82,30 @@ impl Context<Type> {
         }
     }
 
-    fn infer_type_field(&self, subject: Expr, field: &str) -> Option<Type> {
-        let subject_type: Type = self.infer_type(subject).expect("Can't infer type");
-        if let Some(component) = subject_type.as_ref() {
+    fn infer_type_field(&self, subject: Expr, field: &str) -> BitsyResult<Option<Type>> {
+        let subject_type: Option<Type> = self.infer_type(subject)?;
+        if subject_type.is_none() {
+            error!("subject_type is None");
+            return Err(BitsyError::Unknown("subject_type is None".to_string()));
+        }
+        let subject_type: Type = subject_type.unwrap();
+        if let Some(component) = subject_type.as_reference() {
             match component {
                 Component::Port(Port(_name, pins)) => {
                     for Pin(name, direction, pin_typ) in pins {
                         if name == field {
                             if direction == &Direction::Incoming {
-                                return Some(pin_typ.clone());
+                                return Ok(Some(pin_typ.clone()));
                             } else {
                                 // output ports can't drive a value
-                                return None;
+                                return Ok(None);
                             }
                         }
                     }
-                    None
+                    Ok(None)
                 },
                 Component::Reg(_name, _vis, reg) => {
-                    Some(reg.shape.clone())
+                    Ok(Some(reg.shape.clone()))
                 },
                 Component::Mod(_name, _vis, mod_) => todo!(),
                 Component::Gate(_name, _vis, gate) => todo!(),
@@ -102,39 +114,39 @@ impl Context<Type> {
         } else if let Some(fields) = subject_type.as_struct() {
             for StructField(name, typ) in &fields {
                 if name == field {
-                    return Some(typ.clone());
+                    return Ok(Some(typ.clone()));
                 }
             }
-            None
+            Ok(None)
         } else {
-            None
+            Ok(None)
         }
     }
 
-    fn infer_type_let(&self, x: &str, def: Expr, def_type: Option<Type>, body: Expr) -> Option<Type> {
-        match (self.infer_type(def.clone()), def_type) {
+    fn infer_type_let(&self, x: &str, def: Expr, def_type: Option<Type>, body: Expr) -> BitsyResult<Option<Type>> {
+        Ok(match (self.infer_type(def.clone())?, def_type) {
             (Some(def_type0), Some(def_type1)) => {
                 if def_type0 == def_type1 {
                     let new_context = self.extend(x.to_string(), def_type0);
-                    new_context.infer_type(body)
+                    new_context.infer_type(body)?
                 } else {
                     None
                 }
             },
             (Some(def_type0), None) => {
                 let new_context = self.extend(x.to_string(), def_type0);
-                new_context.infer_type(body)
+                new_context.infer_type(body)?
             },
             (None, Some(def_type1)) => {
-                if self.check_type(def.clone(), def_type1.clone()) {
+                if self.check_type(def.clone(), def_type1.clone())? {
                     let new_context = self.extend(x.to_string(), def_type1.clone());
-                    new_context.infer_type(body)
+                    new_context.infer_type(body)?
                 } else {
                     None
                 }
             },
             (None, None) => None,
-        }
+        })
     }
 
     fn check_type_var(&self, x: &str, typ: Type) -> bool {
@@ -146,53 +158,53 @@ impl Context<Type> {
         }
     }
 
-    fn check_type_let(&self, x: &str, def: Expr, ascription: Option<Type>, body: Expr, typ: Type) -> bool {
-        match ascription {
+    fn check_type_let(&self, x: &str, def: Expr, ascription: Option<Type>, body: Expr, typ: Type) -> BitsyResult<bool> {
+        Ok(match ascription {
             None => {
-                if let Some(def_type) = self.infer_type(def) {
+                if let Some(def_type) = self.infer_type(def)? {
                     let new_context = self.extend(x.to_string(), def_type);
-                    new_context.check_type(body, typ)
+                    new_context.check_type(body, typ)?
                 } else {
                     false
                 }
             },
             Some(def_type) => {
-                if !self.check_type(def, def_type.clone()) {
+                if !self.check_type(def, def_type.clone())? {
                     false
                 } else {
                     let new_context = self.extend(x.to_string(), def_type.clone());
-                    new_context.check_type(body, typ)
+                    new_context.check_type(body, typ)?
                 }
             },
-        }
+        })
     }
 
-    fn check_type_add(&self, op0: Expr, op1: Expr, typ: Type) -> bool {
+    fn check_type_add(&self, op0: Expr, op1: Expr, typ: Type) -> BitsyResult<bool> {
         if let Some(n) = typ.as_word(self) {
             if n > 0 {
-                if self.check_type(op0.clone(), Type::word(n - 1)) {
+                if self.check_type(op0.clone(), Type::word(n - 1))? {
                     for i in 0..n {
-                        if self.check_type(op1.clone(), Type::word(i)) {
-                            return true
+                        if self.check_type(op1.clone(), Type::word(i))? {
+                            return Ok(true)
                         }
                     }
-                } else if self.check_type(op1.clone(), Type::word(n - 1)) {
+                } else if self.check_type(op1.clone(), Type::word(n - 1))? {
                     for i in 0..n {
-                        if self.check_type(op0.clone(), Type::word(i)) {
-                            return true
+                        if self.check_type(op0.clone(), Type::word(i))? {
+                            return Ok(true)
                         }
                     }
                 }
             }
-            false
+            Ok(false)
         } else {
-            false
+            Ok(false)
         }
     }
 
-    fn check_type_match(&self, subject: Expr, arms: &[MatchArm], typ: Type) -> bool {
-        if let Some(subject_type) = &self.infer_type(subject) {
-            let enum_alts = if let Some(enum_alts) = subject_type.enum_alts() { enum_alts } else { return false };
+    fn check_type_match(&self, subject: Expr, arms: &[MatchArm], typ: Type) -> BitsyResult<bool> {
+        if let Some(subject_type) = &self.infer_type(subject)? {
+            let enum_alts = if let Some(enum_alts) = subject_type.enum_alts() { enum_alts } else { return Ok(false) }; // todo!()
 
             for MatchArm(pat, expr0) in arms {
                 let mut new_context = self.clone();
@@ -207,14 +219,14 @@ impl Context<Type> {
                                         if pats.len() != 1 {
                                             error!("Panic");
                                             panic!("asdf");
-                                            return false;
+                                            return Ok(false);
                                         }
                                         if let MatchPattern::Var(x0) = &*pats[0] {
                                             self.extend(x0.to_string(), payload_type.clone())
                                         } else {
                                             error!("Panic");
                                             panic!("qwer");
-                                            return false
+                                            return Ok(false)
                                         }
                                     }
                                 },
@@ -222,64 +234,72 @@ impl Context<Type> {
                             };
 
 
-                            if !new_context.check_type(expr0.clone(), typ.clone()) {
-                                return false;
+                            if !new_context.check_type(expr0.clone(), typ.clone())? {
+                                return Ok(false);
                             }
                         } else {
-                            return false;
+                            return Ok(false);
                         }
                     },
                     MatchPattern::Var(x) => {
                         let new_context = self.extend(x.to_string(), subject_type.clone());
-                        if !new_context.check_type(expr0.clone(), typ.clone()) {
-                            return false;
+                        if !new_context.check_type(expr0.clone(), typ.clone())? {
+                            return Ok(false);
                         }
                     },
                     MatchPattern::Lit(v) => {
-                        if !self.check_type(Expr::lit(v.clone()), subject_type.clone()) {
-                            return false;
+                        if !self.check_type(Expr::lit(v.clone()), subject_type.clone())? {
+                            return Ok(false);
                         }
-                        if !self.check_type(expr0.clone(), typ.clone()) {
-                            return false;
+                        if !self.check_type(expr0.clone(), typ.clone())? {
+                            return Ok(false);
                         }
                     },
                     MatchPattern::Otherwise => {
-                        if !self.check_type(expr0.clone(), typ.clone()) {
-                            return false;
+                        if !self.check_type(expr0.clone(), typ.clone())? {
+                            return Ok(false);
                         }
                     },
                 }
             }
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
-    fn check_type_tuple(&self, es: &[Expr], typ: Type) -> bool {
+    fn check_type_tuple(&self, es: &[Expr], typ: Type) -> BitsyResult<bool> {
         if let Some(params) = typ.as_tuple() {
             if es.len() != params.len() {
-                return false;
+                return Ok(false);
             }
 
             for (e, s) in es.iter().zip(params) {
-                if !self.check_type(e.clone(), s) {
-                    return false;
+                if !self.check_type(e.clone(), s)? {
+                    return Ok(false);
                 }
             }
-            true
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
-    fn check_type_struct(&self, fs: &[(String, Expr)], typ: Type) -> bool {
-        if let TypeNode::Family(shape, args) = typ.as_node() {
-            let param_names: Vec<String> = shape.clone().params().unwrap().into_inner().iter().map(|(name, _kind)| name.to_string()).collect();
+    fn check_type_struct(&self, fs: &[(String, Expr)], typ: Type) -> BitsyResult<bool> {
+        Ok(if let TypeNode::Family(shape, args) = typ.as_node() {
+            let params = shape.clone().params();
+            if params.is_none() {
+                error!("params is None");
+            }
+            let param_names: Vec<String> = params.unwrap().into_inner().iter().map(|(name, _kind)| name.to_string()).collect();
             if let Some(struct_fields) = typ.as_struct() {
-                let mut new_context: Context<Type> = self.extend_from(&typ.params().unwrap());
+                let typ_params = typ.params();
+                if typ_params.is_none() {
+                    error!("typ_params is None");
+                }
+                let mut new_context: Context<Type> = self.extend_from(&typ_params.unwrap());
                 if fs.len() != struct_fields.len() {
-                    return false;
+                    return Ok(false);
                 }
                 let mut fs_sorted = fs.to_vec();
                 fs_sorted.sort_by_key(|(field_name, _val)| field_name.to_string());
@@ -288,8 +308,8 @@ impl Context<Type> {
 
                 for ((field_name0, e), StructField(field_name1, s)) in fs_sorted.iter().zip(&struct_fields_sorted) {
                     let field_typ = s.substs(&param_names.clone().into_iter().zip(args.iter().cloned()).collect::<Vec<_>>()).clone();
-                    if field_name0 != field_name1 || !new_context.check_type(e.clone(), field_typ) {
-                        return false;
+                    if field_name0 != field_name1 || !new_context.check_type(e.clone(), field_typ)? {
+                        return Ok(false);
                     }
                 }
                 true
@@ -298,33 +318,33 @@ impl Context<Type> {
             }
         } else {
             false
-        }
+        })
     }
 
-    fn check_type_enum(&self, ctor_name: &str, payload: Option<Expr>, typ: Type) -> bool {
+    fn check_type_enum(&self, ctor_name: &str, payload: Option<Expr>, typ: Type) -> BitsyResult<bool> {
         debug!("check_type_enum");
-        if let TypeNode::Family(shape, args) = typ.as_node() {
+        Ok(if let TypeNode::Family(shape, args) = typ.as_node() {
             let param_names: Vec<String> = shape.clone().params().unwrap().into_inner().iter().map(|(name, _kind)| name.to_string()).collect();
             debug!("shape = {shape:?} args = {args:?}");
             if let Some(alts) = typ.enum_alts() {
                 debug!("alts = {alts:?}");
                 if let Some(alt) = typ.enum_alt(ctor_name) {
                     debug!("alt = {alt:?}");
-                    return match (payload, &alt.payload()) {
+                    return Ok(match (payload, &alt.payload()) {
                         (None, None) => true,
-                        (Some(payload_val), Some(payload_type)) => self.check_type(payload_val, payload_type.substs(&param_names.into_iter().zip(args.iter().cloned()).collect::<Vec<_>>()).clone()),
+                        (Some(payload_val), Some(payload_type)) => self.check_type(payload_val, payload_type.substs(&param_names.into_iter().zip(args.iter().cloned()).collect::<Vec<_>>()).clone())?,
                         _ => false,
-                    };
+                    });
                 } else {
-                    return false;
+                    return Ok(false);
                 }
             } else {
-                return false;
+                return Ok(false);
             }
             false
         } else {
             false
-        }
+        })
     }
 
     fn check_type_lit(&self, value: Value, typ: Type) -> bool {
@@ -374,12 +394,12 @@ impl Context<Type> {
         }
     }
 
-    fn check_type_field(&self, subject: Expr, field: &str, typ: Type) -> bool {
-        if let Some(typ0) = self.infer_type_field(subject, field) {
+    fn check_type_field(&self, subject: Expr, field: &str, typ: Type) -> BitsyResult<bool> {
+        Ok(if let Some(typ0) = self.infer_type_field(subject, field)? {
              typ0 == typ
         } else {
             false
-        }
+        })
     }
 }
 
@@ -401,9 +421,9 @@ mod test {
         let context = Context::empty();
         let parser = ExprParser::new();
         let expr: Expr = bitsy.expr(&parser.parse("true").unwrap());
-        let typ = context.infer_type(expr.clone());
+        let typ = context.infer_type(expr.clone()).unwrap().unwrap();
 
-        assert!(context.check_type(expr, typ.unwrap()));
+        assert!(context.check_type(expr, typ).unwrap());
     }
 
     #[test]
@@ -417,25 +437,25 @@ mod test {
 
         let context = Context::empty();
         let parser = ExprParser::new();
-        let expr: Expr = bitsy.expr(&parser.parse("let x : Bit = true; x").unwrap());
-        let typ = Context::empty().infer_type(expr.clone());
-        assert!(context.check_type(expr, typ.unwrap()));
+        let expr: Expr = bitsy.expr(&parser.parse("let x of Bit = true; x").unwrap());
+        let typ = Context::empty().infer_type(expr.clone()).unwrap().unwrap();
+        assert!(context.check_type(expr, typ).unwrap());
 
         let parser = ExprParser::new();
         let expr: Expr = bitsy.expr(&parser.parse("let x = true; x").unwrap());
-        let typ = Context::empty().infer_type(expr.clone());
+        let typ = Context::empty().infer_type(expr.clone()).unwrap();
         let bit_shape: Type = Type::bit();
-        assert!(context.check_type(expr.clone(), bit_shape));
+        assert!(context.check_type(expr.clone(), bit_shape).unwrap());
 
         let parser = ExprParser::new();
-        let expr: Expr = bitsy.expr(&parser.parse("let x : Word<8> = 255; x").unwrap());
-        let typ = context.infer_type(expr.clone());
-        assert!(context.check_type(expr, typ.unwrap()));
+        let expr: Expr = bitsy.expr(&parser.parse("let x of Word<8> = 255; x").unwrap());
+        let typ = context.infer_type(expr.clone()).unwrap().unwrap();
+        assert!(context.check_type(expr, typ).unwrap());
 
         let parser = ExprParser::new();
-        let expr: Expr = bitsy.expr(&parser.parse("let x : Word<0> = 0; x").unwrap());
-        let typ = context.infer_type(expr.clone());
-        assert!(context.check_type(expr, typ.unwrap()));
+        let expr: Expr = bitsy.expr(&parser.parse("let x of Word<0> = 0; x").unwrap());
+        let typ = context.infer_type(expr.clone()).unwrap().unwrap();
+        assert!(context.check_type(expr, typ).unwrap());
     }
 
     #[test]
@@ -454,19 +474,19 @@ mod test {
 
         let context = Context::empty();
         let parser = ExprParser::new();
-        let expr: Expr = bitsy.expr(&parser.parse("let x : Bit = 0; x").unwrap());
-        let typ = context.infer_type(expr.clone());
+        let expr: Expr = bitsy.expr(&parser.parse("let x of Bit = 0; x").unwrap());
+        let typ = context.infer_type(expr.clone()).unwrap();
         assert_eq!(typ, None);
-        assert!(!context.check_type(expr, bit_shape));
+        assert!(!context.check_type(expr, bit_shape).unwrap());
 
         let parser = ExprParser::new();
         let expr: Expr = bitsy.expr(&parser.parse("let x = 0; x").unwrap());
-        let typ = context.infer_type(expr.clone());
+        let typ = context.infer_type(expr.clone()).unwrap();
         assert_eq!(typ, None);
 
         let parser = ExprParser::new();
-        let expr: Expr = bitsy.expr(&parser.parse("let x : Word<8> = 256; x").unwrap());
+        let expr: Expr = bitsy.expr(&parser.parse("let x of Word<8> = 256; x").unwrap());
         assert_eq!(typ, None);
-        assert!(!context.check_type(expr, word_8_shape));
+        assert!(!context.check_type(expr, word_8_shape).unwrap());
     }
 }
