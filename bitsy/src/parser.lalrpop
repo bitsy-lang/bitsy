@@ -241,6 +241,10 @@ pub ExprEq: Box<Expr> = {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Neq(loc, op0, op1))
     },
+    <l:@L> <op0:ExprAdd> "<" <op1:ExprEq> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::BinOp(loc, BinOp::LessThan, op0, op1))
+    },
     <expr:ExprAdd> => expr,
 }
 

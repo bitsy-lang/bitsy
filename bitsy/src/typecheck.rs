@@ -93,6 +93,7 @@ impl Context<Type> {
     fn infer_type_field(&self, subject: Expr, field: &str) -> Option<Type> {
         let subject_type: Option<Type> = self.infer_type(subject);
         if subject_type.is_none() {
+            error!("subject_type is None");
             return None;
         }
         let subject_type: Type = subject_type.unwrap();
@@ -105,10 +106,12 @@ impl Context<Type> {
                                 return Some(pin_typ.clone());
                             } else {
                                 // output ports can't drive a value
+                                error!("Output ports can't drive values");
                                 return None;
                             }
                         }
                     }
+                    error!("No pin found");
                     None
                 },
                 Component::Reg(_name, _vis, reg) => {
@@ -188,7 +191,7 @@ impl Context<Type> {
     }
 
     fn check_type_binop(&self, loc: &Loc, op: BinOp, op0: Expr, op1: Expr, typ: Type) -> BitsyResult<()> {
-        if op == BinOp::Add || op == BinOp::Sub {
+        if op == BinOp::Add {
             if let Some(n) = typ.as_word(self) {
                 if n > 0 {
                     if let Ok(()) = self.check_type(op0.clone(), Type::word(n - 1)) {
@@ -209,6 +212,10 @@ impl Context<Type> {
             } else {
                 Err(BitsyError::Type(loc.clone(), format!("{op:?} didn't typecheck because something wasn't a {typ}")))
             }
+        } else if op == BinOp::Sub {
+            Ok(())
+        } else if op == BinOp::LessThan {
+            Ok(()) // todo!()
         } else {
             unreachable!()
         }

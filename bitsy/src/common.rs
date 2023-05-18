@@ -67,6 +67,7 @@ pub struct GateRef(pub String);
 pub enum BinOp {
     Add,
     Sub,
+    LessThan,
 }
 
 
