@@ -31,10 +31,7 @@ fn main() {
 
     let bitsy = Bitsy::new();
     let text = String::new();
-    let mut state = State {
-        bitsy,
-        text,
-    };
+    let mut state = State::new(); ;
 
     loop {
         let message = message_recv.recv().unwrap();
@@ -120,31 +117,60 @@ fn init_logging() {
     dispatch.apply().unwrap();
 }
 
+type Uri = String;
+
 struct State {
+    buffers: HashMap<Uri, Buffer>,
+}
+
+impl State {
+    fn new() -> State {
+        State {
+            buffers: HashMap::new(),
+        }
+    }
+
+    fn buffer(&mut self, uri: &Uri) -> &mut Buffer {
+        self.buffers.get_mut(uri).unwrap_or_else(|| {
+            error!("No such URI: {uri}");
+            panic!("No such URI: {uri}")
+        })
+    }
+
+    fn open_buffer(&mut self, uri: &Uri, text: &str) -> &mut Buffer {
+        let buffer = Buffer::new(uri, text);
+        self.buffers.insert(uri.clone(), buffer);
+        self.buffers.get_mut(uri).unwrap_or_else(|| {
+            error!("No such URI: {uri}");
+            panic!("No such URI: {uri}")
+        })
+    }
+}
+
+struct Buffer {
+    uri: String,
     bitsy: Bitsy,
     text: String,
 }
 
-fn pos_to_lineno_col(text: &str, pos: usize) -> (usize, usize) {
-    let mut lineno = 0;
-    let mut col = 0;
-    let mut cur_pos = 0;
-
-    let lines = text.split("\n");
-    for line in lines {
-        if cur_pos + line.len() < pos {
-            lineno += 1;
-            cur_pos += line.len() + 1; // + 1 for the newline
-        } else {
-            break;
+impl Buffer {
+    fn new(uri: &Uri, text: &str) -> Buffer {
+        Buffer {
+            uri: uri.to_string(),
+            bitsy: Bitsy::new(),
+            text: text.to_string(),
         }
     }
 
-    (lineno, pos - cur_pos)
-}
+    fn update_text(&mut self, text: String) {
+        debug!("{}", self.text);
+        self.text = text.to_string();
+    }
 
-impl State {
-    fn send_diagnostics(&self, result: Result<(), BitsyError>) {
+    fn send_diagnostics(&mut self) {
+        self.bitsy = Bitsy::new();
+        let result = self.bitsy.add(&self.text);
+
         if let Err(e) = result {
             warn!("Error: {e:?}");
             match e {
@@ -155,7 +181,7 @@ impl State {
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",
                         "params": {
-                            "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                            "uri": self.uri.to_string(),
                             "diagnostics": [
                                 {
                                     "range": {
@@ -177,7 +203,7 @@ impl State {
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",
                         "params": {
-                            "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                            "uri": self.uri.clone(),
                             "diagnostics": [
                                 {
                                     "range": {
@@ -199,7 +225,7 @@ impl State {
                         "jsonrpc": "2.0",
                         "method": "textDocument/publishDiagnostics",
                         "params": {
-                            "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                            "uri": self.uri.clone(),
                             "diagnostics": [
                                 {
                                     "range": {
@@ -220,14 +246,34 @@ impl State {
                 "jsonrpc": "2.0",
                 "method": "textDocument/publishDiagnostics",
                 "params": {
-                    "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                    "uri": self.uri.clone(),
                     "diagnostics": [],
                 },
             });
             send_message(message);
         }
     }
+}
 
+fn pos_to_lineno_col(text: &str, pos: usize) -> (usize, usize) {
+    let mut lineno = 0;
+    let mut col = 0;
+    let mut cur_pos = 0;
+
+    let lines = text.split("\n");
+    for line in lines {
+        if cur_pos + line.len() < pos {
+            lineno += 1;
+            cur_pos += line.len() + 1; // + 1 for the newline
+        } else {
+            break;
+        }
+    }
+
+    (lineno, pos - cur_pos)
+}
+
+impl State {
     fn initialize(&mut self, request: Value) {
         let response: Value = json!({
             "jsonrpc": "2.0",
@@ -254,27 +300,25 @@ impl State {
     fn text_document_did_open(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
         let text = message["params"]["textDocument"]["text"].as_str().unwrap();
-        self.text = text.to_string();
+        let uri = message["params"]["textDocument"]["uri"].as_str().unwrap();
+        let buffer = self.open_buffer(&uri.to_string(), text);
         warn!("text is {text:?}");
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
+        buffer.send_diagnostics();
     }
 
     fn text_document_did_change(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
-        self.text = message["params"]["contentChanges"][0]["text"].as_str().unwrap().to_string();
-        debug!("{}", self.text);
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
+        let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
+        let mut buffer = self.buffer(&uri);
+        buffer.update_text(message["params"]["contentChanges"][0]["text"].as_str().unwrap().to_string());
+        buffer.send_diagnostics();
     }
 
     fn text_document_did_save(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
-        self.bitsy = Bitsy::new();
-        let result = self.bitsy.add(&self.text);
-        self.send_diagnostics(result);
+        let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
+        let mut buffer = self.buffer(&uri);
+        buffer.send_diagnostics();
     }
 
     fn text_document_hover(&mut self, message: Value) {
@@ -295,11 +339,12 @@ impl State {
     fn text_document_definition(&mut self, message: Value) {
         let (start_line, start_character) = (0, 0);
         let (end_line, end_character) = (0, 1);
+        let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
         let response: Value = json!({
             "jsonrpc": "2.0",
             "id": message["id"],
             "result": {
-                "uri": "file:///home/tac-tics/projects/bitsy/bitsy/Top.bitsy",
+                "uri": uri,
                 "range": {
                     "start": { "line": start_line, "character": start_character },
                     "end": { "line": end_line, "character": end_character },
