@@ -161,7 +161,7 @@ impl Context<Type> {
             if typ == type0 {
                 Ok(())
             } else {
-                Err(BitsyError::Type(Loc::unknown(), format!("Expected {typ} found {type0}")))
+                Err(BitsyError::Type(loc.clone(), format!("Expected {typ} found {type0}")))
             }
         } else {
             Err(BitsyError::Type(loc.clone(), format!("No such variable: {x}")))
@@ -248,7 +248,7 @@ impl Context<Type> {
                         new_context.check_type(expr0.clone(), typ.clone())?;
                     },
                     MatchPattern::Lit(v) => {
-                        self.check_type(Expr::lit(Loc::unknown(), v.clone()), subject_type.clone())?;
+                        self.check_type(Expr::lit(loc.clone(), v.clone()), subject_type.clone())?;
                         self.check_type(expr0.clone(), typ.clone())?;
                     },
                     MatchPattern::Otherwise => {
