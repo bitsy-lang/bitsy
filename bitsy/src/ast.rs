@@ -21,6 +21,16 @@ pub enum Decl {
     ModDef(ModDef),
     EnumDef(EnumDef),
     StructDef(StructDef),
+    FnDef(FnDef),
+}
+
+#[derive(Debug, Clone)]
+pub struct FnDef {
+    pub name: String,
+    pub params: Context<ShapeRef>,
+    pub result: ShapeRef,
+    pub visibility: Visibility,
+    pub body: Box<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +79,7 @@ pub enum Expr {
     Neq(Loc, Box<Expr>, Box<Expr>),
     Match(Loc, Box<Expr>, Vec<MatchArm>),
     If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    Call(Loc, FnRef, Vec<Box<Expr>>),
     Slice(Loc, Box<Expr>, Box<Expr>),
     Tuple(Loc, Vec<Box<Expr>>),
     Struct(Loc, Vec<(FieldName, Box<Expr>)>),
@@ -214,6 +225,7 @@ impl Decl {
             Decl::ModDef(mod_def) => &mod_def.name,
             Decl::EnumDef(enum_def) => &enum_def.name,
             Decl::StructDef(struct_def) => &struct_def.name,
+            Decl::FnDef(fn_def) => &fn_def.name,
         }
     }
 }

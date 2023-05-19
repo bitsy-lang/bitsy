@@ -9,7 +9,7 @@ syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
 hi link blockComment Comment
 
-syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin
+syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn
 hi link bitsyKeyword Keyword
 syn keyword bitsyConstant true false X io
 hi link bitsyConstant Number
@@ -38,7 +38,8 @@ hi link bitsyUpperIdentifier Type
 
 syn match bitsyAt "@"
 syn match bitsyColon ":"
-syn match bitsyRevArrow "<="
+syn match bitsyRevFatArrow "<="
+syn match bitsyArrow "->"
 syn match bitsyEq "="
 syn match bitsyEqOp "=="
 syn match bitsyNeqOp "!="
@@ -49,7 +50,8 @@ syn match bitsyHole "?"
 hi link bitsyAt Keyword
 hi link bitsyColon Keyword
 hi link bitsyArrow Keyword
-hi link bitsyRevArrow Keyword
+hi link bitsyRevFatArrow Keyword
+hi link bitsyArrow Keyword
 hi link bitsyEq Keyword
 hi link bitsyEqOp Keyword
 hi link bitsyNeqOp Keyword

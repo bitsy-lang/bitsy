@@ -87,6 +87,7 @@ pub enum ExprNode {
     BinOp(BinOp, Expr, Expr),
     Eq(Expr, Expr),
     Neq(Expr, Expr),
+    Call(FnRef, Vec<Expr>),
     Slice(Expr, Expr),
     SliceConst(Expr, u64),
     Match(Expr, Vec<MatchArm>),
@@ -544,6 +545,10 @@ impl Expr {
 
     pub fn if_expr(loc: Loc, subject: Expr, true_branch: Expr, false_branch: Expr) -> Expr {
         ExprNode::If(subject, true_branch, false_branch).at(loc)
+    }
+
+    pub fn fn_call(loc: Loc, fn_ref: FnRef, args: Vec<Expr>) -> Expr {
+        ExprNode::Call(fn_ref, args).at(loc)
     }
 
     pub fn tuple(loc: Loc, exprs: Vec<Expr>) -> Expr {

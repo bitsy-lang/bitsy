@@ -388,6 +388,11 @@ impl Bitsy {
                 Expr::match_expr(loc.clone(), self.expr(e), match_arms)
             },
             ast::Expr::If(loc, e, t, f) => Expr::if_expr(loc.clone(), self.expr(e), self.expr(t), self.expr(f)),
+            ast::Expr::Call(loc, fn_name, args) => Expr::fn_call(
+                loc.clone(),
+                fn_name.clone(),
+                args.iter().map(|arg| self.expr(arg)).collect(),
+            ),
             ast::Expr::Slice(loc, subject, index) => {
                 //if is_constant(index) {
                 if false {

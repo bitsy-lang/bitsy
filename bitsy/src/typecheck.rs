@@ -24,6 +24,7 @@ impl Context<Type> {
             ExprNode::Tuple(es) => self.check_type_tuple(loc, es, typ)?,
             ExprNode::Struct(fs) => self.check_type_struct(loc, fs, typ)?,
             ExprNode::Enum(ctor_name, payload) => self.check_type_enum(loc, ctor_name, payload.clone(), typ.clone())?,
+            ExprNode::Call(fn_ref, args) => todo!(),
             ExprNode::Slice(subject, index) => todo!(),
             ExprNode::SliceConst(subject, index) => todo!(),
             ExprNode::Hole(_contents) => (),

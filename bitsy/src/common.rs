@@ -62,6 +62,8 @@ pub struct DomainRef(pub String);
 pub struct ModDefRef(pub String);
 #[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord, Debug)]
 pub struct GateRef(pub String);
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct FnRef(pub String);
 
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Debug)]
 pub enum BinOp {

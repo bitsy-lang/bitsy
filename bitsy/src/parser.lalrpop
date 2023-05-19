@@ -4,6 +4,11 @@ use crate::context::Context;
 
 grammar;
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Top-level
+////////////////////////////////////////////////////////////////////////////////
+
 pub Namespace: Namespace = {
     <decls:Decl*> => Namespace {
         decls,
@@ -20,7 +25,15 @@ pub Decl: Decl = {
     <struct_def:StructDef> => {
         Decl::StructDef(struct_def)
     },
+    <fn_def:FnDef> => {
+        Decl::FnDef(fn_def)
+    },
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Mod Decls
+////////////////////////////////////////////////////////////////////////////////
 
 pub ModDef: ModDef = {
     <visibility:Visibility> "mod" <name:Ident>
@@ -39,59 +52,6 @@ pub ModDef: ModDef = {
     },
 }
 
-pub StructDef: StructDef = {
-    <visibility:Visibility> "struct" "shape" <name:Ident> <params:TypeDefParams?>
-        <fields:StructField*>
-    "end"
-    => {
-        StructDef {
-            name,
-            params: Context::from(params.unwrap_or(vec![])),
-            visibility,
-            fields,
-        }
-    }
-}
-
-pub StructField: StructField = {
-    "field" <ident:Ident> "of" <shape:Shape> => StructField(ident, shape),
-}
-
-pub EnumDef: EnumDef = {
-    <visibility:Visibility> "enum" "shape" <name:Ident> <params:TypeDefParams?>
-        <alts:EnumAlt*>
-    "end"
-    => {
-        EnumDef {
-            name,
-            params: Context::from(params.unwrap_or(vec![])),
-            visibility,
-            alts,
-        }
-    }
-}
-
-pub TypeDefParams: Vec<(String, Kind)> = {
-    "<" <param0:TypeDefParam> <param_rest:("," TypeDefParam)*> ">" => {
-        let mut result = vec![param0];
-        for (_s, param) in param_rest {
-            result.push(param);
-        }
-        result
-    },
-}
-
-pub TypeDefParam: (String, Kind) = {
-    <ident:Ident> "of" "Nat" => (ident, Kind::Nat),
-    <ident:Ident> "of" "Shape" => (ident, Kind::Shape),
-}
-
-pub EnumAlt: EnumAlt = {
-    <ctor_name:Ctor> <payload_shape:("of" <Shape>)?> => {
-        EnumAlt(ctor_name, payload_shape)
-    }
-}
-
 pub Port: Port = {
     "port" <port_name:Ident> <pins:Pin*> => Port(port_name.to_string(), pins),
 }
@@ -104,30 +64,6 @@ pub Pin: Pin = {
 pub Direction: Direction = {
     "incoming" => Direction::Incoming,
     "outgoing" => Direction::Outgoing,
-}
-
-pub Shape: ShapeRef = {
-    <ident:Ident> "<" <shape_params:ShapeArgs> ">" => ShapeRef(ident, shape_params),
-    <ident:Ident> => ShapeRef(ident, vec![]),
-}
-
-pub ShapeArgs: Vec<ShapeArg> = {
-    <shape_param0:ShapeArg> <shape_param_rest:("," ShapeArg)*> => {
-        let mut result = vec![shape_param0];
-        for (_s, shape_param) in shape_param_rest {
-            result.push(shape_param);
-        }
-        result
-    }
-}
-
-pub ShapeArg: ShapeArg = {
-    <n:Nat> => ShapeArg::Nat(n),
-    <shape:Shape> => ShapeArg::Shape(shape),
-}
-
-pub Domain: DomainRef = {
-    <ident:Ident> => DomainRef(ident),
 }
 
 pub Component: Component = {
@@ -168,6 +104,111 @@ pub RegInit: Box<Expr> = {
     "init" <expr: Expr> => expr
 }
 
+pub Wire: Wire = {
+    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" <expr:Expr> => {
+        Wire(visibility, sink, expr)
+    },
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Struct Decls
+////////////////////////////////////////////////////////////////////////////////
+
+pub StructDef: StructDef = {
+    <visibility:Visibility> "struct" "shape" <name:Ident> <params:TypeDefParams?>
+        <fields:StructField*>
+    "end"
+    => {
+        StructDef {
+            name,
+            params: Context::from(params.unwrap_or(vec![])),
+            visibility,
+            fields,
+        }
+    }
+}
+
+pub StructField: StructField = {
+    "field" <ident:Ident> "of" <shape:Shape> => StructField(ident, shape),
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Function Decls
+////////////////////////////////////////////////////////////////////////////////
+
+pub FnDef: FnDef = {
+    <l:@L> <visibility:Visibility> "fn" <name:Ident> <params:FnParams> "->" <result:Shape>
+        <body:Expr>
+    "end" <r:@R> => {
+        FnDef {
+            name: name.to_string(),
+            params,
+            result,
+            visibility,
+            body,
+        }
+    }
+
+}
+
+// pub FnGenerics = TypeDefParams
+
+pub FnParams: Context<ShapeRef> = {
+    "(" <arg0:Ident> "of" <shape:Shape> ")" => {
+        let mut params = Context::empty();
+        params = params.extend(arg0, shape);
+        params
+    },
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Enum Decls
+////////////////////////////////////////////////////////////////////////////////
+
+pub EnumDef: EnumDef = {
+    <visibility:Visibility> "enum" "shape" <name:Ident> <params:TypeDefParams?>
+        <alts:EnumAlt*>
+    "end"
+    => {
+        EnumDef {
+            name,
+            params: Context::from(params.unwrap_or(vec![])),
+            visibility,
+            alts,
+        }
+    }
+}
+
+pub EnumAlt: EnumAlt = {
+    <ctor_name:Ctor> <payload_shape:("of" <Shape>)?> => {
+        EnumAlt(ctor_name, payload_shape)
+    }
+}
+
+
+pub TypeDefParams: Vec<(String, Kind)> = {
+    "<" <param0:TypeDefParam> <param_rest:("," TypeDefParam)*> ">" => {
+        let mut result = vec![param0];
+        for (_s, param) in param_rest {
+            result.push(param);
+        }
+        result
+    },
+}
+
+pub TypeDefParam: (String, Kind) = {
+    <ident:Ident> "of" "Nat" => (ident, Kind::Nat),
+    <ident:Ident> "of" "Shape" => (ident, Kind::Shape),
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Literals
+////////////////////////////////////////////////////////////////////////////////
+
 pub Nat: u64 = {
     <n:r"[0-9]+"> => n.parse().unwrap(),
 }
@@ -192,6 +233,15 @@ pub Visibility: Visibility = {
     <visibility:"pub"?> => if visibility.is_some() { Visibility::Public } else { Visibility::Private }
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Refs
+////////////////////////////////////////////////////////////////////////////////
+
+pub Domain: DomainRef = {
+    <ident:Ident> => DomainRef(ident),
+}
+
 pub ModDefRef: ModDefRef = {
     <ident:Ident> => ModDefRef(ident.to_string())
 }
@@ -200,11 +250,34 @@ pub GateRef: GateRef = {
     <ident:Ident> => GateRef(ident.to_string())
 }
 
-pub Wire: Wire = {
-    <visibility:Visibility> "wire" <sink:TerminalRef> "<=" <expr:Expr> => {
-        Wire(visibility, sink, expr)
-    },
+pub TerminalRef: TerminalRef = {
+    <component_name:Ident> "." <port_name:Ident> => TerminalRef(component_name, port_name)
 }
+
+pub Shape: ShapeRef = {
+    <ident:Ident> "<" <shape_params:ShapeArgs> ">" => ShapeRef(ident, shape_params),
+    <ident:Ident> => ShapeRef(ident, vec![]),
+}
+
+pub ShapeArgs: Vec<ShapeArg> = {
+    <shape_param0:ShapeArg> <shape_param_rest:("," ShapeArg)*> => {
+        let mut result = vec![shape_param0];
+        for (_s, shape_param) in shape_param_rest {
+            result.push(shape_param);
+        }
+        result
+    }
+}
+
+pub ShapeArg: ShapeArg = {
+    <n:Nat> => ShapeArg::Nat(n),
+    <shape:Shape> => ShapeArg::Shape(shape),
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Expressions
+////////////////////////////////////////////////////////////////////////////////
 
 pub Expr: Box<Expr> = {
     <l:@L> "cast" <e:Expr> "as" <shape:Shape> <r:@R> => {
@@ -249,23 +322,37 @@ pub ExprEq: Box<Expr> = {
 }
 
 pub ExprAdd: Box<Expr> = {
-    <l:@L> <op0:ExprSlice> "+" <op1:ExprAdd> <r:@R> => {
+    <l:@L> <op0:ExprCall> "+" <op1:ExprAdd> <r:@R> => {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::BinOp(loc, BinOp::Add, op0, op1))
     },
-    <l:@L> <op0:ExprSlice> "-" <op1:ExprAdd> <r:@R> => {
+    <l:@L> <op0:ExprCall> "-" <op1:ExprAdd> <r:@R> => {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::BinOp(loc, BinOp::Sub, op0, op1))
     },
-    <expr:ExprSlice> => expr,
+    <expr:ExprCall> => expr,
 }
 
-pub ExprSlice: Box<Expr> = {
-    <l:@L> <expr:ExprDot> "[" <index:Slice> "]" <end:"?"?> <r:@R> => {
+pub ExprCall: Box<Expr> = {
+    <l:@L> <fn_name:Ident> "(" <args:CallArgs> ")" <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        Box::new(Expr::Call(loc, FnRef(fn_name), args))
+    },
+    <l:@L> <expr:ExprCall> "[" <index:Slice> "]" <end:"?"?> <r:@R> => {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Slice(loc, expr, index))
     },
     <expr:ExprDot> => expr,
+}
+
+pub CallArgs: Vec<Box<Expr>> = {
+    <e0:Expr> <e_rest:("," <Expr>)*> => {
+        let mut result = vec![e0];
+        for e in e_rest {
+            result.push(e);
+        }
+        result
+    }
 }
 
 pub Slice: Box<Expr> = {
@@ -334,7 +421,6 @@ pub MatchPatternArgs: Vec<Box<MatchPattern>> = {
     }
 }
 
-
 pub StructFields: Vec<(FieldName, Box<Expr>)> = {
     <field0:(Ident "=" Expr )> <field_rest:("," Ident "=" Expr)*> ","? => {
         let mut results = vec![(field0.0.to_string(), field0.2).clone()];
@@ -345,9 +431,9 @@ pub StructFields: Vec<(FieldName, Box<Expr>)> = {
     }
 }
 
-pub TerminalRef: TerminalRef = {
-    <component_name:Ident> "." <port_name:Ident> => TerminalRef(component_name, port_name)
-}
+////////////////////////////////////////////////////////////////////////////////
+// Other
+////////////////////////////////////////////////////////////////////////////////
 
 pub Ctor: String = {
     "@" <name:Ident> => name,
@@ -356,6 +442,11 @@ pub Ctor: String = {
 pub Ident: String = {
     <ident:r"[_A-Za-z][_A-Za-z0-9]*"> => ident.to_string()
 }
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Comments
+////////////////////////////////////////////////////////////////////////////////
 
 match {
     r"//[^\n\r]*[\r\n]" => {},
