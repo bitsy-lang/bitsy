@@ -2,14 +2,22 @@ The Bitsy Hardware Language
 ===========================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :hidden:
+  :maxdepth: 2
 
+  getting-started
+  values-and-shapes
 
+Bitsy is a modern hardware description language.
 
-Indices and tables
-==================
+It was created in response to a simple ask:
+If my design typechecks, it should do what I expect.
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+The industry standard Verilog fails this by having very loose rules for when designs are malformed.
+Some notable painpoints include:
+
+* automatic truncation of data
+* flop inference from incomplete case coverage
+* tool-dependent rules for invalid wire connections
+
+The other industry standard VHDL suffers from the fact the author of Bitsy doesn't know it and doesn't want to know it.
