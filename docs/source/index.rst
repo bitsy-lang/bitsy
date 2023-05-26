@@ -3,10 +3,9 @@ The Bitsy Hardware Language
 
 .. toctree::
   :hidden:
-  :maxdepth: 2
 
   getting-started
-  values-and-shapes
+  values-and-shapes/index
 
 Bitsy is a modern hardware description language.
 
