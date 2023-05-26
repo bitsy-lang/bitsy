@@ -194,7 +194,8 @@ Finally, all branches of an `if` expression must be expressions themselves, and 
 
 ### `Word<n>`
 
-`Word<n>` is the type of n-bit unsigned integers.
+`Word<n>` is the type of n-bit integers.
+Nominally, words are unsigned except in operations which explicitly interpret them in a signed manner.
 
 They following operations are supported between two words of the same width:
 
@@ -206,6 +207,12 @@ They following operations are supported between two words of the same width:
 * `a > b`
 * `a >= b`
 
+You can change the width of a word with `w.trunc(n)`.
+Here, `n` must be a constant equal or less than the width of `w`.
+Similarly, you can zero-extend a word with `w.zext(n)`, and similarly,
+`n` must be a constant greater than or more than the width of `w`.
+You can also sign-extend a word with `w.sext(n)`.
+To avoid confusion, `sext` is not allowed for the case of `Word<0>`.
 
 ### `Vec<n, S>`
 
