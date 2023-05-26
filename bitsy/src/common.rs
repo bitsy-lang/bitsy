@@ -160,6 +160,7 @@ impl TerminalRef {
 pub enum MatchPattern {
     Ctor(String, Vec<Box<MatchPattern>>),
     Var(String),
+    Tuple(Vec<String>),
     Lit(Value),
     Otherwise,
 }

@@ -279,6 +279,20 @@ impl Context<Type> {
                         let new_context = self.extend(x.to_string(), subject_type.clone());
                         new_context.check_type(expr0.clone(), typ.clone())?;
                     },
+                    MatchPattern::Tuple(xs) => {
+                        let Some(xs_shapes) = subject_type.as_tuple() else {
+                            return Err(BitsyError::Type(loc.clone(), format!("Expected tuple type.")));
+                        };
+
+                        if xs.len() != xs_shapes.len() {
+                            return Err(BitsyError::Type(loc.clone(), format!("Tuple does not have the right number of elements.")));
+                        }
+                        let mut new_context = self.clone();
+                        for (x, typ) in xs.iter().zip(xs_shapes) {
+                            new_context = new_context.extend(x.to_string(), typ.clone());
+                        }
+                        new_context.check_type(expr0.clone(), typ.clone())?;
+                    },
                     MatchPattern::Lit(v) => {
                         self.check_type(Expr::lit(loc.clone(), v.clone()), subject_type.clone())?;
                         self.check_type(expr0.clone(), typ.clone())?;

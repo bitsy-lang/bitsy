@@ -14,6 +14,14 @@ struct shape GcdOps
     field y of Word<16>
 end
 
+fn sort(x of Word<16>, y of Word<16>) -> Tuple<Word<16>, Word<16>>
+    if x < y {
+        tuple(x, y)
+    } else {
+        tuple(y, x)
+    }
+end
+
 pub mod Gcd
     port io
         incoming ops of Valid<GcdOps>
@@ -32,19 +40,16 @@ pub mod Gcd
             }
         );
         @Running(running) => (
-            if running.x < running.y {
-                @Running(${
-                    x = running.x,
-                    y = running.y - running.x,
-                })
+            if running.x == running.y {
+                @Done(running.x)
             } else {
-                if running.y < running.x {
-                    @Running(${
-                        x = running.x - running.y,
-                        y = running.y,
-                    })
-                } else {
-                    @Done(running.x)
+                match sort(running.x, running.y) {
+                    tuple(min, max) => @Running(
+                        ${
+                            x = min,
+                            y = max - min,
+                        }
+                    );
                 }
             }
         );

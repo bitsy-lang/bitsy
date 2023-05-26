@@ -157,12 +157,22 @@ pub FnDef: FnDef = {
 // pub FnGenerics = TypeDefParams
 
 pub FnParams: Context<ShapeRef> = {
-    "(" <arg0:Ident> "of" <shape:Shape> ")" => {
+    "(" <param0:FnParam> <param_rest:("," FnParam)*> (","?) ")" => {
         let mut params = Context::empty();
-        params = params.extend(arg0, shape);
+        let (param0, shape0) = param0;
+        params = params.extend(param0, shape0);
+        for (_, (parami, shapei)) in param_rest {
+            params = params.extend(parami, shapei);
+        }
         params
     },
 }
+
+
+pub FnParam: (String, ShapeRef) = {
+    <ident:Ident> "of" <shape:Shape> => (ident, shape),
+}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -410,6 +420,13 @@ pub MatchPattern: Box<MatchPattern> = {
     <v:Ident> => Box::new(MatchPattern::Var(v)),
     <v:Value> => Box::new(MatchPattern::Lit(v)),
     "otherwise" => Box::new(MatchPattern::Otherwise),
+    "tuple" "(" <id0:Ident> <id_rest:("," Ident)*> ")" => {
+        let mut ids = vec![id0];
+        for (_, id) in id_rest {
+            ids.push(id);
+        }
+        Box::new(MatchPattern::Tuple(ids))
+    },
 }
 
 pub MatchPatternArgs: Vec<Box<MatchPattern>> = {
