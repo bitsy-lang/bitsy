@@ -156,4 +156,83 @@ Indexing is another major point of unsafety in Verilog.
 To prevent this, all indexing with `x[i]` must be guaranteed to be in-bounds statically.
 For indexing which may not be in-bounds, the checked version, `x[i]?` is used,
 which returns a value of shape `Valid<S>` rather than `S`.
+
 (Also not implemented yet).
+
+
+## Shapes and Operations
+
+### `Bit`
+
+`Bit` is the type of single bits.
+They have only two values: `true` for a logical "1" and `false` for a logical 0.
+
+These support the standard boolean operators:
+
+* `~b` logical NOT
+* `a && b` logical AND
+* `a || b` logical OR
+* `a ^ b` logical XOR
+
+To make use of bits, you can use `if` expressions:
+
+```
+if b {
+    v1
+} else if c {
+    v2
+} else {
+    v3
+}
+```
+
+Bitsy's `if` expressions work more like Verilog's teriary conditional expression than Verilog `if` statements.
+This means `if b { a } else {c}` would be the equivalent of `b ? a : c`.
+This also mean `if` statements are required to have an `else` branch.
+Finally, all branches of an `if` expression must be expressions themselves, and cannot contain assignment statements.
+
+
+### `Word<n>`
+
+`Word<n>` is the type of n-bit unsigned integers.
+
+They following operations are supported between two words of the same width:
+
+* `a +& b` add the values `a` and `b` and extend the result by one bit for a carry.
+* `a +% b` add the values `a` and `b` and wrap around on overflow.
+
+* `a < b`
+* `a <= b`
+* `a > b`
+* `a >= b`
+
+
+### `Vec<n, S>`
+
+For any number `n` and any shape `S`, we can produce the shape of fixed-length vectors of that shape, `Vec<n, S>`.
+
+To construct a value of `Vec<n, S>`, we use `vec(s1, s2, ..., sn)` where each of `s1` `s2` through `sn` has shape `S`.
+
+We can index into a vector using the try-index operator.
+If `v` is of shape `Vec<n, S>` and `i` is `Word<m>`, then `v[i]?` will be a value of shape `Valid<S>`.
+The reason for returning a `Valid<S>` is that if the index `i` is not in bounds, `@Invalid` is returned.
+If `i` is in-bounds, `@Valid(s)` is returned.
+
+When we have a value `v` of shape `Vec<n, S>` and n is a power of 2, we can index into it with a word of the appropriate size:
+`v[n]` returns a value of shape `S`.
+
+For constants `i` and `j`, we can index or slice:
+
+* `a[i]` returns a value of shape `S`
+* `a[i:j]` returns a `Vec<m, S>` where m is the value of j - i.
+
+Note that the order for slicing is the same as in Python, with the larger index coming second.
+The two indices are allowed to be the same, returning the empty type `Vec<0, S>`.
+
+You can convert a `Word<n>` to a `Vec<n, Bit>` with `w.to\_vec()` and vice versa with `v.to\_word()`.
+
+
+### Equality Testing
+
+The two operations `==` and `!=` are supported for all shapes.
+They return a `Bit`.
