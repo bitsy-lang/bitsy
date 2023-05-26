@@ -31,7 +31,7 @@ It is used when a value may or may not be available.
 It's values are `@Valid(s)` when there is data available, and `@Invalid` otherwise.
 
 `Tuple<S, T>`
-------------
+-------------
 A `Tuple<S, T>` is a pair `tuple(s, t)` with `s` having shape `S` and `t` having shape `T`.
 
 Structs

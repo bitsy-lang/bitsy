@@ -21,3 +21,5 @@ Some notable painpoints include:
 * tool-dependent rules for invalid wire connections
 
 The other industry standard VHDL suffers from the fact the author of Bitsy doesn't know it and doesn't want to know it.
+
+Repository: `https://github.com/bitsy-lang/bitsy <https://github.com/bitsy-lang/bitsy>`_
