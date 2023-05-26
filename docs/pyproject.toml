@@ -1,0 +1,17 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "bitsy-docs"
+version = "0.1.0"
+description = "The Bitsy Hardware Language"
+authors = ["Michael Maloney <michael@maloney.at>"]
+
+[tool.poetry.dependencies]
+python = "^3.8.0"
+Sphinx = "^4.2.0"
+sphinx-rtd-theme = "^1.0.0"
+
+[tool.poetry.extras]
+docs = ["Sphinx", "sphinx-rtd-theme"]
