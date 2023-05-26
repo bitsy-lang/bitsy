@@ -36,7 +36,7 @@ pub Decl: Decl = {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub ModDef: ModDef = {
-    <visibility:Visibility> "mod" <name:Ident>
+    <visibility:Visibility> "mod" <name:Ident> <params:TypeDefParams?>
         <ports: Port*>
         <components: Component*>
         <wires: Wire*>
@@ -45,6 +45,7 @@ pub ModDef: ModDef = {
         ModDef {
             name,
             visibility,
+            params: Context::from(params.unwrap_or(vec![])),
             ports,
             components,
             wires,

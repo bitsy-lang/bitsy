@@ -59,6 +59,7 @@ pub struct EnumAlt(pub String, pub Option<ShapeRef>);
 pub struct ModDef {
     pub name: String,
     pub visibility: Visibility,
+    pub params: Context<Kind>,
     pub ports: Vec<Port>,
     pub components: Vec<Component>,
     pub wires: Vec<Wire>,
