@@ -6,6 +6,7 @@ The Bitsy Hardware Language
 
   getting-started
   values-and-shapes/index
+  examples
 
 Bitsy is a modern hardware description language.
 
