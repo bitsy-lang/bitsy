@@ -299,6 +299,14 @@ pub Expr: Box<Expr> = {
         let loc = Loc::new("Top.bitsy".to_string(), l, r);
         Box::new(Expr::Let(loc, v, def, shape.map(|x| x.1), body))
     },
+    <l:@L> "let" "tuple" "(" <id0:Ident> <id_rest:("," Ident)*> ")" "=" <def:Expr> ";" <body:Expr> <r:@R> => {
+        let loc = Loc::new("Top.bitsy".to_string(), l, r);
+        let mut ids = vec![id0];
+        for (_, id) in id_rest {
+            ids.push(id);
+        }
+        Box::new(Expr::LetTuple(loc, ids, def, body))
+    },
     <l:@L> "match" <subject:Expr> "{"
         <patterns:MatchArm*>
     "}" <r:@R> => {

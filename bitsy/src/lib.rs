@@ -371,6 +371,9 @@ impl Bitsy {
                     },
                 }
             }
+            ast::Expr::LetTuple(loc, xs, def, body) => {
+                Expr::let_tuple_expr(loc.clone(), xs.to_vec(), self.expr(def), self.expr(body))
+            }
             ast::Expr::BinOp(loc, op, op0, op1) => Expr::binop(loc.clone(), *op, self.expr(op0), self.expr(op1)),
             ast::Expr::Eq(loc, op0, op1) => Expr::eq(loc.clone(), self.expr(op0), self.expr(op1)),
             ast::Expr::Neq(loc, op0, op1) => Expr::neq(loc.clone(), self.expr(op0), self.expr(op1)),

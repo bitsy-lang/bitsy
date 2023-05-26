@@ -75,6 +75,7 @@ pub enum Expr {
     Lit(Loc, Value),
     Cast(Loc, Box<Expr>, ShapeRef),
     Let(Loc, String, Box<Expr>, Option<ShapeRef>, Box<Expr>),
+    LetTuple(Loc, Vec<String>, Box<Expr>, Box<Expr>),
     BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
     Eq(Loc, Box<Expr>, Box<Expr>),
     Neq(Loc, Box<Expr>, Box<Expr>),

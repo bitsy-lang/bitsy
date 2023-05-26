@@ -84,6 +84,7 @@ pub enum ExprNode {
     Field(Expr, String),
     Cast(Expr, Type),
     Let(String, Expr, Option<Type>, Expr),
+    LetTuple(Vec<String>, Expr, Expr),
     BinOp(BinOp, Expr, Expr),
     Eq(Expr, Expr),
     Neq(Expr, Expr),
@@ -525,6 +526,10 @@ impl Expr {
 
     pub fn let_expr(loc: Loc, x: String, def: Expr, ascription: Option<Type>, body: Expr) -> Expr {
         ExprNode::Let(x, def, ascription, body).at(loc)
+    }
+
+    pub fn let_tuple_expr(loc: Loc, xs: Vec<String>, def: Expr, body: Expr) -> Expr {
+        ExprNode::LetTuple(xs, def, body).at(loc)
     }
 
     pub fn binop(loc: Loc, op: BinOp, a: Expr, b: Expr) -> Expr {

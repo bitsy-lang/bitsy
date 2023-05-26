@@ -33,24 +33,20 @@ pub mod Gcd
         @Idle => (
             match io.ops {
                 @Invalid => @Idle;
-                @Valid(operands) => @Running(${
-                    x = operands.x,
-                    y = operands.y,
-                });
+                @Valid(operands) => @Running(operands);
             }
         );
         @Running(running) => (
             if running.x == running.y {
                 @Done(running.x)
             } else {
-                match sort(running.x, running.y) {
-                    tuple(min, max) => @Running(
-                        ${
-                            x = min,
-                            y = max - min,
-                        }
-                    );
-                }
+                let tuple(min, max) = sort(running.x, running.y);
+                @Running(
+                    ${
+                        x = min,
+                        y = max - min,
+                    }
+                )
             }
         );
         @Done(result) => @Idle;

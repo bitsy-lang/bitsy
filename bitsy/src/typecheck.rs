@@ -16,6 +16,7 @@ impl Context<Type> {
             ExprNode::Field(subject, field) => self.check_type_field(loc, subject.clone(), &field, typ)?,
             ExprNode::Cast(e, t) => self.check_type_cast(loc, e.clone(), t.clone(), typ)?,
             ExprNode::Let(x, def, ascription, body) => self.check_type_let(loc, x, def.clone(), ascription.clone(), body.clone(), typ)?,
+            ExprNode::LetTuple(xs, def, body) => self.check_type_let_tuple(loc, xs, def.clone(), body.clone(), typ)?,
             ExprNode::BinOp(op, op0, op1) => self.check_type_binop(loc, *op, op0.clone(), op1.clone(), typ)?,
             ExprNode::Eq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
             ExprNode::Neq(op0, op1) => self.check_type_eq(loc, op0.clone(), op1.clone(), typ)?,
@@ -188,6 +189,18 @@ impl Context<Type> {
                 new_context.check_type(body, typ)?;
             },
         }
+        Ok(())
+    }
+
+    fn check_type_let_tuple(&self, loc: &Loc, xs: &[String], def: Expr, body: Expr, typ: Type) -> BitsyResult<()> {
+        let mut new_context = self.clone();
+        let Some(def_type) = self.infer_type(def) else {
+            return Err(BitsyError::Type(loc.clone(), format!("Could not infer type of let subject.")));
+        };
+        for x in xs {
+            new_context = new_context.extend(x.to_string(), def_type.clone());
+        }
+        new_context.check_type(body, typ)?;
         Ok(())
     }
 
