@@ -11,7 +11,8 @@ A Bitsy design explains how values are transformed, but you never have direct ac
 Every hardware value has a shape.
 
 .. toctree::
-  :hidden:
+  :maxdepth: 1
 
   builtin-shapes
   user-defined
+  principles
