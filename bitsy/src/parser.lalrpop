@@ -37,7 +37,7 @@ pub Decl: Decl = {
 
 pub ModDef: ModDef = {
     <visibility:Visibility> "mod" <name:Ident> <params:TypeDefParams?>
-        <ports: Port*>
+        <io_port: TerminalDecl>
         <components: Component*>
         <wires: Wire*>
     "end"
@@ -46,15 +46,15 @@ pub ModDef: ModDef = {
             name,
             visibility,
             params: Context::from(params.unwrap_or(vec![])),
-            ports,
+            ports: vec![io_port],
             components,
             wires,
         }
     },
 }
 
-pub Port: Port = {
-    "port" <port_name:Ident> <pins:Pin*> => Port(port_name.to_string(), pins),
+pub TerminalDecl: Port = {
+    <pins:Pin*> => Port("io".to_string(), pins),
 }
 
 pub Pin: Pin = {

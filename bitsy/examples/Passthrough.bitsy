@@ -1,7 +1,6 @@
 pub mod Passthrough<S of Shape>
-    port io
-        incoming in  of S
-        incoming out of S
+    incoming in  of S
+    incoming out of S
 
     wire io.out <= io.in
 end

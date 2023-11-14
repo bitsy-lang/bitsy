@@ -23,9 +23,8 @@ fn sort(x of Word<16>, y of Word<16>) -> Tuple<Word<16>, Word<16>>
 end
 
 pub mod Gcd
-    port io
-        incoming ops of Valid<GcdOps>
-        outgoing gcd of Valid<Word<16>>
+    incoming ops of Valid<GcdOps>
+    outgoing gcd of Valid<Word<16>>
 
     reg state of GcdState init @Idle
 
