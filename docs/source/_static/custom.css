@@ -1,3 +1,4 @@
 .rst-content code.literal, .rst-content tt.literal {
     color: inherit;
+    white-space: nowrap;
 }
