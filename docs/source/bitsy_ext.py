@@ -23,17 +23,22 @@ class BitsyLexer(RegexLexer):
             (r'\.', Punctuation),
             (r'[-+()<>{}\[\],;]', Punctuation),
             (r'\$', Punctuation),
-            (r'[1-9][0-9]*', Number.Integer),
+            (r'[0-9]+', Number.Integer),
             (words(KEYWORDS, suffix=r'\b'), Keyword),
             (r'@\b([a-zA-Z][a-zA-Z0-9]*)\b', Name.Decorator),
             (r'\s+', Text),
             (r'#.*$', Comment.Single),
-#            (r'<[^>]+>', Comment.Special),
             (r'\b([A-Z][a-zA-Z0-9]*)\b', Name.Class),
             (r'\b[A-Z]\b', Name.Constant),
             (words(BUILTINS, suffix=r'\b'), Name.Builtin),
-            (r'\b([a-zA-Z][a-zA-Z0-9]*)\b', Name.Variable),
-        ]
+            (r'\b([_a-zA-Z][_a-zA-Z0-9]*)\b', Name.Variable),
+            (r'//.*$', Comment.Single),  # Line comments starting with //
+            (r'/\*', Comment.Multiline, 'block_comment'),  # Block comment /* ... */
+        ],
+        'block_comment': [
+            (r'.*?\*/', Comment.Multiline, '#pop'),  # End of the block comment
+            (r'.*$', Comment.Multiline),
+        ],
     }
 
 
