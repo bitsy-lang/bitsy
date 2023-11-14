@@ -17,4 +17,3 @@ They also tell you the types of values that get stored in registers and memories
 
   builtin-shapes
   user-defined
-  principles

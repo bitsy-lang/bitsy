@@ -5,10 +5,11 @@ The Bitsy Hardware Language
   :hidden:
 
   getting-started
+  modules
   shapes/index
   expressions/index
+  principles
   examples
-  modules
 
 Bitsy is a modern hardware description language.
 
