@@ -1,5 +1,5 @@
-Values and Shapes
-=================
+Shapes
+======
 Bitsy separates out the world of "hardware components" from "hardware values".
 
 Hardware components are the pieces of a Bitsy design which would come to correspond to a physical piece of silicon.

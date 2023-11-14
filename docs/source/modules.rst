@@ -6,7 +6,7 @@ Module Definitions
 ------------------
 Modules are declared using the `mod` keyword.
 
-A module has a list of terminals, a list of components, and a list of wires.
+A module has a list of pins, a list of components, and a list of wires.
 
 The following example is a `Buffer` module, which demonstrates all three parts:
 
@@ -25,7 +25,7 @@ The following example is a `Buffer` module, which demonstrates all three parts:
 This module is marked `pub` and is thus public.
 It is guaranteed not to be optimized away, and it may be imported from other packages.
 
-This module has two terminals, an incoming terminals `in` and and outgoing terminals `out`.
+This module has two pins, an incoming pins `in` and and outgoing pins `out`.
 Both carry a value of shape `Bit` (a byte) to and from the module.
 
 This module contains one subcomponent: a `reg` (register) named `queue`.
@@ -33,9 +33,9 @@ It stores a value of shape `Bit`.
 The `init` clause shows the reset value of the register is `false`.
 
 The final two statements are wires.
-The first, `wire queue <= io.in` will connect the terminal `io.in` to the data pin of the register `queue`.
-The first, `wire io.out <= queue` will connect the output pin of the register `queue` to the terminal `io.out`.
-The `io` in `io.in` and `io.out` is a component representing the terminals of the current module.
+The first, `wire queue <= io.in` will connect the pin `io.in` to the data pin of the register `queue`.
+The first, `wire io.out <= queue` will connect the output pin of the register `queue` to the pin `io.out`.
+The `io` in `io.in` and `io.out` is a component representing the pins of the current module.
 
 Since no domain information has been provided, the module `Buffer` implicitly operates on an implicit clock and reset.
 Thus, on each clock cycle, the register `queue` will latch the value on `io.in`,
@@ -73,7 +73,7 @@ We can use several buffers in a row to make a 4-bit shift register:
 Gates
 -----
 In Bitsy, externally-defined modules are called gates.
-They can be declared with the `gate` keyword, together with their list of terminals.
+They can be declared with the `gate` keyword, together with their list of pins.
 
 The rules for their simulation are supplied through a bus functional model.
 

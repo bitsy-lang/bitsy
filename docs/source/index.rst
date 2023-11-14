@@ -5,7 +5,7 @@ The Bitsy Hardware Language
   :hidden:
 
   getting-started
-  values-and-shapes/index
+  shapes/index
   expressions/index
   examples
   modules
