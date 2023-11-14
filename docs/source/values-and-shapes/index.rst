@@ -9,6 +9,8 @@ Hardware values only exist at simulation time.
 A Bitsy design explains how values are transformed, but you never have direct access to one.
 
 Every hardware value has a shape.
+The shape tells you the types of values that can flow across a component.
+They also tell you the types of values that get stored in registers and memories.
 
 .. toctree::
   :maxdepth: 1
