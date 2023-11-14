@@ -18,6 +18,7 @@ class BitsyLexer(RegexLexer):
     ]
 
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
+    CONSTANTS = ['false', 'true']
 
     tokens = {
         'root': [
@@ -35,6 +36,7 @@ class BitsyLexer(RegexLexer):
             (r'#.*$', Comment.Single),
             (r'\b([A-Z][a-zA-Z0-9]*)\b', Name.Class),
             (r'\b[A-Z]\b', Name.Constant),
+            (words(CONSTANTS, suffix=r'\b'), Name.Constant),
             (words(BUILTINS, suffix=r'\b'), Name.Builtin),
             (r'\b([_a-zA-Z][_a-zA-Z0-9]*)\b', Name.Variable),
             (r'//.*$', Comment.Single),  # Line comments starting with //
