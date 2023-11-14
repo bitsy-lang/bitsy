@@ -3,6 +3,7 @@ Ideas
 * Vecs should be parameterized by the index type (which could be an artibrary shape)
 * Shapes should have both bitwidth and number of elements, since this is easy to calculate.
 * Remove Eq from heavy data structures that should just be ptr-eq'ed
+* Use `*` (dereference) notation to annotate preferred input and output terminals, allowing chaining of registers or queues.
 
 Notes
 -----
