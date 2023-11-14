@@ -70,16 +70,16 @@ We can use several buffers in a row to make a 4-bit shift register:
     end
 
 
-Gates
------
-In Bitsy, externally-defined modules are called gates.
-They can be declared with the `gate` keyword, together with their list of pins.
+Extern Modules
+--------------
+In Bitsy, externally-defined modules are called extern mods.
+They can be declared with the `extern mod` keyword, together with their list of pins.
 
 The rules for their simulation are supplied through a bus functional model.
 
 .. code-block::
 
-   pub gate And
+   pub extern mod And
         incoming a of Bit
         incoming b of Bit
         outgoing z of Bit
@@ -88,8 +88,8 @@ The rules for their simulation are supplied through a bus functional model.
 
 Parameters
 ----------
-Modules and gates may be parameterized.
-The parameters are given in angle brackets next to the name of the module or gate.
+Modules and extern mods may be parameterized.
+The parameters are given in angle brackets next to the name of the module or extern mod.
 
 For example, a parameterized version of the buffer would be:
 
@@ -105,11 +105,11 @@ For example, a parameterized version of the buffer would be:
         wire io.out <= queue
     end
 
-A parameterized version of the `And` gate could work on words of length n:
+A parameterized version of the `And` extern mod could work on words of length n:
 
 .. code-block::
 
-   pub gate And<n of Nat>
+   pub extern mod And<n of Nat>
         incoming a of Word<n>
         incoming b of Word<n>
         outgoing z of Word<n>

@@ -8,6 +8,7 @@ The Bitsy Hardware Language
   modules
   shapes/index
   expressions/index
+  interfaces
   principles
   examples
 

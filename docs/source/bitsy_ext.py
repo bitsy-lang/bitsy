@@ -14,7 +14,8 @@ class BitsyLexer(RegexLexer):
     KEYWORDS = [
         'pub', 'enum', 'of', 'end', 'shape', 'fn', 'let', 'if', 'else', 'match',
         'port', 'incoming', 'outgoing', 'wire', 'reg', 'port', 'struct', 'field',
-        'otherwise', 'mod', 'gate', 'to',
+        'otherwise', 'mod', 'gate', 'to', 'bundle', 'miso', 'mosi', 'interface',
+        'master', 'slave', 'extern', 'connect', 'as',
     ]
 
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
