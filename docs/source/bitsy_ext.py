@@ -11,7 +11,12 @@ class BitsyLexer(RegexLexer):
     aliases = ['bitsy']
     filenames = ['*.bitsy']
 
-    KEYWORDS = ['pub', 'enum', 'of', 'end', 'shape', 'fn', 'let', 'if', 'else', 'match', 'port', 'incoming', 'outgoing', 'wire', 'reg', 'port', 'struct', 'field', 'otherwise', 'mod']
+    KEYWORDS = [
+        'pub', 'enum', 'of', 'end', 'shape', 'fn', 'let', 'if', 'else', 'match',
+        'port', 'incoming', 'outgoing', 'wire', 'reg', 'port', 'struct', 'field',
+        'otherwise', 'mod', 'gate', 'to',
+    ]
+
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
 
     tokens = {

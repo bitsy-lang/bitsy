@@ -8,6 +8,7 @@ The Bitsy Hardware Language
   values-and-shapes/index
   expressions/index
   examples
+  modules
 
 Bitsy is a modern hardware description language.
 
