@@ -28,7 +28,22 @@ impl From<u64> for Value {
 pub enum Expr {
     Terminal(Terminal),
     Lit(Value),
-    Add(Box<Expr>, Box<Expr>),
+    //UnOp(UnOp, Box<Expr>),
+    BinOp(BinOp, Box<Expr>, Box<Expr>),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum UnOp {
+    Not,
+    Inc,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum BinOp {
+    Add,
+    Sub,
+    And,
+    Or,
 }
 
 fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
@@ -46,7 +61,7 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => vec![terminal.clone()],
             Expr::Lit(_value) => vec![],
-            Expr::Add(e1, e2) => {
+            Expr::BinOp(_op, e1, e2) => {
                 let mut result = e1.terminals();
                 result.extend(e2.terminals());
                 result.sort();
@@ -64,7 +79,7 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => Expr::Terminal(relative_to(top, &terminal)),
             Expr::Lit(_value) => self,
-            Expr::Add(e1, e2) => Expr::Add(Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
         }
     }
 
@@ -72,12 +87,15 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => nettle.peek(terminal),
             Expr::Lit(value) => *value,
-            Expr::Add(e1, e2) => {
-                match (e1.eval(nettle), e2.eval(nettle)) {
-                    (Value::Word(a), Value::Word(b)) => Value::Word(a + b),
+            Expr::BinOp(op, e1, e2) => {
+                match (op, e1.eval(nettle), e2.eval(nettle)) {
+                    (BinOp::Add, Value::Word(a), Value::Word(b)) => Value::Word(a + b),
+                    (BinOp::Sub, Value::Word(a), Value::Word(b)) => Value::Word(a - b),
+                    (BinOp::And, Value::Word(a), Value::Word(b)) => Value::Word(a & b),
+                    (BinOp::Or, Value::Word(a), Value::Word(b)) => Value::Word(a | b),
                     _ => Value::X,
                 }
-            }
+            },
         }
     }
 }
@@ -374,7 +392,7 @@ fn main() {
             .node("out")
             .reg("state")
             .wire("out", |c| c.terminal("state"))
-            .wire("state", |c| Expr::Add(Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())))
+            .wire("state", |c| Expr::BinOp(BinOp::Add, Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())))
             .build();
 
     let top =
@@ -419,7 +437,8 @@ fn counter() {
             .reg("counter")
             .wire("out", |c| c.terminal("counter"))
             .wire("counter", |c|
-                  Expr::Add(
+                  Expr::BinOp(
+                      BinOp::Add,
                       Box::new(c.terminal("counter")),
                       Box::new(Expr::Lit(1.into())),
                   )
@@ -444,7 +463,8 @@ fn triangle_numbers() {
             .reg("counter")
             .wire("out", |c| c.terminal("counter"))
             .wire("counter", |c|
-                  Expr::Add(
+                  Expr::BinOp(
+                      BinOp::Add,
                       Box::new(c.terminal("counter")),
                       Box::new(Expr::Lit(1.into())),
                   )
@@ -458,7 +478,8 @@ fn triangle_numbers() {
             .instantiate("counter", &counter)
             .wire("out", |c| c.terminal("sum"))
             .wire("sum", |c|
-                Expr::Add(
+                Expr::BinOp(
+                    BinOp::Add,
                     Box::new(c.terminal("sum")),
                     Box::new(c.terminal("counter.out")),
                 )
