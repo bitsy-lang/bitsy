@@ -388,7 +388,6 @@ impl ModuleDef {
     pub fn instantiate(mut self, name:  &str, circuit: &ModuleDef) -> Self {
         self = self.push(name);
         let path = self.path();
-        eprintln!("{path:?}");
 
         for (terminal, typ) in &circuit.terminals {
             let target = relative_to(&path, terminal);
