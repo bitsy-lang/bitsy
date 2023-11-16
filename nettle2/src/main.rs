@@ -51,6 +51,12 @@ fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
     format!("{}.{}", top, &terminal[4..])
 }
 
+fn parent_of(terminal: &Terminal) -> Terminal {
+    let mut path_parts: Vec<&str> = terminal.split('.').collect();
+    path_parts.pop();
+    path_parts.join(".")
+}
+
 #[test]
 fn relative_to_test() {
     assert_eq!(relative_to(&"top.foo".to_string(), &"top.bar".to_string()), "top.foo.bar".to_string())
@@ -137,16 +143,24 @@ impl TerminalState {
 
     fn is_reg(&self) -> bool {
         match *self {
-            TerminalState::Node(_val) => false,
             TerminalState::Reg(_set, _val) => true,
+            _ => false,
         }
     }
+}
+
+#[allow(unused_variables)]
+pub trait ExtInstance: std::fmt::Debug {
+    fn peek(&mut self, port: &str) -> Value { panic!(); }
+    fn poke(&mut self, port: &str, value: Value) -> Vec<&str> { panic!(); }
+    fn clock(&mut self) {}
 }
 
 #[derive(Debug)]
 pub struct Nettle {
     circuit: Module,
     state: BTreeMap<Terminal, TerminalState>,
+    exts: BTreeMap<Terminal, Box<dyn ExtInstance>>,
     indent: usize,
     debug: bool,
 }
@@ -164,9 +178,15 @@ impl Nettle {
         Nettle {
             circuit: circuit.clone(),
             state,
+            exts: BTreeMap::new(),
             indent: 0,
             debug: false,
         }
+    }
+
+    pub fn ext(mut self, terminal: &str, ext_inst: Box<dyn ExtInstance>) -> Self {
+        self.exts.insert(terminal.to_string(), ext_inst);
+        self
     }
 
     fn wires(&self) -> &BTreeMap<Terminal, Expr> {
@@ -241,6 +261,13 @@ impl Nettle {
             }
         }
 
+        let ext_path = parent_of(terminal);
+        let value = self.peek(terminal);
+        if let Some(ext) = self.exts.get_mut(&ext_path) {
+            let local_path = &terminal[ext_path.len() + 1..];
+            ext.poke(local_path, value);
+        }
+
         if self.debug {
             self.indent -= 1;
         }
@@ -261,6 +288,14 @@ impl Nettle {
                     eprintln!("{padding}register clocked: {terminal} {state:?}");
                 }
                 state.clock();
+            }
+        }
+
+        for (path, ext) in &mut self.exts {
+            ext.clock();
+            if self.debug {
+                let padding = " ".repeat(self.indent * 4);
+                eprintln!("{padding}ext clocked: {path}");
             }
         }
 
@@ -285,6 +320,7 @@ pub struct ModuleDef {
     terminals: BTreeMap<Terminal, TerminalType>,
     wires: BTreeMap<Terminal, Expr>,
     path: Vec<String>,
+    exts: Vec<Terminal>,
 }
 
 #[derive(Debug, Clone)]
@@ -303,6 +339,7 @@ impl Module {
             terminals: BTreeMap::new(),
             wires: BTreeMap::new(),
             path: vec!["top".to_string()],
+            exts: vec![],
         }
     }
 }
@@ -369,6 +406,17 @@ impl ModuleDef {
 
     fn path(&self) -> Terminal {
         self.path.join(".")
+    }
+
+    pub fn ext(mut self, name: &str, terminals: &[&str]) -> Self {
+        let ext = self.terminal(name);
+        self.exts.push(ext.clone());
+
+        for terminal in terminals {
+            let target = format!("{ext}.{terminal}");
+            self.terminals.insert(target, TerminalType::Node);
+        }
+        self
     }
 
     pub fn build(self) -> Module {
@@ -497,4 +545,63 @@ fn triangle_numbers() {
         assert_eq!(nettle.peek("top.out"), triange.into());
         nettle.clock();
     }
+}
+
+#[derive(Debug)]
+struct Monitor(Option<String>);
+
+impl Monitor {
+  pub fn new() -> Monitor {
+      Monitor(None)
+  }
+}
+
+impl ExtInstance for Monitor {
+    fn poke(&mut self, _port: &str, value: Value) -> Vec<&str> {
+        self.0 = Some(format!("{value:?}"));
+        vec![]
+    }
+
+    fn clock(&mut self) {
+        if let Some(s) = &self.0 {
+            println!("{s}");
+            self.0 = None
+        }
+    }
+}
+
+#[test]
+fn vip() {
+    let counter =
+        Module::new()
+            .node("out")
+            .reg("counter")
+            .wire("out", |c| c.terminal("counter"))
+            .wire("counter", |c|
+                  Expr::BinOp(
+                      BinOp::Add,
+                      Box::new(c.terminal("counter")),
+                      Box::new(Expr::Lit(1.into())),
+                  )
+            )
+            .build();
+
+    let top =
+        Module::new()
+            .instantiate("counter", &counter)
+            .ext("vip", &["in"])
+            .wire("vip.in", |c| c.terminal("counter.out"))
+            .build();
+
+    let monitor = Box::new(Monitor::new());
+
+    let mut nettle =
+        Nettle::new(&top)
+            .ext("top.vip", monitor);
+
+    nettle.set("top.counter.counter", 0.into());
+    nettle.clock();
+    nettle.clock();
+    nettle.clock();
+    nettle.clock();
 }
