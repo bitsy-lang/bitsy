@@ -1,10 +1,10 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 type Terminal = String;
 
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Copy, Default)]
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Value {
     #[default]
     X,
@@ -127,101 +127,121 @@ impl TerminalState {
 
 #[derive(Debug)]
 pub struct Nettle {
-    state: HashMap<Terminal, TerminalState>,
-    wires: HashMap<Terminal, Expr>,
+    circuit: Circuit,
+    state: BTreeMap<Terminal, TerminalState>,
     indent: usize,
+    debug: bool,
 }
 
 impl Nettle {
-    pub fn new() -> Nettle {
-        Nettle {
-            state: HashMap::new(),
-            wires: HashMap::new(),
-            indent: 0,
+    pub fn new(circuit: &Circuit) -> Nettle {
+        let mut state = BTreeMap::new();
+        for (terminal, typ) in &circuit.terminals {
+            let terminal_state = match typ {
+                TerminalType::Node => TerminalState::Node(Value::X),
+                TerminalType::Reg => TerminalState::Reg(Value::X, Value::X),
+            };
+            state.insert(terminal.to_string(), terminal_state);
         }
+        Nettle {
+            circuit: circuit.clone(),
+            state,
+            indent: 0,
+            debug: false,
+        }
+    }
+
+    fn wires(&self) -> &BTreeMap<Terminal, Expr> {
+        &self.circuit.wires
     }
 
     pub fn terminals(&self) -> Vec<Terminal> {
         self.state.keys().cloned().collect()
     }
 
-    pub fn add_node(&mut self, terminal: &Terminal) {
-        assert!(!self.terminals().contains(terminal));
-        self.state.insert(terminal.clone(), TerminalState::Node(Value::X));
-    }
-
-    pub fn add_reg(&mut self, terminal: &Terminal) {
-        assert!(!self.terminals().contains(terminal));
-        self.state.insert(terminal.clone(), TerminalState::Reg(Value::X, Value::X));
-    }
-
-    pub fn add_wire(&mut self, terminal: &Terminal, expr: &Expr) {
-        self.wires.insert(terminal.clone(), expr.clone());
-    }
-
-    pub fn peek(&self, terminal: &Terminal) -> Value {
-        assert!(self.terminals().contains(terminal));
-
+    pub fn peek(&self, terminal: &str) -> Value {
+        assert!(self.terminals().contains(&terminal.to_string()));
         let value = self.state[terminal].peek();
-        let padding = " ".repeat(self.indent * 4);
-        eprintln!("{padding}peek({terminal}) = {:?}", value);
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}peek({terminal}) = {:?}", value);
+        }
         value
     }
 
-    pub fn poke(&mut self, terminal: &Terminal, value: Value) {
-        let padding = " ".repeat(self.indent * 4);
-        eprintln!("{padding}poke({terminal}, {value:?})");
-        self.indent += 1;
+    pub fn poke(&mut self, terminal: &str, value: Value) {
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}poke({terminal}, {value:?})");
+            self.indent += 1;
+        }
 
         let state = self.state.get_mut(terminal).unwrap();
         state.poke(value);
 
         if !state.is_reg() {
-            self.update(terminal);
+            self.update(&terminal.to_string());
         }
 
-        self.indent -= 1;
+        if self.debug {
+            self.indent -= 1;
+        }
     }
 
-    pub fn set(&mut self, terminal: &Terminal, value: Value) {
-        let padding = " ".repeat(self.indent * 4);
-        eprintln!("{padding}set({terminal}, {value:?})");
-        self.indent += 1;
+    pub fn set(&mut self, terminal: &str, value: Value) {
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}set({terminal}, {value:?})");
+            self.indent += 1;
+        }
 
         let state = self.state.get_mut(terminal).unwrap();
         state.set(value);
-        self.update(terminal);
+        self.update(&terminal.to_string());
 
-        self.indent -= 1;
+        if self.debug {
+            self.indent -= 1;
+        }
     }
 
     fn update(&mut self, terminal: &Terminal) {
-        let padding = " ".repeat(self.indent * 4);
-        eprintln!("{padding}update({terminal})");
-        self.indent += 1;
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}update({terminal})");
+            self.indent += 1;
+        }
 
-        let wires = self.wires.clone();
+        let wires = self.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.depends_on(terminal) {
-                eprintln!("{padding}affected: {target_terminal}");
+                if self.debug {
+                    let padding = " ".repeat(self.indent * 4);
+                    eprintln!("{padding}affected: {target_terminal}");
+                }
                 let value = expr.eval(&self);
                 self.poke(target_terminal, value);
             }
         }
 
-        self.indent -= 1;
+        if self.debug {
+            self.indent -= 1;
+        }
     }
 
     pub fn clock(&mut self) {
-        let padding = " ".repeat(self.indent * 4);
-        eprintln!("{padding}clock()");
-        self.indent += 1;
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}clock()");
+            self.indent += 1;
+        }
 
         for terminal in self.terminals() {
             let state = self.state.get_mut(&terminal).unwrap();
             if state.is_reg() {
-                let padding = " ".repeat(self.indent * 4);
-                eprintln!("{padding}register clocked: {terminal} {state:?}");
+                if self.debug {
+                    let padding = " ".repeat(self.indent * 4);
+                    eprintln!("{padding}register clocked: {terminal} {state:?}");
+                }
                 state.clock();
             }
         }
@@ -230,7 +250,9 @@ impl Nettle {
             self.update(&reg);
         }
 
-        self.indent -= 1;
+        if self.debug {
+            self.indent -= 1;
+        }
     }
 }
 
@@ -242,20 +264,26 @@ enum TerminalType {
 
 #[derive(Debug)]
 pub struct CircuitDef {
-    terminals: HashMap<Terminal, TerminalType>,
-    wires: HashMap<Terminal, Expr>,
+    terminals: BTreeMap<Terminal, TerminalType>,
+    wires: BTreeMap<Terminal, Expr>,
     path: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Circuit(Arc<CircuitDef>);
 
+impl std::ops::Deref for Circuit {
+    type Target = CircuitDef;
+    fn deref(&self) -> &CircuitDef {
+        &self.0
+    }
+}
 
 impl Circuit {
-    pub fn new() -> Circuit {
-        Circuit {
-            terminals: HashMap::new(),
-            wires: HashMap::new(),
+    pub fn new() -> CircuitDef {
+        CircuitDef {
+            terminals: BTreeMap::new(),
+            wires: BTreeMap::new(),
             path: vec!["top".to_string()],
         }
     }
@@ -302,7 +330,7 @@ impl CircuitDef {
         self
     }
 
-    pub fn instantiate(mut self, name:  &str, circuit: &Circuit) -> Self {
+    pub fn instantiate(mut self, name:  &str, circuit: &CircuitDef) -> Self {
         self = self.push(name);
         let path = self.path();
         eprintln!("{path:?}");
@@ -324,15 +352,19 @@ impl CircuitDef {
     fn path(&self) -> Terminal {
         self.path.join(".")
     }
+
+    pub fn build(self) -> Circuit {
+        Circuit(Arc::new(self))
+    }
 }
 
 pub trait TermLookup {
     fn terminal(&self, name: &str) -> Expr;
 }
 
-impl TermLookup for Circuit {
+impl TermLookup for CircuitDef {
     fn terminal(&self, name: &str) -> Expr {
-        Expr::Terminal(Circuit::terminal(self, name))
+        Expr::Terminal(CircuitDef::terminal(self, name))
     }
 }
 
@@ -342,7 +374,8 @@ fn main() {
             .node("out")
             .reg("state")
             .wire("out", |c| c.terminal("state"))
-            .wire("state", |c| Expr::Add(Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())));
+            .wire("state", |c| Expr::Add(Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())))
+            .build();
 
     let top =
         Circuit::new()
@@ -350,97 +383,97 @@ fn main() {
             .node("out")
             .wire("out", |c| c.terminal("counter.out"))
             .instantiate("counter1", &counter)
-            .instantiate("counter2", &counter);
+            .instantiate("counter2", &counter)
+            .build();
 
     println!("{top:#?}");
 }
 
 #[test]
 fn buffer() {
-    let mut nettle = Nettle::new();
+    let buffer =
+        Circuit::new()
+            .node("in")
+            .reg("r")
+            .node("out")
+            .wire("r", |c| c.terminal("in"))
+            .wire("out", |c| c.terminal("r"))
+            .build();
 
-    let term_in = &"in".to_string();
-    let term_out = &"out".to_string();
-    let term_r = &"r".to_string();
+    let mut nettle = Nettle::new(&buffer);
 
-    nettle.add_node(term_in);
-    nettle.add_node(term_out);
-    nettle.add_reg(term_r);
-
-    nettle.add_wire(&term_r, &Expr::Terminal(term_in.clone()));
-    nettle.add_wire(&term_out, &Expr::Terminal(term_r.clone()));
-
-    nettle.poke(term_in, true.into());
-    assert_eq!(nettle.peek(term_r), Value::X);
-    assert_eq!(nettle.peek(term_out), Value::X);
+    nettle.poke("top.in", true.into());
+    assert_eq!(nettle.peek("top.r"), Value::X);
+    assert_eq!(nettle.peek("top.out"), Value::X);
 
     nettle.clock();
-    assert_eq!(nettle.peek(term_r), true.into());
-    assert_eq!(nettle.peek(term_out), true.into());
+    assert_eq!(nettle.peek("top.r"), true.into());
+    assert_eq!(nettle.peek("top.out"), true.into());
 }
 
 #[test]
 fn counter() {
-    let mut nettle = Nettle::new();
+    let counter =
+        Circuit::new()
+            .node("out")
+            .reg("counter")
+            .wire("out", |c| c.terminal("counter"))
+            .wire("counter", |c|
+                  Expr::Add(
+                      Box::new(c.terminal("counter")),
+                      Box::new(Expr::Lit(1.into())),
+                  )
+            )
+            .build();
 
-    let term_out = &"out".to_string();
-    let term_r = &"r".to_string();
+    let mut nettle = Nettle::new(&counter);
 
-    nettle.add_node(term_out);
-    nettle.add_reg(term_r);
-    nettle.add_wire(term_out, &Expr::Terminal(term_r.clone()));
-    let expr = &Expr::Add(
-        Box::new(Expr::Terminal(term_r.clone())),
-        Box::new(Expr::Lit(1.into())),
-    );
-    nettle.add_wire(term_r, expr);
-
-    nettle.set(term_r, 0.into());
+    nettle.set("top.counter", 0.into());
 
     for i in 0..16 {
-        assert_eq!(nettle.peek(term_out), i.into());
+        assert_eq!(nettle.peek("top.out"), i.into());
         nettle.clock();
     }
 }
 
 #[test]
 fn triangle_numbers() {
-    let mut nettle = Nettle::new();
+    let counter =
+        Circuit::new()
+            .node("out")
+            .reg("counter")
+            .wire("out", |c| c.terminal("counter"))
+            .wire("counter", |c|
+                  Expr::Add(
+                      Box::new(c.terminal("counter")),
+                      Box::new(Expr::Lit(1.into())),
+                  )
+            )
+            .build();
 
-    let top_out = &"top.out".to_string();
-    let top_sum = &"top.sum".to_string();
-    let top_counter_out = &"top.counter.out".to_string();
-    let top_counter_counter = &"top.counter.counter".to_string();
+    let top =
+        Circuit::new()
+            .node("out")
+            .reg("sum")
+            .instantiate("counter", &counter)
+            .wire("out", |c| c.terminal("sum"))
+            .wire("sum", |c|
+                Expr::Add(
+                    Box::new(c.terminal("sum")),
+                    Box::new(c.terminal("counter.out")),
+                )
+            )
+            .build();
 
-    nettle.add_node(top_out);
-    nettle.add_reg(top_sum);
-    nettle.add_node(top_counter_out);
-    nettle.add_reg(top_counter_counter);
+    let mut nettle = Nettle::new(&top);
 
-    nettle.add_wire(top_out, &Expr::Terminal(top_sum.clone()));
-    nettle.add_wire(
-        top_sum,
-        &Expr::Add(
-            Box::new(Expr::Terminal(top_sum.clone())),
-            Box::new(Expr::Terminal(top_counter_out.clone())),
-        )
-    );
-    nettle.add_wire(top_counter_out, &Expr::Terminal(top_counter_counter.clone()));
-    nettle.add_wire(
-        top_counter_counter,
-        &Expr::Add(
-            Box::new(Expr::Terminal(top_counter_counter.clone())),
-            Box::new(Expr::Lit(1.into())),
-        )
-    );
-
-    nettle.set(top_sum, 0.into());
-    nettle.set(top_counter_counter, 0.into());
+    nettle.set("top.sum", 0.into());
+    nettle.set("top.counter.counter", 0.into());
     nettle.clock();
 
     for i in 0..16 {
         let triange = (i * (i + 1)) / 2;
-        assert_eq!(nettle.peek(top_out), triange.into());
+        assert_eq!(nettle.peek("top.out"), triange.into());
         nettle.clock();
     }
 }
