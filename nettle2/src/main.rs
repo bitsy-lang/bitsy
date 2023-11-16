@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
+use std::sync::Arc;
 
 type Terminal = String;
 
@@ -30,6 +31,16 @@ pub enum Expr {
     Add(Box<Expr>, Box<Expr>),
 }
 
+fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
+    assert!(terminal.starts_with("top."));
+    format!("{}.{}", top, &terminal[4..])
+}
+
+#[test]
+fn relative_to_test() {
+    assert_eq!(relative_to(&"top.foo".to_string(), &"top.bar".to_string()), "top.foo.bar".to_string())
+}
+
 impl Expr {
     pub fn terminals(&self) -> Vec<Terminal> {
         match self {
@@ -49,6 +60,14 @@ impl Expr {
         self.terminals().contains(terminal)
     }
 
+    pub fn relative_to(self, top: &Terminal) -> Expr {
+        match self {
+            Expr::Terminal(terminal) => Expr::Terminal(relative_to(top, &terminal)),
+            Expr::Lit(_value) => self,
+            Expr::Add(e1, e2) => Expr::Add(Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
+        }
+    }
+
     pub fn eval(&self, nettle: &Nettle) -> Value {
         match self {
             Expr::Terminal(terminal) => nettle.peek(terminal),
@@ -63,7 +82,7 @@ impl Expr {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum TerminalState {
     Node(Value),
     Reg(Value, Value),
@@ -215,6 +234,127 @@ impl Nettle {
     }
 }
 
+#[derive(Debug, Clone)]
+enum TerminalType {
+    Node,
+    Reg,
+}
+
+#[derive(Debug)]
+pub struct CircuitDef {
+    terminals: HashMap<Terminal, TerminalType>,
+    wires: HashMap<Terminal, Expr>,
+    path: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct Circuit(Arc<CircuitDef>);
+
+
+impl Circuit {
+    pub fn new() -> Circuit {
+        Circuit {
+            terminals: HashMap::new(),
+            wires: HashMap::new(),
+            path: vec!["top".to_string()],
+        }
+    }
+}
+
+impl CircuitDef {
+    pub fn module(mut self, path: &str, with_module: impl FnOnce(Self) -> Self) -> Self {
+        self = self.push(path);
+        self = with_module(self);
+        self = self.pop();
+        self
+    }
+
+    fn push(mut self, path: &str) -> Self {
+        self.path.push(path.to_string());
+        self
+    }
+
+    fn pop(mut self) -> Self {
+        self.path.pop();
+        self
+    }
+
+    fn terminal(&self, name: &str) -> Terminal {
+        let path = self.path.join(".");
+        format!("{path}.{name}")
+    }
+
+    pub fn node(mut self, name: &str) -> Self {
+        let terminal = self.terminal(name);
+        self.terminals.insert(terminal, TerminalType::Node);
+        self
+    }
+
+    pub fn reg(mut self, name: &str) -> Self {
+        let terminal = self.terminal(name);
+        self.terminals.insert(terminal, TerminalType::Reg);
+        self
+    }
+
+    pub fn wire(mut self, name: &str, expr: impl FnOnce(&dyn TermLookup) -> Expr) -> Self {
+        let terminal = self.terminal(name);
+        self.wires.insert(terminal, expr(&self));
+        self
+    }
+
+    pub fn instantiate(mut self, name:  &str, circuit: &Circuit) -> Self {
+        self = self.push(name);
+        let path = self.path();
+        eprintln!("{path:?}");
+
+        for (terminal, typ) in &circuit.terminals {
+            let target = relative_to(&path, terminal);
+            self.terminals.insert(target, typ.clone());
+        }
+
+        for (terminal, expr) in &circuit.wires {
+            let target = relative_to(&path, terminal);
+            let expr = expr.clone().relative_to(&path);
+            self.wires.insert(target, expr);
+        }
+        self = self.pop();
+        self
+    }
+
+    fn path(&self) -> Terminal {
+        self.path.join(".")
+    }
+}
+
+pub trait TermLookup {
+    fn terminal(&self, name: &str) -> Expr;
+}
+
+impl TermLookup for Circuit {
+    fn terminal(&self, name: &str) -> Expr {
+        Expr::Terminal(Circuit::terminal(self, name))
+    }
+}
+
+fn main() {
+    let counter =
+        Circuit::new()
+            .node("out")
+            .reg("state")
+            .wire("out", |c| c.terminal("state"))
+            .wire("state", |c| Expr::Add(Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())));
+
+    let top =
+        Circuit::new()
+            .node("in")
+            .node("out")
+            .wire("out", |c| c.terminal("counter.out"))
+            .instantiate("counter1", &counter)
+            .instantiate("counter2", &counter);
+
+    println!("{top:#?}");
+}
+
 #[test]
 fn buffer() {
     let mut nettle = Nettle::new();
@@ -303,29 +443,4 @@ fn triangle_numbers() {
         assert_eq!(nettle.peek(top_out), triange.into());
         nettle.clock();
     }
-}
-
-fn main() {
-    let mut nettle = Nettle::new();
-
-    let term_in = &"in".to_string();
-    let term_out = &"out".to_string();
-    let term_r = &"r".to_string();
-
-    nettle.add_node(term_in);
-    nettle.add_node(term_out);
-    nettle.add_reg(term_r);
-
-    nettle.add_wire(&term_r, &Expr::Terminal(term_in.clone()));
-    nettle.add_wire(&term_out, &Expr::Terminal(term_r.clone()));
-
-    nettle.poke(term_in, true.into());
-    assert_eq!(nettle.peek(term_r), Value::X);
-    assert_eq!(nettle.peek(term_out), Value::X);
-
-    nettle.clock();
-    assert_eq!(nettle.peek(term_r), true.into());
-    assert_eq!(nettle.peek(term_out), true.into());
-
-    println!("{nettle:#?}");
 }
