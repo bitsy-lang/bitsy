@@ -3,24 +3,29 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 type Terminal = String;
+type Width = u64;
 
-#[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Value {
     #[default]
     X,
     Bit(bool),
-    Word(u64),
+    Word(Width, u64),
+}
+
+impl std::fmt::Debug for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Value::X => write!(f, "X"),
+            Value::Bit(b) => write!(f, "{b}"),
+            Value::Word(_w, n) => write!(f, "{n}"),
+        }
+    }
 }
 
 impl From<bool> for Value {
     fn from(x: bool) -> Value {
         Value::Bit(x)
-    }
-}
-
-impl From<u64> for Value {
-    fn from(x: u64) -> Value {
-        Value::Word(x)
     }
 }
 
@@ -95,15 +100,19 @@ impl Expr {
             Expr::Lit(value) => *value,
             Expr::BinOp(op, e1, e2) => {
                 match (op, e1.eval(nettle), e2.eval(nettle)) {
-                    (BinOp::Add, Value::Word(a), Value::Word(b)) => Value::Word(a + b),
-                    (BinOp::Sub, Value::Word(a), Value::Word(b)) => Value::Word(a - b),
-                    (BinOp::And, Value::Word(a), Value::Word(b)) => Value::Word(a & b),
-                    (BinOp::Or, Value::Word(a), Value::Word(b)) => Value::Word(a | b),
+                    (BinOp::Add, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % pow2(w)),
+                    (BinOp::Sub, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % pow2(w)),
+                    (BinOp::And, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a & b),
+                    (BinOp::Or, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a | b),
                     _ => Value::X,
                 }
             },
         }
     }
+}
+
+fn pow2(n: u64) -> u64 {
+    1 << n
 }
 
 #[derive(Debug, Clone)]
@@ -439,7 +448,7 @@ fn main() {
             .node("out")
             .reg("state")
             .wire("out", |c| c.terminal("state"))
-            .wire("state", |c| Expr::BinOp(BinOp::Add, Box::new(c.terminal("state")), Box::new(Expr::Lit(1.into()).into())))
+            .wire("state", |c| Expr::BinOp(BinOp::Add, Box::new(c.terminal("state")), Box::new(Expr::Lit(Value::Word(4, 1)).into())))
             .build();
 
     let top =
@@ -487,19 +496,20 @@ fn counter() {
                   Expr::BinOp(
                       BinOp::Add,
                       Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(1.into())),
+                      Box::new(Expr::Lit(Value::Word(4, 1))),
                   )
             )
             .build();
 
     let mut nettle = Nettle::new(&counter);
 
-    nettle.set("top.counter", 0.into());
+    nettle.set("top.counter", Value::Word(4, 0));
 
     for i in 0..16 {
-        assert_eq!(nettle.peek("top.out"), i.into());
+        assert_eq!(nettle.peek("top.out"), Value::Word(4, i));
         nettle.clock();
     }
+    assert_eq!(nettle.peek("top.out"), Value::Word(4, 0));
 }
 
 #[test]
@@ -513,7 +523,7 @@ fn triangle_numbers() {
                   Expr::BinOp(
                       BinOp::Add,
                       Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(1.into())),
+                      Box::new(Expr::Lit(Value::Word(4, 1))),
                   )
             )
             .build();
@@ -535,13 +545,13 @@ fn triangle_numbers() {
 
     let mut nettle = Nettle::new(&top);
 
-    nettle.set("top.sum", 0.into());
-    nettle.set("top.counter.counter", 0.into());
+    nettle.set("top.sum", Value::Word(32, 0));
+    nettle.set("top.counter.counter", Value::Word(32, 0));
     nettle.clock();
 
     for i in 0..16 {
         let triange = (i * (i + 1)) / 2;
-        assert_eq!(nettle.peek("top.out"), triange.into());
+        assert_eq!(nettle.peek("top.out"), Value::Word(32, triange));
         nettle.clock();
     }
 }
@@ -580,7 +590,7 @@ fn vip() {
                   Expr::BinOp(
                       BinOp::Add,
                       Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(1.into())),
+                      Box::new(Expr::Lit(Value::Word(4, 1))),
                   )
             )
             .build();
@@ -598,7 +608,7 @@ fn vip() {
         Nettle::new(&top)
             .ext("top.vip", monitor);
 
-    nettle.set("top.counter.counter", 0.into());
+    nettle.set("top.counter.counter", Value::Word(4, 0));
     nettle.clock();
     nettle.clock();
     nettle.clock();
