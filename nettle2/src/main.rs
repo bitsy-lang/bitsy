@@ -145,14 +145,14 @@ impl TerminalState {
 
 #[derive(Debug)]
 pub struct Nettle {
-    circuit: Circuit,
+    circuit: Module,
     state: BTreeMap<Terminal, TerminalState>,
     indent: usize,
     debug: bool,
 }
 
 impl Nettle {
-    pub fn new(circuit: &Circuit) -> Nettle {
+    pub fn new(circuit: &Module) -> Nettle {
         let mut state = BTreeMap::new();
         for (terminal, typ) in &circuit.terminals {
             let terminal_state = match typ {
@@ -281,25 +281,25 @@ enum TerminalType {
 }
 
 #[derive(Debug)]
-pub struct CircuitDef {
+pub struct ModuleDef {
     terminals: BTreeMap<Terminal, TerminalType>,
     wires: BTreeMap<Terminal, Expr>,
     path: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Circuit(Arc<CircuitDef>);
+pub struct Module(Arc<ModuleDef>);
 
-impl std::ops::Deref for Circuit {
-    type Target = CircuitDef;
-    fn deref(&self) -> &CircuitDef {
+impl std::ops::Deref for Module {
+    type Target = ModuleDef;
+    fn deref(&self) -> &ModuleDef {
         &self.0
     }
 }
 
-impl Circuit {
-    pub fn new() -> CircuitDef {
-        CircuitDef {
+impl Module {
+    pub fn new() -> ModuleDef {
+        ModuleDef {
             terminals: BTreeMap::new(),
             wires: BTreeMap::new(),
             path: vec!["top".to_string()],
@@ -307,7 +307,7 @@ impl Circuit {
     }
 }
 
-impl CircuitDef {
+impl ModuleDef {
     pub fn module(mut self, path: &str, with_module: impl FnOnce(Self) -> Self) -> Self {
         self = self.push(path);
         self = with_module(self);
@@ -348,7 +348,7 @@ impl CircuitDef {
         self
     }
 
-    pub fn instantiate(mut self, name:  &str, circuit: &CircuitDef) -> Self {
+    pub fn instantiate(mut self, name:  &str, circuit: &ModuleDef) -> Self {
         self = self.push(name);
         let path = self.path();
         eprintln!("{path:?}");
@@ -371,8 +371,8 @@ impl CircuitDef {
         self.path.join(".")
     }
 
-    pub fn build(self) -> Circuit {
-        Circuit(Arc::new(self))
+    pub fn build(self) -> Module {
+        Module(Arc::new(self))
     }
 }
 
@@ -380,15 +380,15 @@ pub trait TermLookup {
     fn terminal(&self, name: &str) -> Expr;
 }
 
-impl TermLookup for CircuitDef {
+impl TermLookup for ModuleDef {
     fn terminal(&self, name: &str) -> Expr {
-        Expr::Terminal(CircuitDef::terminal(self, name))
+        Expr::Terminal(ModuleDef::terminal(self, name))
     }
 }
 
 fn main() {
     let counter =
-        Circuit::new()
+        Module::new()
             .node("out")
             .reg("state")
             .wire("out", |c| c.terminal("state"))
@@ -396,7 +396,7 @@ fn main() {
             .build();
 
     let top =
-        Circuit::new()
+        Module::new()
             .node("in")
             .node("out")
             .wire("out", |c| c.terminal("counter.out"))
@@ -410,7 +410,7 @@ fn main() {
 #[test]
 fn buffer() {
     let buffer =
-        Circuit::new()
+        Module::new()
             .node("in")
             .reg("r")
             .node("out")
@@ -432,7 +432,7 @@ fn buffer() {
 #[test]
 fn counter() {
     let counter =
-        Circuit::new()
+        Module::new()
             .node("out")
             .reg("counter")
             .wire("out", |c| c.terminal("counter"))
@@ -458,7 +458,7 @@ fn counter() {
 #[test]
 fn triangle_numbers() {
     let counter =
-        Circuit::new()
+        Module::new()
             .node("out")
             .reg("counter")
             .wire("out", |c| c.terminal("counter"))
@@ -472,7 +472,7 @@ fn triangle_numbers() {
             .build();
 
     let top =
-        Circuit::new()
+        Module::new()
             .node("out")
             .reg("sum")
             .instantiate("counter", &counter)
