@@ -50,7 +50,7 @@ impl std::fmt::Debug for Expr {
                 let op_symbol = match op {
                     UnOp::Not => "!",
                 };
-                write!(f, "({op_symbol} {e:?})")
+                write!(f, "({op_symbol}{e:?})")
             },
             Expr::BinOp(op, e1, e2) => {
                 let op_symbol = match op {
@@ -716,6 +716,7 @@ fn test_parse() {
         "(a || b)",
         "(a == b)",
         "(a != b)",
+        "(!a)",
     ];
     for e in exprs {
         let expr: Expr = e.into();
