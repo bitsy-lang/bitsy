@@ -559,37 +559,24 @@ pub fn parse_mod(circuit: &str) -> Module {
 }
 
 fn main() {
-    let top = parse_mod("
-        mod top {
-            node out;
-            mod counter1 {
-                node out;
-                reg state;
-                state <= state + 1w4;
-                out <= state;
-            }
-            mod counter2 {
-                node out;
-                reg state;
-                state <= state + 1w4;
-                out <= state;
-            }
-            out <= counter1.out + counter2.out;
-        }
-    ");
+    let argv: Vec<String> = std::env::args().collect();
+    let default = "Top.nettle".to_string();
+    let filename = argv.get(1).unwrap_or(&default);
+    let text = std::fs::read_to_string(filename).unwrap();
 
-    let mut nettle = Nettle::new(&top);
-    nettle.set("top.counter1.state", Value::Word(4, 0));
-    nettle.set("top.counter2.state", Value::Word(4, 0));
+    let top = parse_mod(&text);
+    let monitor = Box::new(Monitor::new());
 
-    dbg!(&nettle);
-    nettle.clock();
-    dbg!(&nettle);
-    nettle.clock();
-    dbg!(&nettle);
-    nettle.clock();
-    dbg!(&nettle);
-    nettle.clock();
+    let mut nettle =
+        Nettle::new(&top)
+            .ext("top.vip", monitor);
+
+    nettle.set("top.counter.counter", Value::Word(4, 0));
+
+    loop {
+        nettle.clock();
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
 }
 
 #[test]
