@@ -29,12 +29,30 @@ impl From<bool> for Value {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum Expr {
     Terminal(Terminal),
     Lit(Value),
     //UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
+}
+
+impl std::fmt::Debug for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Expr::Terminal(terminal) => write!(f, "{terminal}"),
+            Expr::Lit(val) => write!(f, "{val:?}"),
+            Expr::BinOp(op, e1, e2) => {
+                let op_symbol = match op {
+                    BinOp::Add => "+",
+                    BinOp::Sub => "-",
+                    BinOp::And => "&",
+                    BinOp::Or => "|",
+                };
+                write!(f, "({e1:?} {op_symbol} {e2:?})")
+            },
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -165,7 +183,6 @@ pub trait ExtInstance: std::fmt::Debug {
     fn clock(&mut self) {}
 }
 
-#[derive(Debug)]
 pub struct Nettle {
     circuit: Module,
     state: BTreeMap<Terminal, TerminalState>,
@@ -318,6 +335,31 @@ impl Nettle {
     }
 }
 
+impl std::fmt::Debug for Nettle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        writeln!(f)?;
+        writeln!(f, "State:")?;
+        let mut states: Vec<(_, _)> = self.state.iter().collect();
+        states.sort_by_key(|(terminal, _)| terminal.to_string());
+        states = states.into_iter().rev().collect();
+        for (terminal, state) in states {
+            match state {
+                TerminalState::Node(val) => writeln!(f, "    {:>4}  {terminal}", format!("{val:?}"))?,
+                TerminalState::Reg(set, val) => {
+                    writeln!(f, "    {:>4}  {terminal}.set", format!("{set:?}"))?;
+                    writeln!(f, "    {:>4}  {terminal}.val", format!("{val:?}"))?;
+                },
+            }
+        }
+        writeln!(f, "Wires:")?;
+        for (terminal, expr) in &self.circuit.wires {
+            writeln!(f, "    {terminal:<25} <= {expr:?}")?;
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 enum TerminalType {
     Node,
@@ -453,14 +495,24 @@ fn main() {
 
     let top =
         Module::new()
-            .node("in")
             .node("out")
-            .wire("out", |c| c.terminal("counter.out"))
+            .wire("out", |c| c.terminal("counter1.out"))
             .instantiate("counter1", &counter)
             .instantiate("counter2", &counter)
             .build();
 
-    println!("{top:#?}");
+    let mut nettle = Nettle::new(&top);
+    nettle.set("top.counter1.state", Value::Word(4, 0));
+    nettle.set("top.counter2.state", Value::Word(4, 0));
+
+    dbg!(&nettle);
+    nettle.clock();
+    dbg!(&nettle);
+    nettle.clock();
+    dbg!(&nettle);
+    nettle.clock();
+    dbg!(&nettle);
+    nettle.clock();
 }
 
 #[test]
