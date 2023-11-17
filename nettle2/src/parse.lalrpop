@@ -23,7 +23,7 @@ pub Mod: Mod = {
 
 pub ModDecl: ModDecl  = {
     "node" <id:Id> ";" => ModDecl::Node(id),
-    "reg" <id:Id> ";" => ModDecl::Reg(id),
+    "reg" <id:Id> <reset_val:("reset" Value)?> ";" => ModDecl::Reg(id, reset_val.map(|opt| opt.1).unwrap_or(Value::X)),
     "ext" <id:Id> "{"
         <nodes:("node" Id ";")+>
     "}" => {

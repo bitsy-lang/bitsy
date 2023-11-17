@@ -24,7 +24,7 @@ struct Mod(String, Vec<ModDecl>);
 #[derive(Debug)]
 enum ModDecl {
     Node(String),
-    Reg(String),
+    Reg(String, Value),
     Mod(Mod),
     Wire(Terminal, Expr),
     Ext(String, Vec<String>),
@@ -283,6 +283,7 @@ pub trait ExtInstance: std::fmt::Debug {
     fn peek(&mut self, port: &str) -> Value { panic!(); }
     fn poke(&mut self, port: &str, value: Value) -> Vec<&str> { panic!(); }
     fn clock(&mut self) {}
+    fn reset(&mut self) {}
 }
 
 pub struct Nettle {
@@ -299,7 +300,7 @@ impl Nettle {
         for (terminal, typ) in &circuit.terminals {
             let terminal_state = match typ {
                 TerminalType::Node => TerminalState::Node(Value::X),
-                TerminalType::Reg => TerminalState::Reg(Value::X, Value::X),
+                TerminalType::Reg(_reset) => TerminalState::Reg(Value::X, Value::X),
             };
             state.insert(terminal.to_string(), terminal_state);
         }
@@ -328,7 +329,7 @@ impl Nettle {
     }
 
     pub fn peek(&self, terminal: &str) -> Value {
-        assert!(self.terminals().contains(&terminal.to_string()));
+        assert!(self.terminals().contains(&terminal.to_string()), "Terminal does not exist: {terminal}");
         let value = self.state[terminal].peek();
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
@@ -461,6 +462,46 @@ impl Nettle {
             self.indent -= 1;
         }
     }
+
+    pub fn reset(&mut self) {
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}reset()");
+            self.indent += 1;
+        }
+
+        for terminal in self.terminals() {
+            let state = self.state.get_mut(&terminal).unwrap();
+            match self.circuit.terminals.get(&terminal).unwrap() {
+                TerminalType::Node => (),
+                TerminalType::Reg(reset) => {
+                    if *reset != Value::X {
+                        if self.debug {
+                            let padding = " ".repeat(self.indent * 4);
+                            eprintln!("{padding}register reset: {terminal} {state:?}");
+                        }
+                        self.set(&terminal, *reset);
+                    }
+                },
+            }
+        }
+
+        for (path, ext) in &mut self.exts {
+            ext.clock();
+            if self.debug {
+                let padding = " ".repeat(self.indent * 4);
+                eprintln!("{padding}ext clocked: {path}");
+            }
+        }
+
+        for reg in self.terminals() {
+            self.update(&reg);
+        }
+
+        if self.debug {
+            self.indent -= 1;
+        }
+    }
 }
 
 impl std::fmt::Debug for Nettle {
@@ -490,7 +531,7 @@ impl std::fmt::Debug for Nettle {
 #[derive(Debug, Clone)]
 enum TerminalType {
     Node,
-    Reg,
+    Reg(Value),
 }
 
 #[derive(Debug)]
@@ -551,9 +592,9 @@ impl ModuleDef {
         self
     }
 
-    pub fn reg(mut self, name: &str) -> Self {
+    pub fn reg(mut self, name: &str, reset: Value) -> Self {
         let terminal = self.terminal(name);
-        self.terminals.insert(terminal, TerminalType::Reg);
+        self.terminals.insert(terminal, TerminalType::Reg(reset));
         self
     }
 
@@ -618,7 +659,7 @@ fn mod_to_module(m: Mod) -> ModuleDef {
     for decl in decls {
         match decl {
             ModDecl::Node(name) => module = module.node(&name),
-            ModDecl::Reg(name) => module = module.reg(&name),
+            ModDecl::Reg(name, reset) => module = module.reg(&name, reset),
             ModDecl::Mod(subodule) => {
                 let name = subodule.0.to_string();
                 module = module.instantiate(&name, &mod_to_module(subodule))
@@ -662,31 +703,44 @@ fn main() {
         Nettle::new(&top)
             .ext("top.vip", monitor);
 
+    let verbose = true;
     for command in &tb.0 {
         match command {
             TestbenchCommand::Peek(terminal) => {
-                println!("PEEK {terminal} => {:?}", nettle.peek(terminal));
+                let value = nettle.peek(terminal);
+                if verbose {
+                    println!("PEEK {terminal} => {value:?}");
+                }
             },
             TestbenchCommand::Poke(terminal, value) => {
-                println!("POKE {terminal} <= {value:?}");
                 nettle.poke(terminal, *value);
+                if verbose {
+                    println!("POKE {terminal} <= {value:?}");
+                }
             },
             TestbenchCommand::Set(terminal, value) => {
-                println!("SET {terminal} = {value:?}");
                 nettle.set(terminal, *value);
+                if verbose {
+                    println!("SET {terminal} = {value:?}");
+                }
             },
             TestbenchCommand::Clock => {
-                println!("CLOCK");
                 nettle.clock();
+                if verbose {
+                    println!("CLOCK");
+                }
             }
             TestbenchCommand::Reset => {
-                // nettle.reset();
-                println!("RESET");
-                todo!();
+                nettle.reset();
+                if verbose {
+                    println!("RESET");
+                }
             }
             TestbenchCommand::Debug => {
-                println!("DEBUG");
                 println!("{nettle:#?}");
+                if verbose {
+                    println!("DEBUG");
+                }
             }
         }
     }
