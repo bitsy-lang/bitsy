@@ -2,6 +2,19 @@ use super::*;
 
 grammar;
 
+pub Testbench: Testbench = {
+    <commands:TestbenchCommand*> => Testbench(commands),
+}
+
+pub TestbenchCommand: TestbenchCommand = {
+    "peek" <terminal:Terminal> => TestbenchCommand::Peek(terminal),
+    "poke" <terminal:Terminal> <value:Value> => TestbenchCommand::Poke(terminal, value),
+    "set" <terminal:Terminal> <value:Value> => TestbenchCommand::Poke(terminal, value),
+    "clock" => TestbenchCommand::Clock,
+    "reset" => TestbenchCommand::Reset,
+    "debug" => TestbenchCommand::Debug,
+}
+
 pub Mod: Mod = {
     "mod" <id:Id> "{"
         <decls:ModDecl*>
@@ -69,19 +82,23 @@ pub ExprIf: Box<Expr> = {
 }
 
 pub ExprLit: Box<Expr> = {
-    "X" => Box::new(Expr::Lit(Value::X)),
-    "true" => Box::new(Expr::Lit(Value::Bit(true))),
-    "false" => Box::new(Expr::Lit(Value::Bit(false))),
-    <lit:r"[0-9]+w[0-9]+"> => {
-        let parts = lit.split("w").collect::<Vec<_>>();
-        let v = parts[0].parse().unwrap();
-        let width = parts[1].parse().unwrap();
-        Box::new(Expr::Lit(Value::Word(width, v)))
-    },
+    <v:Value> => Box::new(Expr::Lit(v)),
 }
 
 pub ExprTerminal: Box<Expr> = {
      <id:Terminal> => Box::new(Expr::Terminal(id))
+}
+
+pub Value: Value = {
+    "X" => Value::X,
+    "true" => Value::Bit(true),
+    "false" => Value::Bit(false),
+    <lit:r"[0-9]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = parts[0].parse().unwrap();
+        let width = parts[1].parse().unwrap();
+        Value::Word(width, v)
+    },
 }
 
 pub Nat: u64 = {

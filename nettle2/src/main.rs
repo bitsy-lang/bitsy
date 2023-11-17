@@ -7,6 +7,19 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(parse);
 
 #[derive(Debug)]
+pub struct Testbench(Vec<TestbenchCommand>);
+
+#[derive(Debug)]
+pub enum TestbenchCommand {
+    Peek(Terminal),
+    Poke(Terminal, Value),
+    Set(Terminal, Value),
+    Clock,
+    Reset,
+    Debug,
+}
+
+#[derive(Debug)]
 struct Mod(String, Vec<ModDecl>);
 #[derive(Debug)]
 enum ModDecl {
@@ -406,7 +419,6 @@ impl Nettle {
 
 impl std::fmt::Debug for Nettle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        writeln!(f)?;
         writeln!(f, "State:")?;
         let mut states: Vec<(_, _)> = self.state.iter().collect();
         states.sort_by_key(|(terminal, _)| terminal.to_string());
@@ -580,11 +592,22 @@ pub fn parse_mod(circuit: &str) -> Module {
     mod_to_module(m).build()
 }
 
+pub fn parse_testbench(testbench: &str) -> Testbench {
+    parse::TestbenchParser::new().parse(testbench).unwrap()
+}
+
+fn read_testbench_file(filename: &str) -> Testbench {
+    let text = std::fs::read_to_string(filename).unwrap();
+    parse_testbench(&text)
+}
+
 fn main() {
     let argv: Vec<String> = std::env::args().collect();
     let default = "Top.nettle".to_string();
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap();
+
+    let tb = read_testbench_file("Top.tb");
 
     let top = parse_mod(&text);
     let monitor = Box::new(Monitor::new());
@@ -593,11 +616,33 @@ fn main() {
         Nettle::new(&top)
             .ext("top.vip", monitor);
 
-    nettle.set("top.counter.counter", Value::Word(4, 0));
-
-    loop {
-        nettle.clock();
-        std::thread::sleep(std::time::Duration::from_millis(1));
+    for command in &tb.0 {
+        match command {
+            TestbenchCommand::Peek(terminal) => {
+                println!("PEEK {terminal} => {:?}", nettle.peek(terminal));
+            },
+            TestbenchCommand::Poke(terminal, value) => {
+                println!("POKE {terminal} <= {value:?}");
+                nettle.poke(terminal, *value);
+            },
+            TestbenchCommand::Set(terminal, value) => {
+                println!("SET {terminal} = {value:?}");
+                nettle.set(terminal, *value);
+            },
+            TestbenchCommand::Clock => {
+                println!("CLOCK");
+                nettle.clock();
+            }
+            TestbenchCommand::Reset => {
+                // nettle.reset();
+                println!("RESET");
+                todo!();
+            }
+            TestbenchCommand::Debug => {
+                println!("DEBUG");
+                println!("{nettle:#?}");
+            }
+        }
     }
 }
 

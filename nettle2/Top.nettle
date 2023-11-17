@@ -1,0 +1,5 @@
+mod top {
+    node in;
+    node out;
+    out <= in;
+}
