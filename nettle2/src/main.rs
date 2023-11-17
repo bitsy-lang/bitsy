@@ -1,10 +1,19 @@
 #![allow(dead_code)]
 
-use lalrpop_util::lalrpop_mod;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-lalrpop_mod!(pub parser);
+use lalrpop_util::lalrpop_mod;
+lalrpop_mod!(parse);
+
+#[derive(Debug)]
+struct Mod(Vec<ModDecl>, Vec<Wire>, Vec<Ext>);
+#[derive(Debug)]
+struct ModDecl(String, TerminalType);
+#[derive(Debug)]
+struct Wire(Terminal, Expr);
+#[derive(Debug)]
+struct Ext(String, Vec<String>);
 
 type Terminal = String;
 type Width = u64;
@@ -518,14 +527,40 @@ impl TermLookup for ModuleDef {
     }
 }
 
+pub fn parse_mod(circuit: &str) -> Module {
+    let Mod(decls, wires, exts) = parse::ModParser::new().parse(circuit).unwrap();
+    let mut module = Module::new();
+
+    for ModDecl(name, typ) in decls {
+        match typ {
+            TerminalType::Node => module = module.node(&name),
+            TerminalType::Reg => module = module.reg(&name),
+        }
+    }
+
+    for Wire(terminal, expr) in wires {
+        module = module.wire(&terminal, &expr);
+    }
+
+    for Ext(name, terminals) in exts {
+        let terminals: Vec<_> = terminals.iter().map(|s| s.as_str()).collect();
+        module = module.ext(&name, &terminals);
+    }
+
+    module.build()
+}
+
 fn main() {
-    let counter =
-        Module::new()
-            .node("out")
-            .reg("state")
-            .wire("out", &"state".into())
-            .wire("state", &"state + 1w4".into())
-            .build();
+    let counter = "
+        mod {
+            node out;
+            reg state;
+            state <= state + 1w4;
+            out <= state;
+        }
+    ";
+
+    let counter = parse_mod(counter);
 
     let top =
         Module::new()
@@ -551,14 +586,15 @@ fn main() {
 
 #[test]
 fn buffer() {
-    let buffer =
-        Module::new()
-            .node("in")
-            .reg("r")
-            .node("out")
-            .wire("r", &"in".into())
-            .wire("out", &"r".into())
-            .build();
+    let buffer = parse_mod("
+        mod {
+            node in;
+            reg r;
+            node out;
+            r <= in;
+            out <= r;
+        }
+    ");
 
     let mut nettle = Nettle::new(&buffer);
 
@@ -573,13 +609,14 @@ fn buffer() {
 
 #[test]
 fn counter() {
-    let counter =
-        Module::new()
-            .node("out")
-            .reg("counter")
-            .wire("out", &"counter".into())
-            .wire("counter", &"counter + 1w4".into())
-            .build();
+    let counter = parse_mod("
+        mod {
+            node out;
+            reg counter;
+            out <= counter;
+            counter <= counter + 1w4;
+        }
+    ");
 
     let mut nettle = Nettle::new(&counter);
 
@@ -594,13 +631,14 @@ fn counter() {
 
 #[test]
 fn triangle_numbers() {
-    let counter =
-        Module::new()
-            .node("out")
-            .reg("counter")
-            .wire("out", &"counter".into())
-            .wire("counter", &"counter + 1w4".into())
-            .build();
+    let counter = parse_mod("
+        mod {
+            node out;
+            reg counter;
+            out <= counter;
+            counter <= counter + 1w4;
+        }
+    ");
 
     let top =
         Module::new()
@@ -679,7 +717,7 @@ fn vip() {
 
 impl From<&str> for Expr {
     fn from(expr: &str) -> Expr {
-        *parser::ExprParser::new().parse(expr).unwrap()
+        *parse::ExprParser::new().parse(expr).unwrap()
     }
 }
 

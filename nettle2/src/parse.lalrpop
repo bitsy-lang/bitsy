@@ -2,6 +2,25 @@ use super::*;
 
 grammar;
 
+pub Mod: Mod = {
+    "mod" "{"
+        <decls:ModDecl*>
+        <wires:Wire*>
+    "}" => {
+        let exts = vec![];
+        Mod(decls, wires, exts)
+    },
+}
+
+pub ModDecl: ModDecl  = {
+    "node" <id:Id> ";" => ModDecl(id, TerminalType::Node),
+    "reg" <id:Id> ";" => ModDecl(id, TerminalType::Reg),
+}
+
+pub Wire: Wire = {
+    <terminal:Terminal> "<=" <e:Expr> ";" => Wire(terminal, *e),
+}
+
 pub Expr: Box<Expr> = {
     <e:ExprOr> => e,
 }
