@@ -3,11 +3,33 @@ use super::*;
 grammar;
 
 pub Expr: Box<Expr> = {
+    <e:ExprOr> => e,
+}
+
+pub ExprOr: Box<Expr> = {
+    <e1:ExprAnd> "||" <e2:ExprOr> => Box::new(Expr::BinOp(BinOp::Or, e1, e2)),
+    <e:ExprAnd> => e,
+}
+
+pub ExprAnd: Box<Expr> = {
+    <e1:ExprNot> "&&" <e2:ExprAnd> => Box::new(Expr::BinOp(BinOp::And, e1, e2)),
+    <e:ExprNot> => e,
+}
+
+pub ExprNot: Box<Expr> = {
+    "!" <e:ExprEq> => Box::new(Expr::UnOp(UnOp::Not, e)),
+    <e:ExprEq> => e,
+}
+
+pub ExprEq: Box<Expr> = {
+    <e1:ExprAdd> "==" <e2:ExprEq> => Box::new(Expr::BinOp(BinOp::Eq,  e1, e2)),
+    <e1:ExprAdd> "!=" <e2:ExprEq> => Box::new(Expr::BinOp(BinOp::Neq, e1, e2)),
     <e:ExprAdd> => e,
 }
 
 pub ExprAdd: Box<Expr> = {
     <e1:ExprBase> "+" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Add, e1, e2)),
+    <e1:ExprBase> "-" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Sub, e1, e2)),
     <e:ExprBase> => e,
 }
 

@@ -37,7 +37,7 @@ impl From<bool> for Value {
 pub enum Expr {
     Terminal(Terminal),
     Lit(Value),
-    //UnOp(UnOp, Box<Expr>),
+    UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
 }
 
@@ -46,12 +46,20 @@ impl std::fmt::Debug for Expr {
         match self {
             Expr::Terminal(terminal) => write!(f, "{terminal}"),
             Expr::Lit(val) => write!(f, "{val:?}"),
+            Expr::UnOp(op, e) => {
+                let op_symbol = match op {
+                    UnOp::Not => "!",
+                };
+                write!(f, "({op_symbol} {e:?})")
+            },
             Expr::BinOp(op, e1, e2) => {
                 let op_symbol = match op {
                     BinOp::Add => "+",
                     BinOp::Sub => "-",
-                    BinOp::And => "&",
-                    BinOp::Or => "|",
+                    BinOp::And => "&&",
+                    BinOp::Or => "||",
+                    BinOp::Eq => "==",
+                    BinOp::Neq => "!=",
                 };
                 write!(f, "({e1:?} {op_symbol} {e2:?})")
             },
@@ -62,7 +70,6 @@ impl std::fmt::Debug for Expr {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UnOp {
     Not,
-    Inc,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -71,6 +78,8 @@ pub enum BinOp {
     Sub,
     And,
     Or,
+    Eq,
+    Neq,
 }
 
 fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
@@ -94,6 +103,12 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => vec![terminal.clone()],
             Expr::Lit(_value) => vec![],
+            Expr::UnOp(_op, e) => {
+                let mut result = e.terminals();
+                result.sort();
+                result.dedup();
+                result
+            }
             Expr::BinOp(_op, e1, e2) => {
                 let mut result = e1.terminals();
                 result.extend(e2.terminals());
@@ -112,6 +127,7 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => Expr::Terminal(relative_to(top, &terminal)),
             Expr::Lit(_value) => self,
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
         }
     }
@@ -120,12 +136,22 @@ impl Expr {
         match self {
             Expr::Terminal(terminal) => nettle.peek(terminal),
             Expr::Lit(value) => *value,
+            Expr::UnOp(op, e) => {
+                match (op, e.eval(nettle)) {
+                    (UnOp::Not, Value::Bit(b)) => Value::Bit(!b),
+                    _ => Value::X,
+                }
+            },
             Expr::BinOp(op, e1, e2) => {
                 match (op, e1.eval(nettle), e2.eval(nettle)) {
-                    (BinOp::Add, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % pow2(w)),
-                    (BinOp::Sub, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % pow2(w)),
-                    (BinOp::And, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a & b),
-                    (BinOp::Or, Value::Word(w, a), Value::Word(_w, b)) => Value::Word(w, a | b),
+                    (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % pow2(w)),
+                    (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % pow2(w)),
+                    (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
+                    (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
+                    (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a == b),
+                    (BinOp::Neq, Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a != b),
+                    (BinOp::Eq,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
+                    (BinOp::Neq, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
                     _ => Value::X,
                 }
             },
@@ -686,6 +712,10 @@ fn test_parse() {
         "false",
         "X",
         "(a + b)",
+        "(a && b)",
+        "(a || b)",
+        "(a == b)",
+        "(a != b)",
     ];
     for e in exprs {
         let expr: Expr = e.into();
