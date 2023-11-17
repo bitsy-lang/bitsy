@@ -123,23 +123,13 @@ pub enum BinOp {
 }
 
 fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
-    if terminal.starts_with("top.") {
-        format!("{}.{}", top, &terminal[4..])
-    } else {
-        format!("{}.{}", top, &terminal)
-    }
+    format!("{}.{}", top, &terminal)
 }
 
 fn parent_of(terminal: &Terminal) -> Terminal {
     let mut path_parts: Vec<&str> = terminal.split('.').collect();
     path_parts.pop();
     path_parts.join(".")
-}
-
-#[test]
-fn relative_to_test() {
-    assert_eq!(relative_to(&"top.foo".to_string(), &"top.bar".to_string()), "top.foo.bar".to_string());
-    assert_eq!(relative_to(&"top.foo".to_string(), &"bar".to_string()), "top.foo.bar".to_string());
 }
 
 impl Expr {
@@ -553,11 +543,11 @@ impl std::ops::Deref for Module {
 }
 
 impl Module {
-    pub fn new() -> ModuleDef {
+    pub fn new(name: &str) -> ModuleDef {
         ModuleDef {
             terminals: BTreeMap::new(),
             wires: BTreeMap::new(),
-            path: vec!["top".to_string()],
+            path: vec![name.to_string()],
             exts: vec![],
         }
     }
@@ -605,8 +595,8 @@ impl ModuleDef {
     }
 
     pub fn instantiate(mut self, name:  &str, circuit: &ModuleDef) -> Self {
-        self = self.push(name);
         let path = self.path();
+        self = self.push(name);
 
         for (terminal, typ) in &circuit.terminals {
             let target = relative_to(&path, terminal);
@@ -653,8 +643,8 @@ impl TermLookup for ModuleDef {
 }
 
 fn mod_to_module(m: Mod) -> ModuleDef {
-    let Mod(_name, decls) = m;
-    let mut module = Module::new();
+    let Mod(name, decls) = m;
+    let mut module = Module::new(&name);
 
     for decl in decls {
         match decl {
@@ -674,8 +664,8 @@ fn mod_to_module(m: Mod) -> ModuleDef {
     module
 }
 
-pub fn parse_mod(circuit: &str) -> Module {
-    let m = parse::ModParser::new().parse(circuit).unwrap();
+pub fn parse_top(circuit: &str) -> Module {
+    let m = parse::TopParser::new().parse(circuit).unwrap();
     mod_to_module(m).build()
 }
 
@@ -683,9 +673,26 @@ pub fn parse_testbench(testbench: &str) -> Testbench {
     parse::TestbenchParser::new().parse(testbench).unwrap()
 }
 
-fn read_testbench_file(filename: &str) -> Testbench {
-    let text = std::fs::read_to_string(filename).unwrap();
-    parse_testbench(&text)
+fn read_testbench_file(filename: &str) -> Option<Testbench> {
+    if let Ok(text) = std::fs::read_to_string(filename) {
+        Some(parse_testbench(&text))
+    } else {
+        None
+    }
+}
+
+fn testbench_for(filename: &str) -> Option<String> {
+    let path = std::path::Path::new(filename);
+    let parent: &std::path::Path = path.parent().unwrap();
+    let file = format!("{}.tb", path.file_stem().unwrap().to_str().unwrap());
+    let tb_filename = parent.join(file).into_os_string().into_string().unwrap();
+    let exists = std::fs::metadata(&tb_filename).map(|metadata| metadata.is_file()).unwrap_or(false);
+
+    if exists {
+        Some(tb_filename)
+    } else {
+        None
+    }
 }
 
 fn main() {
@@ -694,9 +701,15 @@ fn main() {
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap();
 
-    let tb = read_testbench_file("Top.tb");
+    let tb = if let Some(tb_filename) = testbench_for(filename) {
+        println!("Using testbench file: {tb_filename}");
+        read_testbench_file(&tb_filename).unwrap()
+    } else {
+        println!("No testbench file");
+        Testbench(vec![TestbenchCommand::Debug])
+    };
 
-    let top = parse_mod(&text);
+    let top = parse_top(&text);
     let monitor = Box::new(Monitor::new());
 
     let mut nettle =
@@ -707,40 +720,41 @@ fn main() {
     for command in &tb.0 {
         match command {
             TestbenchCommand::Peek(terminal) => {
+                print!("PEEK {terminal} ");
                 let value = nettle.peek(terminal);
                 if verbose {
-                    println!("PEEK {terminal} => {value:?}");
+                    println!("=> {value:?}");
                 }
             },
             TestbenchCommand::Poke(terminal, value) => {
-                nettle.poke(terminal, *value);
                 if verbose {
                     println!("POKE {terminal} <= {value:?}");
                 }
+                nettle.poke(terminal, *value);
             },
             TestbenchCommand::Set(terminal, value) => {
-                nettle.set(terminal, *value);
                 if verbose {
                     println!("SET {terminal} = {value:?}");
                 }
+                nettle.set(terminal, *value);
             },
             TestbenchCommand::Clock => {
-                nettle.clock();
                 if verbose {
                     println!("CLOCK");
                 }
+                nettle.clock();
             }
             TestbenchCommand::Reset => {
-                nettle.reset();
                 if verbose {
                     println!("RESET");
                 }
+                nettle.reset();
             }
             TestbenchCommand::Debug => {
-                println!("{nettle:#?}");
                 if verbose {
                     println!("DEBUG");
                 }
+                println!("{nettle:#?}");
             }
         }
     }
@@ -748,8 +762,8 @@ fn main() {
 
 #[test]
 fn buffer() {
-    let buffer = parse_mod("
-        mod buffer {
+    let buffer = parse_top("
+        top {
             node in;
             reg r;
             node out;
@@ -771,8 +785,8 @@ fn buffer() {
 
 #[test]
 fn counter() {
-    let counter = parse_mod("
-        mod counter {
+    let counter = parse_top("
+        top {
             node out;
             reg counter;
             out <= counter;
@@ -793,8 +807,8 @@ fn counter() {
 
 #[test]
 fn triangle_numbers() {
-    let top = parse_mod("
-        mod top {
+    let top = parse_top("
+        top {
             node out;
             reg sum;
             mod counter {
@@ -846,8 +860,8 @@ impl ExtInstance for Monitor {
 
 #[test]
 fn vip() {
-    let top = parse_mod("
-        mod top {
+    let top = parse_top("
+        top {
             mod counter {
                 node out;
                 reg counter;
@@ -878,8 +892,8 @@ fn vip() {
 
 #[test]
 fn ifs() {
-    let top = parse_mod("
-        mod top {
+    let top = parse_top("
+        top {
             node out;
             node in;
 

@@ -15,6 +15,12 @@ pub TestbenchCommand: TestbenchCommand = {
     "debug" => TestbenchCommand::Debug,
 }
 
+pub Top: Mod = {
+    "top" "{"
+        <decls:ModDecl*>
+    "}" => Mod("top".to_string(), decls),
+}
+
 pub Mod: Mod = {
     "mod" <id:Id> "{"
         <decls:ModDecl*>

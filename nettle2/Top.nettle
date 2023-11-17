@@ -1,5 +1,18 @@
-mod top {
-    node in;
-    node out;
-    out <= in;
+top {
+    reg counter reset 0w2;
+    counter <= counter + 1w4;
+
+    vip.in <= counter;
+
+    node exit;
+
+    exit <= if counter !=  15w4 {
+        X
+    } else {
+        ?
+    };
+
+    ext vip {
+        node in;
+    }
 }
