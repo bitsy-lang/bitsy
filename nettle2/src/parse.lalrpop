@@ -3,22 +3,22 @@ use super::*;
 grammar;
 
 pub Mod: Mod = {
-    "mod" "{"
+    "mod" <id:Id> "{"
         <decls:ModDecl*>
-        <wires:Wire*>
-    "}" => {
-        let exts = vec![];
-        Mod(decls, wires, exts)
-    },
+    "}" => Mod(id, decls),
 }
 
 pub ModDecl: ModDecl  = {
-    "node" <id:Id> ";" => ModDecl(id, TerminalType::Node),
-    "reg" <id:Id> ";" => ModDecl(id, TerminalType::Reg),
-}
-
-pub Wire: Wire = {
-    <terminal:Terminal> "<=" <e:Expr> ";" => Wire(terminal, *e),
+    "node" <id:Id> ";" => ModDecl::Node(id),
+    "reg" <id:Id> ";" => ModDecl::Reg(id),
+    "ext" <id:Id> "{"
+        <nodes:("node" Id ";")+>
+    "}" => {
+        let names: Vec<String> = nodes.into_iter().map(|(_, name, _)| name).collect();
+        ModDecl::Ext(id, names)
+    },
+    <m:Mod> => ModDecl::Mod(m),
+    <terminal:Terminal> "<=" <e:Expr> ";" => ModDecl::Wire(terminal, *e),
 }
 
 pub Expr: Box<Expr> = {

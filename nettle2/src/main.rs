@@ -7,11 +7,15 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(parse);
 
 #[derive(Debug)]
-struct Mod(Vec<ModDecl>, Vec<Wire>, Vec<Ext>);
+struct Mod(String, Vec<ModDecl>);
 #[derive(Debug)]
-struct ModDecl(String, TerminalType);
-#[derive(Debug)]
-struct Wire(Terminal, Expr);
+enum ModDecl {
+    Node(String),
+    Reg(String),
+    Mod(Mod),
+    Wire(Terminal, Expr),
+    Ext(String, Vec<String>),
+}
 #[derive(Debug)]
 struct Ext(String, Vec<String>);
 
@@ -527,48 +531,52 @@ impl TermLookup for ModuleDef {
     }
 }
 
-pub fn parse_mod(circuit: &str) -> Module {
-    let Mod(decls, wires, exts) = parse::ModParser::new().parse(circuit).unwrap();
+fn mod_to_module(m: Mod) -> ModuleDef {
+    let Mod(_name, decls) = m;
     let mut module = Module::new();
 
-    for ModDecl(name, typ) in decls {
-        match typ {
-            TerminalType::Node => module = module.node(&name),
-            TerminalType::Reg => module = module.reg(&name),
+    for decl in decls {
+        match decl {
+            ModDecl::Node(name) => module = module.node(&name),
+            ModDecl::Reg(name) => module = module.reg(&name),
+            ModDecl::Mod(subodule) => {
+                let name = subodule.0.to_string();
+                module = module.instantiate(&name, &mod_to_module(subodule))
+            },
+            ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
+            ModDecl::Ext(name, terminals) => {
+                let terminals: Vec<_> = terminals.iter().map(|s| s.as_str()).collect();
+                module = module.ext(&name, &terminals)
+            },
         }
     }
+    module
+}
 
-    for Wire(terminal, expr) in wires {
-        module = module.wire(&terminal, &expr);
-    }
-
-    for Ext(name, terminals) in exts {
-        let terminals: Vec<_> = terminals.iter().map(|s| s.as_str()).collect();
-        module = module.ext(&name, &terminals);
-    }
-
-    module.build()
+pub fn parse_mod(circuit: &str) -> Module {
+    let m = parse::ModParser::new().parse(circuit).unwrap();
+    mod_to_module(m).build()
 }
 
 fn main() {
-    let counter = "
-        mod {
+    let top = parse_mod("
+        mod top {
             node out;
-            reg state;
-            state <= state + 1w4;
-            out <= state;
+            mod counter1 {
+                node out;
+                reg state;
+                state <= state + 1w4;
+                out <= state;
+            }
+            mod counter2 {
+                node out;
+                reg state;
+                state <= state + 1w4;
+                out <= state;
+            }
+            out <= counter1.out + counter2.out;
         }
-    ";
-
-    let counter = parse_mod(counter);
-
-    let top =
-        Module::new()
-            .node("out")
-            .wire("out", &"counter1.out".into())
-            .instantiate("counter1", &counter)
-            .instantiate("counter2", &counter)
-            .build();
+    ");
 
     let mut nettle = Nettle::new(&top);
     nettle.set("top.counter1.state", Value::Word(4, 0));
@@ -587,7 +595,7 @@ fn main() {
 #[test]
 fn buffer() {
     let buffer = parse_mod("
-        mod {
+        mod buffer {
             node in;
             reg r;
             node out;
@@ -610,7 +618,7 @@ fn buffer() {
 #[test]
 fn counter() {
     let counter = parse_mod("
-        mod {
+        mod counter {
             node out;
             reg counter;
             out <= counter;
@@ -631,23 +639,20 @@ fn counter() {
 
 #[test]
 fn triangle_numbers() {
-    let counter = parse_mod("
-        mod {
+    let top = parse_mod("
+        mod top {
             node out;
-            reg counter;
-            out <= counter;
-            counter <= counter + 1w4;
+            reg sum;
+            mod counter {
+                node out;
+                reg counter;
+                out <= counter;
+                counter <= counter + 1w4;
+            }
+            out <= sum;
+            sum <= sum + counter.out;
         }
     ");
-
-    let top =
-        Module::new()
-            .node("out")
-            .reg("sum")
-            .instantiate("counter", &counter)
-            .wire("out", &"sum".into())
-            .wire("sum", &"sum + counter.out".into())
-            .build();
 
     let mut nettle = Nettle::new(&top);
 
@@ -687,20 +692,22 @@ impl ExtInstance for Monitor {
 
 #[test]
 fn vip() {
-    let counter =
-        Module::new()
-            .node("out")
-            .reg("counter")
-            .wire("out", &"counter".into())
-            .wire("counter", &"counter + 1w4".into())
-            .build();
+    let top = parse_mod("
+        mod top {
+            mod counter {
+                node out;
+                reg counter;
+                counter <= counter + 1w4;
+                out <= counter;
+            }
 
-    let top =
-        Module::new()
-            .instantiate("counter", &counter)
-            .ext("vip", &["in"])
-            .wire("vip.in", &"counter.out".into())
-            .build();
+            ext vip {
+                node in;
+            }
+
+            vip.in <= counter.out;
+        }
+    ");
 
     let monitor = Box::new(Monitor::new());
 
