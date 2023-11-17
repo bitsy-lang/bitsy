@@ -43,6 +43,7 @@ pub ExprNot: Box<Expr> = {
 pub ExprEq: Box<Expr> = {
     <e1:ExprAdd> "==" <e2:ExprEq> => Box::new(Expr::BinOp(BinOp::Eq,  e1, e2)),
     <e1:ExprAdd> "!=" <e2:ExprEq> => Box::new(Expr::BinOp(BinOp::Neq, e1, e2)),
+    <e1:ExprAdd> "<" <e2:ExprEq> => Box::new(Expr::BinOp(BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
@@ -55,7 +56,16 @@ pub ExprAdd: Box<Expr> = {
 pub ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
     <e:ExprTerminal> => e,
+    <e:ExprIf> => e,
     "(" <e:Expr> ")" => e,
+}
+
+pub ExprIf: Box<Expr> = {
+    "if" <cond:Expr> "{"
+        <e1:Expr>
+    "}" "else" "{"
+        <e2:Expr>
+    "}" => Box::new(Expr::If(cond, e1, e2)),
 }
 
 pub ExprLit: Box<Expr> = {

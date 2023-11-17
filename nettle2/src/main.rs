@@ -52,6 +52,7 @@ pub enum Expr {
     Lit(Value),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
+    If(Box<Expr>, Box<Expr>, Box<Expr>),
 }
 
 impl std::fmt::Debug for Expr {
@@ -73,9 +74,13 @@ impl std::fmt::Debug for Expr {
                     BinOp::Or => "||",
                     BinOp::Eq => "==",
                     BinOp::Neq => "!=",
+                    BinOp::Lt => "<",
                 };
                 write!(f, "({e1:?} {op_symbol} {e2:?})")
             },
+            Expr::If(cond, e1, e2) => {
+                write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
+            }
         }
     }
 }
@@ -93,6 +98,7 @@ pub enum BinOp {
     Or,
     Eq,
     Neq,
+    Lt,
 }
 
 fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
@@ -133,6 +139,14 @@ impl Expr {
                 result.dedup();
                 result
             },
+            Expr::If(cond, e1, e2) => {
+                let mut result = cond.terminals();
+                result.extend(e1.terminals());
+                result.extend(e2.terminals());
+                result.sort();
+                result.dedup();
+                result
+            }
         }
     }
 
@@ -146,6 +160,7 @@ impl Expr {
             Expr::Lit(_value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.relative_to(top)), Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
         }
     }
 
@@ -172,6 +187,13 @@ impl Expr {
                     _ => Value::X,
                 }
             },
+            Expr::If(cond, e1, e2) => {
+                match cond.eval(nettle) {
+                    Value::Bit(true) => e1.eval(nettle),
+                    Value::Bit(false) => e2.eval(nettle),
+                    _ => Value::X,
+                }
+            }
         }
     }
 }
@@ -709,6 +731,29 @@ fn vip() {
     nettle.clock();
 }
 
+#[test]
+fn ifs() {
+    let top = parse_mod("
+        mod top {
+            node out;
+            node in;
+
+            out <= if in {
+                42w8
+            } else {
+                100w8
+            };
+        }
+    ");
+
+    let mut nettle = Nettle::new(&top);
+
+    nettle.poke("top.in", Value::Bit(true));
+    assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
+    nettle.poke("top.in", Value::Bit(false));
+    assert_eq!(nettle.peek("top.out"), Value::Word(8, 100));
+}
+
 impl From<&str> for Expr {
     fn from(expr: &str) -> Expr {
         *parse::ExprParser::new().parse(expr).unwrap()
@@ -730,6 +775,7 @@ fn test_parse() {
         "(a == b)",
         "(a != b)",
         "(!a)",
+        "if c { e1 } else { e2 }",
     ];
     for e in exprs {
         let expr: Expr = e.into();
