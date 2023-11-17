@@ -83,8 +83,11 @@ pub enum BinOp {
 }
 
 fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
-    assert!(terminal.starts_with("top."));
-    format!("{}.{}", top, &terminal[4..])
+    if terminal.starts_with("top.") {
+        format!("{}.{}", top, &terminal[4..])
+    } else {
+        format!("{}.{}", top, &terminal)
+    }
 }
 
 fn parent_of(terminal: &Terminal) -> Terminal {
@@ -95,7 +98,8 @@ fn parent_of(terminal: &Terminal) -> Terminal {
 
 #[test]
 fn relative_to_test() {
-    assert_eq!(relative_to(&"top.foo".to_string(), &"top.bar".to_string()), "top.foo.bar".to_string())
+    assert_eq!(relative_to(&"top.foo".to_string(), &"top.bar".to_string()), "top.foo.bar".to_string());
+    assert_eq!(relative_to(&"top.foo".to_string(), &"bar".to_string()), "top.foo.bar".to_string());
 }
 
 impl Expr {
@@ -460,9 +464,9 @@ impl ModuleDef {
         self
     }
 
-    pub fn wire(mut self, name: &str, expr: impl FnOnce(&dyn TermLookup) -> Expr) -> Self {
+    pub fn wire(mut self, name: &str, expr: &Expr) -> Self {
         let terminal = self.terminal(name);
-        self.wires.insert(terminal, expr(&self));
+        self.wires.insert(terminal, expr.clone().relative_to(&self.path()));
         self
     }
 
@@ -519,14 +523,14 @@ fn main() {
         Module::new()
             .node("out")
             .reg("state")
-            .wire("out", |c| c.terminal("state"))
-            .wire("state", |c| Expr::BinOp(BinOp::Add, Box::new(c.terminal("state")), Box::new(Expr::Lit(Value::Word(4, 1)).into())))
+            .wire("out", &"state".into())
+            .wire("state", &"state + 1w4".into())
             .build();
 
     let top =
         Module::new()
             .node("out")
-            .wire("out", |c| c.terminal("counter1.out"))
+            .wire("out", &"counter1.out".into())
             .instantiate("counter1", &counter)
             .instantiate("counter2", &counter)
             .build();
@@ -552,8 +556,8 @@ fn buffer() {
             .node("in")
             .reg("r")
             .node("out")
-            .wire("r", |c| c.terminal("in"))
-            .wire("out", |c| c.terminal("r"))
+            .wire("r", &"in".into())
+            .wire("out", &"r".into())
             .build();
 
     let mut nettle = Nettle::new(&buffer);
@@ -573,14 +577,8 @@ fn counter() {
         Module::new()
             .node("out")
             .reg("counter")
-            .wire("out", |c| c.terminal("counter"))
-            .wire("counter", |c|
-                  Expr::BinOp(
-                      BinOp::Add,
-                      Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(Value::Word(4, 1))),
-                  )
-            )
+            .wire("out", &"counter".into())
+            .wire("counter", &"counter + 1w4".into())
             .build();
 
     let mut nettle = Nettle::new(&counter);
@@ -600,14 +598,8 @@ fn triangle_numbers() {
         Module::new()
             .node("out")
             .reg("counter")
-            .wire("out", |c| c.terminal("counter"))
-            .wire("counter", |c|
-                  Expr::BinOp(
-                      BinOp::Add,
-                      Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(Value::Word(4, 1))),
-                  )
-            )
+            .wire("out", &"counter".into())
+            .wire("counter", &"counter + 1w4".into())
             .build();
 
     let top =
@@ -615,14 +607,8 @@ fn triangle_numbers() {
             .node("out")
             .reg("sum")
             .instantiate("counter", &counter)
-            .wire("out", |c| c.terminal("sum"))
-            .wire("sum", |c|
-                Expr::BinOp(
-                    BinOp::Add,
-                    Box::new(c.terminal("sum")),
-                    Box::new(c.terminal("counter.out")),
-                )
-            )
+            .wire("out", &"sum".into())
+            .wire("sum", &"sum + counter.out".into())
             .build();
 
     let mut nettle = Nettle::new(&top);
@@ -667,21 +653,15 @@ fn vip() {
         Module::new()
             .node("out")
             .reg("counter")
-            .wire("out", |c| c.terminal("counter"))
-            .wire("counter", |c|
-                  Expr::BinOp(
-                      BinOp::Add,
-                      Box::new(c.terminal("counter")),
-                      Box::new(Expr::Lit(Value::Word(4, 1))),
-                  )
-            )
+            .wire("out", &"counter".into())
+            .wire("counter", &"counter + 1w4".into())
             .build();
 
     let top =
         Module::new()
             .instantiate("counter", &counter)
             .ext("vip", &["in"])
-            .wire("vip.in", |c| c.terminal("counter.out"))
+            .wire("vip.in", &"counter.out".into())
             .build();
 
     let monitor = Box::new(Monitor::new());
@@ -707,6 +687,7 @@ impl From<&str> for Expr {
 fn test_parse() {
     let exprs = vec![
         "x",
+        "x.y",
         "1w8",
         "true",
         "false",

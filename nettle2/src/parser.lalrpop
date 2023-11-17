@@ -52,11 +52,22 @@ pub ExprLit: Box<Expr> = {
 }
 
 pub ExprTerminal: Box<Expr> = {
-     <id:Id> => Box::new(Expr::Terminal(id))
+     <id:Terminal> => Box::new(Expr::Terminal(id))
 }
 
 pub Nat: u64 = {
     <n:r"[0-9]+"> => n.parse().unwrap(),
+}
+
+pub Terminal: String = {
+    <id:Id> <dots:("." Id)*> => {
+        let mut terminal = id;
+        for (_, dot) in dots {
+            terminal.push_str(".");
+            terminal.push_str(&dot);
+        }
+        terminal
+    },
 }
 
 pub Id: String = {
