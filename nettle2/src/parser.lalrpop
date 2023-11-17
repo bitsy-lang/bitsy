@@ -1,0 +1,50 @@
+use super::*;
+
+grammar;
+
+pub Expr: Box<Expr> = {
+    <e:ExprAdd> => e,
+}
+
+pub ExprAdd: Box<Expr> = {
+    <e1:ExprBase> "+" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Add, e1, e2)),
+    <e:ExprBase> => e,
+}
+
+pub ExprBase: Box<Expr> = {
+    <e:ExprLit> => e,
+    <e:ExprTerminal> => e,
+    "(" <e:Expr> ")" => e,
+}
+
+pub ExprLit: Box<Expr> = {
+    "X" => Box::new(Expr::Lit(Value::X)),
+    "true" => Box::new(Expr::Lit(Value::Bit(true))),
+    "false" => Box::new(Expr::Lit(Value::Bit(false))),
+    <lit:r"[0-9]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = parts[0].parse().unwrap();
+        let width = parts[1].parse().unwrap();
+        Box::new(Expr::Lit(Value::Word(width, v)))
+    },
+}
+
+pub ExprTerminal: Box<Expr> = {
+     <id:Id> => Box::new(Expr::Terminal(id))
+}
+
+pub Nat: u64 = {
+    <n:r"[0-9]+"> => n.parse().unwrap(),
+}
+
+pub Id: String = {
+     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string()
+}
+
+match {
+    r"//[^\n\r]*[\r\n]" => {},
+    r"[\r\n]*" => {},
+    r"/\*[^*]*\*/" => {},
+    r" " => {},
+    _,
+}

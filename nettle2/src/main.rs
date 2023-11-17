@@ -1,6 +1,10 @@
 #![allow(dead_code)]
+
+use lalrpop_util::lalrpop_mod;
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
+lalrpop_mod!(pub parser);
 
 type Terminal = String;
 type Width = u64;
@@ -18,7 +22,7 @@ impl std::fmt::Debug for Value {
         match self {
             Value::X => write!(f, "X"),
             Value::Bit(b) => write!(f, "{b}"),
-            Value::Word(_w, n) => write!(f, "{n}"),
+            Value::Word(w, n) => write!(f, "{n}w{w}"),
         }
     }
 }
@@ -665,4 +669,26 @@ fn vip() {
     nettle.clock();
     nettle.clock();
     nettle.clock();
+}
+
+impl From<&str> for Expr {
+    fn from(expr: &str) -> Expr {
+        *parser::ExprParser::new().parse(expr).unwrap()
+    }
+}
+
+#[test]
+fn test_parse() {
+    let exprs = vec![
+        "x",
+        "1w8",
+        "true",
+        "false",
+        "X",
+        "(a + b)",
+    ];
+    for e in exprs {
+        let expr: Expr = e.into();
+        assert_eq!(format!("{:?}", expr), e);
+    }
 }
