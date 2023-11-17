@@ -1,3 +1,2 @@
-poke top.in 1w8
-peek top.out
 debug
+peek top.out

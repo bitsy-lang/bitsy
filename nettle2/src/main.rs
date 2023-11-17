@@ -66,6 +66,7 @@ pub enum Expr {
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
+    Hole(Option<String>),
 }
 
 impl std::fmt::Debug for Expr {
@@ -93,6 +94,13 @@ impl std::fmt::Debug for Expr {
             },
             Expr::If(cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
+            },
+            Expr::Hole(opt_name) => {
+                if let Some(_name) = opt_name {
+                    todo!()
+                } else {
+                    write!(f, "?")
+                }
             }
         }
     }
@@ -159,8 +167,13 @@ impl Expr {
                 result.sort();
                 result.dedup();
                 result
-            }
+            },
+            Expr::Hole(_name) => vec![],
         }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        self.terminals().is_empty()
     }
 
     pub fn depends_on(&self, terminal: &Terminal) -> bool {
@@ -174,6 +187,7 @@ impl Expr {
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.relative_to(top)), Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
+            Expr::Hole(name) => Expr::Hole(name),
         }
     }
 
@@ -206,7 +220,13 @@ impl Expr {
                     Value::Bit(false) => e2.eval(nettle),
                     _ => Value::X,
                 }
-            }
+            },
+            Expr::Hole(opt_name) => {
+                match opt_name {
+                    Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
+                    None => panic!("EVALUATED A HOLE"),
+                }
+            },
         }
     }
 }
@@ -283,13 +303,15 @@ impl Nettle {
             };
             state.insert(terminal.to_string(), terminal_state);
         }
-        Nettle {
+        let mut nettle = Nettle {
             circuit: circuit.clone(),
             state,
             exts: BTreeMap::new(),
             indent: 0,
             debug: false,
-        }
+        };
+        nettle.update_constants();
+        nettle
     }
 
     pub fn ext(mut self, terminal: &str, ext_inst: Box<dyn ExtInstance>) -> Self {
@@ -344,6 +366,30 @@ impl Nettle {
         let state = self.state.get_mut(terminal).unwrap();
         state.set(value);
         self.update(&terminal.to_string());
+
+        if self.debug {
+            self.indent -= 1;
+        }
+    }
+
+    fn update_constants(&mut self) {
+        if self.debug {
+            let padding = " ".repeat(self.indent * 4);
+            eprintln!("{padding}update_constants()");
+            self.indent += 1;
+        }
+
+        let wires = self.wires().clone();
+        for (target_terminal, expr) in &wires {
+            if expr.is_constant() {
+                if self.debug {
+                    let padding = " ".repeat(self.indent * 4);
+                    eprintln!("{padding}affected: {target_terminal}");
+                }
+                let value = expr.eval(&self);
+                self.poke(target_terminal, value);
+            }
+        }
 
         if self.debug {
             self.indent -= 1;

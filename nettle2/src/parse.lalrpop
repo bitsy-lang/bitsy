@@ -70,7 +70,12 @@ pub ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
     <e:ExprTerminal> => e,
     <e:ExprIf> => e,
+    <e:ExprHole> => e,
     "(" <e:Expr> ")" => e,
+}
+
+pub ExprHole: Box<Expr> = {
+    "?" <name:Id?> => Box::new(Expr::Hole(name)),
 }
 
 pub ExprIf: Box<Expr> = {
