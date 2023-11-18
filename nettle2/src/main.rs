@@ -194,8 +194,8 @@ impl Expr {
             },
             Expr::BinOp(op, e1, e2) => {
                 match (op, e1.eval(nettle), e2.eval(nettle)) {
-                    (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % pow2(w)),
-                    (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % pow2(w)),
+                    (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
+                    (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % (1 << w)),
                     (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
                     (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
                     (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a == b),
@@ -222,10 +222,6 @@ impl Expr {
             },
         }
     }
-}
-
-fn pow2(n: u64) -> u64 {
-    1 << n
 }
 
 #[allow(unused_variables)]
