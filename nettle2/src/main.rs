@@ -399,6 +399,10 @@ impl Nettle {
     }
 
     fn is_reg(&self, path: &str) -> bool {
+        if !self.circuit.paths.contains_key(path) {
+            dbg!(path);
+        }
+
         if let PathType::Reg(_reset) = self.circuit.paths[path] {
             true
         } else {
