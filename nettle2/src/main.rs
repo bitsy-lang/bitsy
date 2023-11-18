@@ -272,7 +272,7 @@ impl Nettle {
             indent: 0,
             debug: false,
         };
-        nettle.update_constants();
+        nettle.broadcast_update_constants();
         nettle
     }
 
@@ -313,11 +313,11 @@ impl Nettle {
 
         if !self.is_reg(path) {
             self.state.insert(path.to_string(), value);
-            self.update(&path.to_string());
+            self.broadcast_update(&path.to_string());
         } else {
             let set_path = format!("{path}.set");
             self.state.insert(set_path.to_string(), value);
-            self.update(&path.to_string());
+            // self.update(&val_path.to_string());
         }
 
 
@@ -341,7 +341,7 @@ impl Nettle {
         }
     }
 
-    fn update_constants(&mut self) {
+    fn broadcast_update_constants(&mut self) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}update_constants()");
@@ -365,16 +365,16 @@ impl Nettle {
         }
     }
 
-    fn update(&mut self, terminal: &Path) {
+    fn broadcast_update(&mut self, path: &Path) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}update({terminal})");
+            eprintln!("{padding}update({path})");
             self.indent += 1;
         }
 
         let wires = self.wires().clone();
         for (target_terminal, expr) in &wires {
-            if expr.depends_on(terminal) {
+            if expr.depends_on(path) {
                 if self.debug {
                     let padding = " ".repeat(self.indent * 4);
                     eprintln!("{padding}affected: {target_terminal}");
@@ -384,10 +384,10 @@ impl Nettle {
             }
         }
 
-        let ext_path = parent_of(terminal);
-        let value = self.peek(terminal);
+        let ext_path = parent_of(path);
+        let value = self.peek(path);
         if let Some(ext) = self.exts.get_mut(&ext_path) {
-            let local_path = &terminal[ext_path.len() + 1..];
+            let local_path = &path[ext_path.len() + 1..];
             ext.poke(local_path, value);
         }
 
@@ -445,7 +445,7 @@ impl Nettle {
 
         for path in self.regs() {
             let val_path = format!("{path}.val");
-            self.update(&val_path);
+            self.broadcast_update(&val_path);
         }
 
         if self.debug {
@@ -487,7 +487,7 @@ impl Nettle {
 
         for path in self.regs() {
             let val_path = format!("{path}.val");
-            self.update(&val_path);
+            self.broadcast_update(&val_path);
         }
 
         if self.debug {
