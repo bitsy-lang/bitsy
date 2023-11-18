@@ -13,6 +13,7 @@ pub TestbenchCommand: TestbenchCommand = {
     "clock" => TestbenchCommand::Clock,
     "reset" => TestbenchCommand::Reset,
     "debug" => TestbenchCommand::Debug,
+    "assert" <e:Expr> => TestbenchCommand::Assert(*e),
 }
 
 pub Top: Mod = {
@@ -128,7 +129,10 @@ pub Terminal: String = {
 }
 
 pub Id: String = {
-     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string()
+    <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
+
+    // This is required for the testbench parser, since "top" is a keyword in Nettle, but not in the testbench syntax.
+    "top" => "top".to_string(),
 }
 
 match {

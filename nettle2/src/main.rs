@@ -17,6 +17,7 @@ pub enum TestbenchCommand {
     Clock,
     Reset,
     Debug,
+    Assert(Expr),
 }
 
 #[derive(Debug)]
@@ -201,6 +202,8 @@ impl Expr {
                     (BinOp::Neq, Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a != b),
                     (BinOp::Eq,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
                     (BinOp::Neq, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
+                    (BinOp::And, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 && b2),
+                    (BinOp::Or,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 || b2),
                     _ => Value::X,
                 }
             },
@@ -477,10 +480,10 @@ impl Nettle {
         }
 
         for (path, ext) in &mut self.exts {
-            ext.clock();
+            ext.reset();
             if self.debug {
                 let padding = " ".repeat(self.indent * 4);
-                eprintln!("{padding}ext clocked: {path}");
+                eprintln!("{padding}ext reset: {path}");
             }
         }
 
@@ -502,10 +505,10 @@ impl std::fmt::Debug for Nettle {
         states = states.into_iter().rev().collect();
         for (terminal, state) in states {
             match state {
-                TerminalState::Node(val) => writeln!(f, "    {:>4}  {terminal}", format!("{val:?}"))?,
+                TerminalState::Node(val) => writeln!(f, "    {:>5}  {terminal}", format!("{val:?}"))?,
                 TerminalState::Reg(set, val) => {
-                    writeln!(f, "    {:>4}  {terminal}.set", format!("{set:?}"))?;
-                    writeln!(f, "    {:>4}  {terminal}.val", format!("{val:?}"))?;
+                    writeln!(f, "    {:>5}  {terminal}.set", format!("{set:?}"))?;
+                    writeln!(f, "    {:>5}  {terminal}.val", format!("{val:?}"))?;
                 },
             }
         }
@@ -743,19 +746,27 @@ fn main() {
                     println!("CLOCK");
                 }
                 nettle.clock();
-            }
+            },
             TestbenchCommand::Reset => {
                 if verbose {
                     println!("RESET");
                 }
                 nettle.reset();
-            }
+            },
             TestbenchCommand::Debug => {
-                if verbose {
-                    println!("DEBUG");
-                }
                 println!("{nettle:#?}");
-            }
+            },
+            TestbenchCommand::Assert(e) => {
+                let result = e.eval(&nettle);
+                if result != Value::Bit(true) {
+                    println!("Assertion failed: {e:?}");
+                    for terminal in e.terminals() {
+                        println!("    {terminal} => {:?}", nettle.peek(&terminal));
+
+                    }
+                    panic!("");
+                }
+            },
         }
     }
 }
@@ -852,7 +863,7 @@ impl ExtInstance for Monitor {
 
     fn clock(&mut self) {
         if let Some(s) = &self.0 {
-            println!("{s}");
+            println!("Monitor: {s}");
             self.0 = None
         }
     }
