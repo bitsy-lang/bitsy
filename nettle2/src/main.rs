@@ -222,6 +222,23 @@ impl Expr {
             },
         }
     }
+
+    fn expand_regs_as_val(self, regs: &[String]) -> Expr {
+        match self {
+            Expr::Path(path) => {
+                if regs.contains(&&path) {
+                    Expr::Path(format!("{path}.val"))
+                } else {
+                    Expr::Path(path)
+                }
+            },
+            Expr::Lit(_value) => self,
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.expand_regs_as_val(regs))),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.expand_regs_as_val(regs)), Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
+            Expr::Hole(name) => Expr::Hole(name),
+        }
+    }
 }
 
 #[allow(unused_variables)]
@@ -272,25 +289,37 @@ impl Nettle {
         self.state.keys().cloned().collect()
     }
 
-    pub fn peek(&self, terminal: &str) -> Value {
-        assert!(self.paths().contains(&terminal.to_string()), "Terminal does not exist: {terminal}");
-        let value = self.state[terminal];
+    pub fn peek(&self, path: &str) -> Value {
+        let value = if !self.is_reg(path) {
+            self.state[path]
+        } else {
+            let val_path = format!("{path}.val");
+            self.state[&val_path]
+        };
+
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}peek({terminal}) = {:?}", value);
+            eprintln!("{padding}peek({path}) = {:?}", value);
         }
         value
     }
 
-    pub fn poke(&mut self, terminal: &str, value: Value) {
+    pub fn poke(&mut self, path: &str, value: Value) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}poke({terminal}, {value:?})");
+            eprintln!("{padding}poke({path}, {value:?})");
             self.indent += 1;
         }
 
-        self.state.insert(terminal.to_string(), value);
-        self.update(&terminal.to_string());
+        if !self.is_reg(path) {
+            self.state.insert(path.to_string(), value);
+            self.update(&path.to_string());
+        } else {
+            let set_path = format!("{path}.set");
+            self.state.insert(set_path.to_string(), value);
+            self.update(&path.to_string());
+        }
+
 
         if self.debug {
             self.indent -= 1;
@@ -367,6 +396,14 @@ impl Nettle {
         }
     }
 
+    fn is_reg(&self, path: &str) -> bool {
+        if let PathType::Reg(_reset) = self.circuit.paths[path] {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn regs(&self) -> Vec<Path> {
         let mut result = vec![];
         for (terminal, typ) in &self.circuit.paths {
@@ -396,7 +433,6 @@ impl Nettle {
             }
 
             self.state.insert(val_path.clone(), set_value);
-            self.update(&val_path);
         }
 
         for (path, ext) in &mut self.exts {
@@ -592,9 +628,58 @@ impl ModuleDef {
         self
     }
 
-    pub fn build(self) -> Module {
-        Module(Arc::new(self))
+    fn regs(&self) -> Vec<Path> {
+        let mut result = vec![];
+        for (path, typ) in &self.paths {
+            if let PathType::Reg(_reset) = typ {
+                result.push(path.clone());
+            }
+        }
+        result
     }
+
+    fn expand_regs(mut self) -> Self {
+        let regs: Vec<Path> = self.regs();
+
+        // fix sets (on the right)
+        let targets: Vec<Path> = self.wires.keys().cloned().collect();
+        for target in targets {
+            if regs.contains(&target) {
+                let set_path = format!("{target}.set");
+                let expr = self.wires.remove(&target).unwrap();
+                self.wires.insert(set_path, expr);
+            }
+        }
+
+        // fix vals (on the left)
+        let mut wires: Vec<(Path, Expr)> = vec![];
+        for (target, expr) in &self.wires {
+            let expr = expr.clone().expand_regs_as_val(&regs);
+            wires.push((target.to_string(), expr));
+        }
+        self.wires = wires.into_iter().collect();
+        self
+    }
+
+    pub fn build(self) -> Module {
+        Module(Arc::new(self.expand_regs()))
+    }
+}
+
+#[test]
+fn expand_regs() {
+    let m = Module::new("top")
+        .reg("r", Value::X)
+        .node("n")
+        .node("m")
+        .wire("r", &Expr::Path("n".to_string()))
+        .wire("m", &Expr::Path("r".to_string()))
+        .build();
+
+    assert!(m.wires.contains_key("top.r.set"));
+    assert!(!m.wires.contains_key("top.r"));
+    assert!(m.wires.contains_key("top.m"));
+    assert_eq!(m.wires["top.m"], Expr::Path("top.r.val".to_string()));
 }
 
 fn mod_to_module(m: Mod) -> ModuleDef {
@@ -730,19 +815,19 @@ fn buffer() {
             node in;
             reg r;
             node out;
-            r.set <= in;
-            out <= r.val;
+            r <= in;
+            out <= r;
         }
     ");
 
     let mut nettle = Nettle::new(&buffer);
 
     nettle.poke("top.in", true.into());
-    assert_eq!(nettle.peek("top.r.val"), Value::X);
+    assert_eq!(nettle.peek("top.r"), Value::X);
     assert_eq!(nettle.peek("top.out"), Value::X);
 
     nettle.clock();
-    assert_eq!(nettle.peek("top.r.val"), true.into());
+    assert_eq!(nettle.peek("top.r"), true.into());
     assert_eq!(nettle.peek("top.out"), true.into());
 }
 
@@ -752,8 +837,8 @@ fn counter() {
         top {
             node out;
             reg counter reset 0w4;
-            out <= counter.val;
-            counter.set <= counter.val + 1w4;
+            out <= counter;
+            counter <= counter.val + 1w4;
         }
     ");
 
@@ -776,17 +861,16 @@ fn triangle_numbers() {
             reg sum reset 0w32;
             mod counter {
                 node out;
-                reg counter reset 0w32;
-                out <= counter.val;
-                counter.set <= counter.val + 1w4;
+                reg counter reset 1w32;
+                out <= counter;
+                counter <= counter + 1w4;
             }
-            out <= sum.val;
-            sum.set <= sum.val + counter.out;
+            out <= sum;
+            sum <= sum + counter.out;
         }
     ");
 
     let mut nettle = Nettle::new(&top);
-
     nettle.reset();
 
     for i in 0..16 {
