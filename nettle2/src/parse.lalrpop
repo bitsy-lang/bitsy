@@ -9,7 +9,6 @@ pub Testbench: Testbench = {
 pub TestbenchCommand: TestbenchCommand = {
     "peek" <path:Path> => TestbenchCommand::Peek(path),
     "poke" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
-    "set" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
     "clock" => TestbenchCommand::Clock,
     "reset" => TestbenchCommand::Reset,
     "debug" => TestbenchCommand::Debug,

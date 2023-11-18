@@ -1,12 +1,15 @@
 top {
-    reg counter reset 0w2;
-    counter <= counter + 1w4;
+    node out;
+    out <= counter.val;
 
-    vip.in <= counter;
+    reg counter reset 0w2;
+    counter.set <= counter.val + 1w4;
+
+    vip.in <= counter.val;
 
     node exit;
 
-    exit <= if counter !=  15w4 {
+    exit <= if counter.val !=  15w4 {
         X
     } else {
         ?

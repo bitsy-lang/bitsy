@@ -228,49 +228,6 @@ fn pow2(n: u64) -> u64 {
     1 << n
 }
 
-#[derive(Debug, Clone)]
-enum PathState {
-    Node(Value),
-    Reg(Value, Value),
-}
-
-impl PathState {
-    fn peek(&self) -> Value {
-        match self {
-            PathState::Node(val) => *val,
-            PathState::Reg(_set, val) => *val,
-        }
-    }
-
-    fn poke(&mut self, value: Value) {
-        match self {
-            PathState::Node(val) => *val = value,
-            PathState::Reg(set, _val) => *set = value,
-        }
-    }
-
-    fn set(&mut self, value: Value) {
-        match self {
-            PathState::Node(_val) => panic!(),
-            PathState::Reg(_set, val) => *val = value,
-        }
-    }
-
-    fn clock(&mut self) {
-        if let PathState::Reg(set, val) = self {
-            *val = *set;
-            *set = Value::X;
-        }
-    }
-
-    fn is_reg(&self) -> bool {
-        match *self {
-            PathState::Reg(_set, _val) => true,
-            _ => false,
-        }
-    }
-}
-
 #[allow(unused_variables)]
 pub trait ExtInstance: std::fmt::Debug {
     fn peek(&mut self, port: &str) -> Value { panic!(); }
@@ -281,7 +238,7 @@ pub trait ExtInstance: std::fmt::Debug {
 
 pub struct Nettle {
     circuit: Module,
-    state: BTreeMap<Path, PathState>,
+    state: BTreeMap<Path, Value>,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     indent: usize,
     debug: bool,
@@ -290,12 +247,10 @@ pub struct Nettle {
 impl Nettle {
     pub fn new(circuit: &Module) -> Nettle {
         let mut state = BTreeMap::new();
-        for (terminal, typ) in &circuit.terminals {
-            let terminal_state = match typ {
-                PathType::Node => PathState::Node(Value::X),
-                PathType::Reg(_reset) => PathState::Reg(Value::X, Value::X),
-            };
-            state.insert(terminal.to_string(), terminal_state);
+        for (terminal, typ) in &circuit.paths {
+            if let PathType::Node = typ {
+                state.insert(terminal.to_string(), Value::X);
+            }
         }
         let mut nettle = Nettle {
             circuit: circuit.clone(),
@@ -323,7 +278,7 @@ impl Nettle {
 
     pub fn peek(&self, terminal: &str) -> Value {
         assert!(self.paths().contains(&terminal.to_string()), "Terminal does not exist: {terminal}");
-        let value = self.state[terminal].peek();
+        let value = self.state[terminal];
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}peek({terminal}) = {:?}", value);
@@ -338,28 +293,23 @@ impl Nettle {
             self.indent += 1;
         }
 
-        let state = self.state.get_mut(terminal).unwrap();
-        state.poke(value);
-
-        if !state.is_reg() {
-            self.update(&terminal.to_string());
-        }
+        self.state.insert(terminal.to_string(), value);
+        self.update(&terminal.to_string());
 
         if self.debug {
             self.indent -= 1;
         }
     }
 
-    pub fn set(&mut self, terminal: &str, value: Value) {
+    pub fn set(&mut self, path: &str, value: Value) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}set({terminal}, {value:?})");
+            eprintln!("{padding}set({path}, {value:?})");
             self.indent += 1;
         }
 
-        let state = self.state.get_mut(terminal).unwrap();
-        state.set(value);
-        self.update(&terminal.to_string());
+        let set_path = format!("{path}.set");
+        self.state.insert(set_path, value);
 
         if self.debug {
             self.indent -= 1;
@@ -421,6 +371,16 @@ impl Nettle {
         }
     }
 
+    pub fn regs(&self) -> Vec<Path> {
+        let mut result = vec![];
+        for (terminal, typ) in &self.circuit.paths {
+            if let PathType::Reg(_reset) = typ {
+                result.push(terminal.to_string());
+            }
+        }
+        result
+    }
+
     pub fn clock(&mut self) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
@@ -428,15 +388,19 @@ impl Nettle {
             self.indent += 1;
         }
 
-        for path in self.paths() {
-            let state = self.state.get_mut(&path).unwrap();
-            if state.is_reg() {
-                if self.debug {
-                    let padding = " ".repeat(self.indent * 4);
-                    eprintln!("{padding}register clocked: {path} {state:?}");
-                }
-                state.clock();
+        for path in self.regs() {
+            let set_path = format!("{path}.set");
+            let val_path = format!("{path}.val");
+            let set_value = self.state[&set_path];
+
+            if self.debug {
+                let val_value = self.state[&val_path];
+                let padding = " ".repeat(self.indent * 4);
+                eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
             }
+
+            self.state.insert(val_path.clone(), set_value);
+            self.update(&val_path);
         }
 
         for (path, ext) in &mut self.exts {
@@ -447,8 +411,9 @@ impl Nettle {
             }
         }
 
-        for reg in self.paths() {
-            self.update(&reg);
+        for path in self.regs() {
+            let val_path = format!("{path}.val");
+            self.update(&val_path);
         }
 
         if self.debug {
@@ -463,17 +428,18 @@ impl Nettle {
             self.indent += 1;
         }
 
-        for path in self.paths() {
-            let state = self.state.get_mut(&path).unwrap();
-            match self.circuit.terminals.get(&path).unwrap() {
+        for path in self.regs() {
+            let val_path = format!("{path}.val");
+            match self.circuit.paths.get(&path).unwrap() {
                 PathType::Node => (),
                 PathType::Reg(reset) => {
                     if *reset != Value::X {
                         if self.debug {
                             let padding = " ".repeat(self.indent * 4);
-                            eprintln!("{padding}register reset: {path} {state:?}");
+                            let val_value = self.state[&val_path];
+                            eprintln!("{padding}register reset: {path} {val_value:?}");
                         }
-                        self.set(&path, *reset);
+                        self.state.insert(val_path, *reset);
                     }
                 },
             }
@@ -487,8 +453,9 @@ impl Nettle {
             }
         }
 
-        for reg in self.paths() {
-            self.update(&reg);
+        for path in self.regs() {
+            let val_path = format!("{path}.val");
+            self.update(&val_path);
         }
 
         if self.debug {
@@ -499,23 +466,17 @@ impl Nettle {
 
 impl std::fmt::Debug for Nettle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        writeln!(f, "State:")?;
+        // writeln!(f, "State:")?;
         let mut states: Vec<(_, _)> = self.state.iter().collect();
         states.sort_by_key(|(terminal, _)| terminal.to_string());
         states = states.into_iter().rev().collect();
-        for (terminal, state) in states {
-            match state {
-                PathState::Node(val) => writeln!(f, "    {:>5}  {terminal}", format!("{val:?}"))?,
-                PathState::Reg(set, val) => {
-                    writeln!(f, "    {:>5}  {terminal}.set", format!("{set:?}"))?;
-                    writeln!(f, "    {:>5}  {terminal}.val", format!("{val:?}"))?;
-                },
-            }
+        for (terminal, value) in states {
+            writeln!(f, "    {:>5}  {terminal}", format!("{value:?}"))?;
         }
-        writeln!(f, "Wires:")?;
-        for (terminal, expr) in &self.circuit.wires {
-            writeln!(f, "    {terminal:<25} <= {expr:?}")?;
-        }
+        // writeln!(f, "Wires:")?;
+        // for (terminal, expr) in &self.circuit.wires {
+        //     writeln!(f, "    {terminal:<25} <= {expr:?}")?;
+        // }
 
         Ok(())
     }
@@ -529,7 +490,7 @@ enum PathType {
 
 #[derive(Debug)]
 pub struct ModuleDef {
-    terminals: BTreeMap<Path, PathType>,
+    paths: BTreeMap<Path, PathType>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
     exts: Vec<Path>,
@@ -548,7 +509,7 @@ impl std::ops::Deref for Module {
 impl Module {
     pub fn new(name: &str) -> ModuleDef {
         ModuleDef {
-            terminals: BTreeMap::new(),
+            paths: BTreeMap::new(),
             wires: BTreeMap::new(),
             path: vec![name.to_string()],
             exts: vec![],
@@ -581,13 +542,18 @@ impl ModuleDef {
 
     pub fn node(mut self, name: &str) -> Self {
         let terminal = self.terminal(name);
-        self.terminals.insert(terminal, PathType::Node);
+        self.paths.insert(terminal, PathType::Node);
         self
     }
 
     pub fn reg(mut self, name: &str, reset: Value) -> Self {
-        let terminal = self.terminal(name);
-        self.terminals.insert(terminal, PathType::Reg(reset));
+        let path = self.terminal(name);
+        let set_path = format!("{path}.set");
+        let val_path = format!("{path}.val");
+
+        self.paths.insert(path, PathType::Reg(reset));
+        self.paths.insert(set_path, PathType::Node);
+        self.paths.insert(val_path, PathType::Node);
         self
     }
 
@@ -601,9 +567,9 @@ impl ModuleDef {
         let path = self.current_path();
         self = self.push(name);
 
-        for (terminal, typ) in &circuit.terminals {
+        for (terminal, typ) in &circuit.paths {
             let target = relative_to(&path, terminal);
-            self.terminals.insert(target, typ.clone());
+            self.paths.insert(target, typ.clone());
         }
 
         for (terminal, expr) in &circuit.wires {
@@ -625,7 +591,7 @@ impl ModuleDef {
 
         for terminal in terminals {
             let target = format!("{ext}.{terminal}");
-            self.terminals.insert(target, PathType::Node);
+            self.paths.insert(target, PathType::Node);
         }
         self
     }
@@ -768,19 +734,19 @@ fn buffer() {
             node in;
             reg r;
             node out;
-            r <= in;
-            out <= r;
+            r.set <= in;
+            out <= r.val;
         }
     ");
 
     let mut nettle = Nettle::new(&buffer);
 
     nettle.poke("top.in", true.into());
-    assert_eq!(nettle.peek("top.r"), Value::X);
+    assert_eq!(nettle.peek("top.r.val"), Value::X);
     assert_eq!(nettle.peek("top.out"), Value::X);
 
     nettle.clock();
-    assert_eq!(nettle.peek("top.r"), true.into());
+    assert_eq!(nettle.peek("top.r.val"), true.into());
     assert_eq!(nettle.peek("top.out"), true.into());
 }
 
@@ -789,15 +755,15 @@ fn counter() {
     let counter = parse_top("
         top {
             node out;
-            reg counter;
-            out <= counter;
-            counter <= counter + 1w4;
+            reg counter reset 0w4;
+            out <= counter.val;
+            counter.set <= counter.val + 1w4;
         }
     ");
 
     let mut nettle = Nettle::new(&counter);
 
-    nettle.set("top.counter", Value::Word(4, 0));
+    nettle.reset();
 
     for i in 0..16 {
         assert_eq!(nettle.peek("top.out"), Value::Word(4, i));
@@ -811,23 +777,21 @@ fn triangle_numbers() {
     let top = parse_top("
         top {
             node out;
-            reg sum;
+            reg sum reset 0w32;
             mod counter {
                 node out;
-                reg counter;
-                out <= counter;
-                counter <= counter + 1w4;
+                reg counter reset 0w32;
+                out <= counter.val;
+                counter.set <= counter.val + 1w4;
             }
-            out <= sum;
-            sum <= sum + counter.out;
+            out <= sum.val;
+            sum.set <= sum.val + counter.out;
         }
     ");
 
     let mut nettle = Nettle::new(&top);
 
-    nettle.set("top.sum", Value::Word(32, 0));
-    nettle.set("top.counter.counter", Value::Word(32, 0));
-    nettle.clock();
+    nettle.reset();
 
     for i in 0..16 {
         let triange = (i * (i + 1)) / 2;
