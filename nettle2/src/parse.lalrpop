@@ -7,9 +7,9 @@ pub Testbench: Testbench = {
 }
 
 pub TestbenchCommand: TestbenchCommand = {
-    "peek" <terminal:Terminal> => TestbenchCommand::Peek(terminal),
-    "poke" <terminal:Terminal> <value:Value> => TestbenchCommand::Poke(terminal, value),
-    "set" <terminal:Terminal> <value:Value> => TestbenchCommand::Poke(terminal, value),
+    "peek" <path:Path> => TestbenchCommand::Peek(path),
+    "poke" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
+    "set" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
     "clock" => TestbenchCommand::Clock,
     "reset" => TestbenchCommand::Reset,
     "debug" => TestbenchCommand::Debug,
@@ -38,7 +38,7 @@ pub ModDecl: ModDecl  = {
         ModDecl::Ext(id, names)
     },
     <m:Mod> => ModDecl::Mod(m),
-    <terminal:Terminal> "<=" <e:Expr> ";" => ModDecl::Wire(terminal, *e),
+    <path:Path> "<=" <e:Expr> ";" => ModDecl::Wire(path, *e),
 }
 
 pub Expr: Box<Expr> = {
@@ -75,7 +75,7 @@ pub ExprAdd: Box<Expr> = {
 
 pub ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
-    <e:ExprTerminal> => e,
+    <e:ExprPath> => e,
     <e:ExprIf> => e,
     <e:ExprHole> => e,
     "(" <e:Expr> ")" => e,
@@ -97,8 +97,8 @@ pub ExprLit: Box<Expr> = {
     <v:Value> => Box::new(Expr::Lit(v)),
 }
 
-pub ExprTerminal: Box<Expr> = {
-     <id:Terminal> => Box::new(Expr::Terminal(id))
+pub ExprPath: Box<Expr> = {
+     <id:Path> => Box::new(Expr::Path(id))
 }
 
 pub Value: Value = {
@@ -117,14 +117,14 @@ pub Nat: u64 = {
     <n:r"[0-9]+"> => n.parse().unwrap(),
 }
 
-pub Terminal: String = {
+pub Path: String = {
     <id:Id> <dots:("." Id)*> => {
-        let mut terminal = id;
+        let mut path = id;
         for (_, dot) in dots {
-            terminal.push_str(".");
-            terminal.push_str(&dot);
+            path.push_str(".");
+            path.push_str(&dot);
         }
-        terminal
+        path
     },
 }
 

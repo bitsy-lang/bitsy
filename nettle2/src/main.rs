@@ -11,9 +11,9 @@ pub struct Testbench(Vec<TestbenchCommand>);
 
 #[derive(Debug)]
 pub enum TestbenchCommand {
-    Peek(Terminal),
-    Poke(Terminal, Value),
-    Set(Terminal, Value),
+    Peek(Path),
+    Poke(Path, Value),
+    Set(Path, Value),
     Clock,
     Reset,
     Debug,
@@ -27,13 +27,13 @@ enum ModDecl {
     Node(String),
     Reg(String, Value),
     Mod(Mod),
-    Wire(Terminal, Expr),
+    Wire(Path, Expr),
     Ext(String, Vec<String>),
 }
 #[derive(Debug)]
 struct Ext(String, Vec<String>);
 
-type Terminal = String;
+type Path = String;
 type Width = u64;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
@@ -62,7 +62,7 @@ impl From<bool> for Value {
 
 #[derive(Eq, PartialEq, Clone)]
 pub enum Expr {
-    Terminal(Terminal),
+    Path(Path),
     Lit(Value),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
@@ -73,7 +73,7 @@ pub enum Expr {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Expr::Terminal(terminal) => write!(f, "{terminal}"),
+            Expr::Path(path) => write!(f, "{path}"),
             Expr::Lit(val) => write!(f, "{val:?}"),
             Expr::UnOp(op, e) => {
                 let op_symbol = match op {
@@ -123,38 +123,38 @@ pub enum BinOp {
     Lt,
 }
 
-fn relative_to(top: &Terminal, terminal: &Terminal) -> Terminal {
-    format!("{}.{}", top, &terminal)
+fn relative_to(top: &Path, path: &Path) -> Path {
+    format!("{}.{}", top, &path)
 }
 
-fn parent_of(terminal: &Terminal) -> Terminal {
-    let mut path_parts: Vec<&str> = terminal.split('.').collect();
+fn parent_of(path: &Path) -> Path {
+    let mut path_parts: Vec<&str> = path.split('.').collect();
     path_parts.pop();
     path_parts.join(".")
 }
 
 impl Expr {
-    pub fn terminals(&self) -> Vec<Terminal> {
+    pub fn paths(&self) -> Vec<Path> {
         match self {
-            Expr::Terminal(terminal) => vec![terminal.clone()],
+            Expr::Path(path) => vec![path.clone()],
             Expr::Lit(_value) => vec![],
             Expr::UnOp(_op, e) => {
-                let mut result = e.terminals();
+                let mut result = e.paths();
                 result.sort();
                 result.dedup();
                 result
             }
             Expr::BinOp(_op, e1, e2) => {
-                let mut result = e1.terminals();
-                result.extend(e2.terminals());
+                let mut result = e1.paths();
+                result.extend(e2.paths());
                 result.sort();
                 result.dedup();
                 result
             },
             Expr::If(cond, e1, e2) => {
-                let mut result = cond.terminals();
-                result.extend(e1.terminals());
-                result.extend(e2.terminals());
+                let mut result = cond.paths();
+                result.extend(e1.paths());
+                result.extend(e2.paths());
                 result.sort();
                 result.dedup();
                 result
@@ -164,16 +164,16 @@ impl Expr {
     }
 
     pub fn is_constant(&self) -> bool {
-        self.terminals().is_empty()
+        self.paths().is_empty()
     }
 
-    pub fn depends_on(&self, terminal: &Terminal) -> bool {
-        self.terminals().contains(terminal)
+    pub fn depends_on(&self, path: &Path) -> bool {
+        self.paths().contains(path)
     }
 
-    pub fn relative_to(self, top: &Terminal) -> Expr {
+    pub fn relative_to(self, top: &Path) -> Expr {
         match self {
-            Expr::Terminal(terminal) => Expr::Terminal(relative_to(top, &terminal)),
+            Expr::Path(path) => Expr::Path(relative_to(top, &path)),
             Expr::Lit(_value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
@@ -184,7 +184,7 @@ impl Expr {
 
     pub fn eval(&self, nettle: &Nettle) -> Value {
         match self {
-            Expr::Terminal(terminal) => nettle.peek(terminal),
+            Expr::Path(path) => nettle.peek(path),
             Expr::Lit(value) => *value,
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
@@ -229,35 +229,35 @@ fn pow2(n: u64) -> u64 {
 }
 
 #[derive(Debug, Clone)]
-enum TerminalState {
+enum PathState {
     Node(Value),
     Reg(Value, Value),
 }
 
-impl TerminalState {
+impl PathState {
     fn peek(&self) -> Value {
         match self {
-            TerminalState::Node(val) => *val,
-            TerminalState::Reg(_set, val) => *val,
+            PathState::Node(val) => *val,
+            PathState::Reg(_set, val) => *val,
         }
     }
 
     fn poke(&mut self, value: Value) {
         match self {
-            TerminalState::Node(val) => *val = value,
-            TerminalState::Reg(set, _val) => *set = value,
+            PathState::Node(val) => *val = value,
+            PathState::Reg(set, _val) => *set = value,
         }
     }
 
     fn set(&mut self, value: Value) {
         match self {
-            TerminalState::Node(_val) => panic!(),
-            TerminalState::Reg(_set, val) => *val = value,
+            PathState::Node(_val) => panic!(),
+            PathState::Reg(_set, val) => *val = value,
         }
     }
 
     fn clock(&mut self) {
-        if let TerminalState::Reg(set, val) = self {
+        if let PathState::Reg(set, val) = self {
             *val = *set;
             *set = Value::X;
         }
@@ -265,7 +265,7 @@ impl TerminalState {
 
     fn is_reg(&self) -> bool {
         match *self {
-            TerminalState::Reg(_set, _val) => true,
+            PathState::Reg(_set, _val) => true,
             _ => false,
         }
     }
@@ -281,8 +281,8 @@ pub trait ExtInstance: std::fmt::Debug {
 
 pub struct Nettle {
     circuit: Module,
-    state: BTreeMap<Terminal, TerminalState>,
-    exts: BTreeMap<Terminal, Box<dyn ExtInstance>>,
+    state: BTreeMap<Path, PathState>,
+    exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     indent: usize,
     debug: bool,
 }
@@ -292,8 +292,8 @@ impl Nettle {
         let mut state = BTreeMap::new();
         for (terminal, typ) in &circuit.terminals {
             let terminal_state = match typ {
-                TerminalType::Node => TerminalState::Node(Value::X),
-                TerminalType::Reg(_reset) => TerminalState::Reg(Value::X, Value::X),
+                PathType::Node => PathState::Node(Value::X),
+                PathType::Reg(_reset) => PathState::Reg(Value::X, Value::X),
             };
             state.insert(terminal.to_string(), terminal_state);
         }
@@ -308,21 +308,21 @@ impl Nettle {
         nettle
     }
 
-    pub fn ext(mut self, terminal: &str, ext_inst: Box<dyn ExtInstance>) -> Self {
-        self.exts.insert(terminal.to_string(), ext_inst);
+    pub fn ext(mut self, path: &str, ext_inst: Box<dyn ExtInstance>) -> Self {
+        self.exts.insert(path.to_string(), ext_inst);
         self
     }
 
-    fn wires(&self) -> &BTreeMap<Terminal, Expr> {
+    fn wires(&self) -> &BTreeMap<Path, Expr> {
         &self.circuit.wires
     }
 
-    pub fn terminals(&self) -> Vec<Terminal> {
+    pub fn paths(&self) -> Vec<Path> {
         self.state.keys().cloned().collect()
     }
 
     pub fn peek(&self, terminal: &str) -> Value {
-        assert!(self.terminals().contains(&terminal.to_string()), "Terminal does not exist: {terminal}");
+        assert!(self.paths().contains(&terminal.to_string()), "Terminal does not exist: {terminal}");
         let value = self.state[terminal].peek();
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
@@ -390,7 +390,7 @@ impl Nettle {
         }
     }
 
-    fn update(&mut self, terminal: &Terminal) {
+    fn update(&mut self, terminal: &Path) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}update({terminal})");
@@ -428,12 +428,12 @@ impl Nettle {
             self.indent += 1;
         }
 
-        for terminal in self.terminals() {
-            let state = self.state.get_mut(&terminal).unwrap();
+        for path in self.paths() {
+            let state = self.state.get_mut(&path).unwrap();
             if state.is_reg() {
                 if self.debug {
                     let padding = " ".repeat(self.indent * 4);
-                    eprintln!("{padding}register clocked: {terminal} {state:?}");
+                    eprintln!("{padding}register clocked: {path} {state:?}");
                 }
                 state.clock();
             }
@@ -447,7 +447,7 @@ impl Nettle {
             }
         }
 
-        for reg in self.terminals() {
+        for reg in self.paths() {
             self.update(&reg);
         }
 
@@ -463,17 +463,17 @@ impl Nettle {
             self.indent += 1;
         }
 
-        for terminal in self.terminals() {
-            let state = self.state.get_mut(&terminal).unwrap();
-            match self.circuit.terminals.get(&terminal).unwrap() {
-                TerminalType::Node => (),
-                TerminalType::Reg(reset) => {
+        for path in self.paths() {
+            let state = self.state.get_mut(&path).unwrap();
+            match self.circuit.terminals.get(&path).unwrap() {
+                PathType::Node => (),
+                PathType::Reg(reset) => {
                     if *reset != Value::X {
                         if self.debug {
                             let padding = " ".repeat(self.indent * 4);
-                            eprintln!("{padding}register reset: {terminal} {state:?}");
+                            eprintln!("{padding}register reset: {path} {state:?}");
                         }
-                        self.set(&terminal, *reset);
+                        self.set(&path, *reset);
                     }
                 },
             }
@@ -487,7 +487,7 @@ impl Nettle {
             }
         }
 
-        for reg in self.terminals() {
+        for reg in self.paths() {
             self.update(&reg);
         }
 
@@ -505,8 +505,8 @@ impl std::fmt::Debug for Nettle {
         states = states.into_iter().rev().collect();
         for (terminal, state) in states {
             match state {
-                TerminalState::Node(val) => writeln!(f, "    {:>5}  {terminal}", format!("{val:?}"))?,
-                TerminalState::Reg(set, val) => {
+                PathState::Node(val) => writeln!(f, "    {:>5}  {terminal}", format!("{val:?}"))?,
+                PathState::Reg(set, val) => {
                     writeln!(f, "    {:>5}  {terminal}.set", format!("{set:?}"))?;
                     writeln!(f, "    {:>5}  {terminal}.val", format!("{val:?}"))?;
                 },
@@ -522,17 +522,17 @@ impl std::fmt::Debug for Nettle {
 }
 
 #[derive(Debug, Clone)]
-enum TerminalType {
+enum PathType {
     Node,
     Reg(Value),
 }
 
 #[derive(Debug)]
 pub struct ModuleDef {
-    terminals: BTreeMap<Terminal, TerminalType>,
-    wires: BTreeMap<Terminal, Expr>,
+    terminals: BTreeMap<Path, PathType>,
+    wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
-    exts: Vec<Terminal>,
+    exts: Vec<Path>,
 }
 
 #[derive(Debug, Clone)]
@@ -574,31 +574,31 @@ impl ModuleDef {
         self
     }
 
-    fn terminal(&self, name: &str) -> Terminal {
+    fn terminal(&self, name: &str) -> Path {
         let path = self.path.join(".");
         format!("{path}.{name}")
     }
 
     pub fn node(mut self, name: &str) -> Self {
         let terminal = self.terminal(name);
-        self.terminals.insert(terminal, TerminalType::Node);
+        self.terminals.insert(terminal, PathType::Node);
         self
     }
 
     pub fn reg(mut self, name: &str, reset: Value) -> Self {
         let terminal = self.terminal(name);
-        self.terminals.insert(terminal, TerminalType::Reg(reset));
+        self.terminals.insert(terminal, PathType::Reg(reset));
         self
     }
 
     pub fn wire(mut self, name: &str, expr: &Expr) -> Self {
         let terminal = self.terminal(name);
-        self.wires.insert(terminal, expr.clone().relative_to(&self.path()));
+        self.wires.insert(terminal, expr.clone().relative_to(&self.current_path()));
         self
     }
 
     pub fn instantiate(mut self, name:  &str, circuit: &ModuleDef) -> Self {
-        let path = self.path();
+        let path = self.current_path();
         self = self.push(name);
 
         for (terminal, typ) in &circuit.terminals {
@@ -615,7 +615,7 @@ impl ModuleDef {
         self
     }
 
-    fn path(&self) -> Terminal {
+    fn current_path(&self) -> Path {
         self.path.join(".")
     }
 
@@ -625,7 +625,7 @@ impl ModuleDef {
 
         for terminal in terminals {
             let target = format!("{ext}.{terminal}");
-            self.terminals.insert(target, TerminalType::Node);
+            self.terminals.insert(target, PathType::Node);
         }
         self
     }
@@ -641,7 +641,7 @@ pub trait TermLookup {
 
 impl TermLookup for ModuleDef {
     fn terminal(&self, name: &str) -> Expr {
-        Expr::Terminal(ModuleDef::terminal(self, name))
+        Expr::Path(ModuleDef::terminal(self, name))
     }
 }
 
@@ -760,8 +760,8 @@ fn main() {
                 let result = e.eval(&nettle);
                 if result != Value::Bit(true) {
                     println!("Assertion failed: {e:?}");
-                    for terminal in e.terminals() {
-                        println!("    {terminal} => {:?}", nettle.peek(&terminal));
+                    for path in e.paths() {
+                        println!("    {path} => {:?}", nettle.peek(&path));
 
                     }
                     panic!("");
