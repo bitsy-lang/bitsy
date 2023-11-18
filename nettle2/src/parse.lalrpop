@@ -117,14 +117,14 @@ pub Nat: u64 = {
     <n:r"[0-9]+"> => n.parse().unwrap(),
 }
 
-pub Path: String = {
+pub Path: Path = {
     <id:Id> <dots:("." Id)*> => {
         let mut path = id;
         for (_, dot) in dots {
             path.push_str(".");
             path.push_str(&dot);
         }
-        path
+        path.into()
     },
 }
 

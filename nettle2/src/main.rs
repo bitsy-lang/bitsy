@@ -7,10 +7,10 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(parse);
 
 #[derive(Debug)]
-pub struct Testbench(Vec<TestbenchCommand>);
+struct Testbench(Vec<TestbenchCommand>);
 
 #[derive(Debug)]
-pub enum TestbenchCommand {
+enum TestbenchCommand {
     Peek(Path),
     Poke(Path, Value),
     Set(Path, Value),
@@ -33,7 +33,49 @@ enum ModDecl {
 #[derive(Debug)]
 struct Ext(String, Vec<String>);
 
-type Path = String;
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
+pub struct Path(Arc<String>);
+
+impl Path {
+    // TODO
+}
+
+fn relative_to(top: &Path, path: &Path) -> Path {
+    format!("{}.{}", top, &path).into()
+}
+
+fn parent_of(path: Path) -> Path {
+    let mut path_parts: Vec<&str> = path.split('.').collect();
+    path_parts.pop();
+    path_parts.join(".").into()
+}
+
+impl std::ops::Deref for Path {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", &self.0)
+    }
+}
+
+impl From<String> for Path {
+    fn from(path: String) -> Path {
+        Path(Arc::new(path))
+    }
+}
+
+impl From<&str> for Path {
+    fn from(path: &str) -> Path {
+        Path(Arc::new(path.to_string()))
+    }
+}
+
 type Width = u64;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
@@ -123,16 +165,6 @@ pub enum BinOp {
     Lt,
 }
 
-fn relative_to(top: &Path, path: &Path) -> Path {
-    format!("{}.{}", top, &path)
-}
-
-fn parent_of(path: &Path) -> Path {
-    let mut path_parts: Vec<&str> = path.split('.').collect();
-    path_parts.pop();
-    path_parts.join(".")
-}
-
 impl Expr {
     pub fn paths(&self) -> Vec<Path> {
         match self {
@@ -167,8 +199,8 @@ impl Expr {
         self.paths().is_empty()
     }
 
-    pub fn depends_on(&self, path: &Path) -> bool {
-        self.paths().contains(path)
+    pub fn depends_on(&self, path: Path) -> bool {
+        self.paths().contains(&path)
     }
 
     pub fn relative_to(self, top: &Path) -> Expr {
@@ -184,7 +216,7 @@ impl Expr {
 
     pub fn eval(&self, nettle: &Nettle) -> Value {
         match self {
-            Expr::Path(path) => nettle.peek(path),
+            Expr::Path(path) => nettle.peek(path.clone()),
             Expr::Lit(value) => *value,
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
@@ -224,11 +256,11 @@ impl Expr {
         }
     }
 
-    fn expand_regs_as_val(self, regs: &[String]) -> Expr {
+    fn expand_regs_as_val(self, regs: &[Path]) -> Expr {
         match self {
             Expr::Path(path) => {
-                if regs.contains(&&path) {
-                    Expr::Path(format!("{path}.val"))
+                if regs.contains(&path) {
+                    Expr::Path(format!("{path}.val").into())
                 } else {
                     Expr::Path(path)
                 }
@@ -263,7 +295,7 @@ impl Nettle {
         let mut state = BTreeMap::new();
         for (terminal, typ) in &circuit.paths {
             if let PathType::Node = typ {
-                state.insert(terminal.to_string(), Value::X);
+                state.insert(terminal.clone(), Value::X);
             }
         }
         let mut nettle = Nettle {
@@ -277,8 +309,8 @@ impl Nettle {
         nettle
     }
 
-    pub fn ext(mut self, path: &str, ext_inst: Box<dyn ExtInstance>) -> Self {
-        self.exts.insert(path.to_string(), ext_inst);
+    pub fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
+        self.exts.insert(path.into(), ext_inst);
         self
     }
 
@@ -290,12 +322,13 @@ impl Nettle {
         self.state.keys().cloned().collect()
     }
 
-    pub fn peek(&self, path: &str) -> Value {
-        let value = if !self.is_reg(path) {
-            self.state[path]
+    pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
+        let path: Path = path.into();
+        let value = if !self.is_reg(&path) {
+            self.state[&path]
         } else {
             let val_path = format!("{path}.val");
-            self.state[&val_path]
+            self.state[&val_path.into()]
         };
 
         if self.debug {
@@ -305,20 +338,21 @@ impl Nettle {
         value
     }
 
-    pub fn poke(&mut self, path: &str, value: Value) {
+    pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
+        let path: Path = path.into();
+
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}poke({path}, {value:?})");
             self.indent += 1;
         }
 
-        if !self.is_reg(path) {
-            self.state.insert(path.to_string(), value);
-            self.broadcast_update(&path.to_string());
+        if !self.is_reg(&path) {
+            self.state.insert(path.clone(), value);
+            self.broadcast_update(path);
         } else {
             let set_path = format!("{path}.set");
-            self.state.insert(set_path.to_string(), value);
-            // self.update(&val_path.to_string());
+            self.state.insert(set_path.into(), value);
         }
 
 
@@ -327,16 +361,17 @@ impl Nettle {
         }
     }
 
-    pub fn set(&mut self, path: &str, value: Value) {
+    pub fn set<P: Into<Path>>(&mut self, path: P, value: Value) {
+        let path: Path = path.into();
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}set({path}, {value:?})");
             self.indent += 1;
         }
 
-        let val_path = format!("{path}.val");
+        let val_path: Path = format!("{path}.val").into();
         self.state.insert(val_path.clone(), value);
-        self.broadcast_update(&val_path);
+        self.broadcast_update(val_path);
 
         if self.debug {
             self.indent -= 1;
@@ -358,7 +393,7 @@ impl Nettle {
                     eprintln!("{padding}affected: {target_terminal}");
                 }
                 let value = expr.eval(&self);
-                self.poke(target_terminal, value);
+                self.poke(target_terminal.clone(), value);
             }
         }
 
@@ -367,7 +402,7 @@ impl Nettle {
         }
     }
 
-    fn broadcast_update(&mut self, path: &Path) {
+    fn broadcast_update(&mut self, path: Path) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}broadcast_update({path})");
@@ -376,21 +411,21 @@ impl Nettle {
 
         let wires = self.wires().clone();
         for (target_terminal, expr) in &wires {
-            if expr.depends_on(path) {
+            if expr.depends_on(path.clone()) {
                 if self.debug {
                     let padding = " ".repeat(self.indent * 4);
                     eprintln!("{padding}affected: {target_terminal}");
                 }
                 let value = expr.eval(&self);
-                self.poke(target_terminal, value);
+                self.poke(target_terminal.clone(), value);
             }
         }
 
-        let ext_path = parent_of(path);
-        let value = self.peek(path);
+        let ext_path = parent_of(path.clone());
+        let value = self.peek(path.clone());
         if let Some(ext) = self.exts.get_mut(&ext_path) {
-            let local_path = &path[ext_path.len() + 1..];
-            ext.poke(local_path, value);
+            let local_path: Path = path[ext_path.len() + 1..].into();
+            ext.poke(&local_path, value);
         }
 
         if self.debug {
@@ -398,12 +433,12 @@ impl Nettle {
         }
     }
 
-    fn is_reg(&self, path: &str) -> bool {
-        if !self.circuit.paths.contains_key(path) {
+    fn is_reg(&self, path: &Path) -> bool {
+        if !self.circuit.paths.contains_key(&path) {
             dbg!(path);
         }
 
-        if let PathType::Reg(_reset) = self.circuit.paths[path] {
+        if let PathType::Reg(_reset) = self.circuit.paths[&path] {
             true
         } else {
             false
@@ -414,7 +449,7 @@ impl Nettle {
         let mut result = vec![];
         for (terminal, typ) in &self.circuit.paths {
             if let PathType::Reg(_reset) = typ {
-                result.push(terminal.to_string());
+                result.push(terminal.clone());
             }
         }
         result
@@ -428,17 +463,17 @@ impl Nettle {
         }
 
         for path in self.regs() {
-            let set_path = format!("{path}.set");
-            let val_path = format!("{path}.val");
-            let set_value = self.state[&set_path];
+            let set_path: Path = format!("{path}.set").into();
+            let val_path: Path = format!("{path}.val").into();
+            let set_value = self.state[&set_path.into()];
 
             if self.debug {
-                let val_value = self.state[&val_path];
+                let val_value = self.state[&val_path.clone()];
                 let padding = " ".repeat(self.indent * 4);
                 eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
             }
 
-            self.state.insert(val_path.clone(), set_value);
+            self.state.insert(val_path, set_value);
         }
 
         for (path, ext) in &mut self.exts {
@@ -450,8 +485,8 @@ impl Nettle {
         }
 
         for path in self.regs() {
-            let val_path = format!("{path}.val");
-            self.broadcast_update(&val_path);
+            let val_path: Path = format!("{path}.val").into();
+            self.broadcast_update(val_path);
         }
 
         if self.debug {
@@ -474,10 +509,10 @@ impl Nettle {
                     if *reset != Value::X {
                         if self.debug {
                             let padding = " ".repeat(self.indent * 4);
-                            let val_value = self.state[&val_path];
+                            let val_value = self.state[&val_path.clone().into()];
                             eprintln!("{padding}register reset: {path} {val_value:?}");
                         }
-                        self.state.insert(val_path, *reset);
+                        self.state.insert(val_path.into(), *reset);
                     }
                 },
             }
@@ -492,8 +527,8 @@ impl Nettle {
         }
 
         for path in self.regs() {
-            let val_path = format!("{path}.val");
-            self.broadcast_update(&val_path);
+            let val_path: Path = format!("{path}.val").into();
+            self.broadcast_update(val_path);
         }
 
         if self.debug {
@@ -575,7 +610,7 @@ impl ModuleDef {
 
     fn terminal(&self, name: &str) -> Path {
         let path = self.path.join(".");
-        format!("{path}.{name}")
+        format!("{path}.{name}").into()
     }
 
     pub fn node(mut self, name: &str) -> Self {
@@ -590,8 +625,8 @@ impl ModuleDef {
         let val_path = format!("{path}.val");
 
         self.paths.insert(path, PathType::Reg(reset));
-        self.paths.insert(set_path, PathType::Node);
-        self.paths.insert(val_path, PathType::Node);
+        self.paths.insert(set_path.into(), PathType::Node);
+        self.paths.insert(val_path.into(), PathType::Node);
         self
     }
 
@@ -620,7 +655,7 @@ impl ModuleDef {
     }
 
     fn current_path(&self) -> Path {
-        self.path.join(".")
+        self.path.join(".").into()
     }
 
     pub fn ext(mut self, name: &str, terminals: &[&str]) -> Self {
@@ -629,7 +664,7 @@ impl ModuleDef {
 
         for terminal in terminals {
             let target = format!("{ext}.{terminal}");
-            self.paths.insert(target, PathType::Node);
+            self.paths.insert(target.into(), PathType::Node);
         }
         self
     }
@@ -653,7 +688,7 @@ impl ModuleDef {
             if regs.contains(&target) {
                 let set_path = format!("{target}.set");
                 let expr = self.wires.remove(&target).unwrap();
-                self.wires.insert(set_path, expr);
+                self.wires.insert(set_path.into(), expr);
             }
         }
 
@@ -661,7 +696,7 @@ impl ModuleDef {
         let mut wires: Vec<(Path, Expr)> = vec![];
         for (target, expr) in &self.wires {
             let expr = expr.clone().expand_regs_as_val(&regs);
-            wires.push((target.to_string(), expr));
+            wires.push((target.clone(), expr));
         }
         self.wires = wires.into_iter().collect();
         self
@@ -678,14 +713,14 @@ fn expand_regs() {
         .reg("r", Value::X)
         .node("n")
         .node("m")
-        .wire("r", &Expr::Path("n".to_string()))
-        .wire("m", &Expr::Path("r".to_string()))
+        .wire("r", &Expr::Path("n".into()))
+        .wire("m", &Expr::Path("r".into()))
         .build();
 
-    assert!(m.wires.contains_key("top.r.set"));
-    assert!(!m.wires.contains_key("top.r"));
-    assert!(m.wires.contains_key("top.m"));
-    assert_eq!(m.wires["top.m"], Expr::Path("top.r.val".to_string()));
+    assert!(m.wires.contains_key(&"top.r.set".into()));
+    assert!(!m.wires.contains_key(&"top.r".into()));
+    assert!(m.wires.contains_key(&"top.m".into()));
+    assert_eq!(m.wires[&"top.m".into()], Expr::Path("top.r.val".into()));
 }
 
 fn mod_to_module(m: Mod) -> ModuleDef {
@@ -715,7 +750,7 @@ pub fn parse_top(circuit: &str) -> Module {
     mod_to_module(m).build()
 }
 
-pub fn parse_testbench(testbench: &str) -> Testbench {
+fn parse_testbench(testbench: &str) -> Testbench {
     parse::TestbenchParser::new().parse(testbench).unwrap()
 }
 
@@ -763,7 +798,7 @@ fn main() {
             .ext("top.vip", monitor);
 
     let verbose = true;
-    for command in &tb.0 {
+    for command in tb.0 {
         match command {
             TestbenchCommand::Peek(terminal) => {
                 print!("PEEK {terminal} ");
@@ -776,13 +811,13 @@ fn main() {
                 if verbose {
                     println!("POKE {terminal} <= {value:?}");
                 }
-                nettle.poke(terminal, *value);
+                nettle.poke(terminal, value);
             },
             TestbenchCommand::Set(terminal, value) => {
                 if verbose {
                     println!("SET {terminal} = {value:?}");
                 }
-                nettle.set(terminal, *value);
+                nettle.set(terminal, value);
             },
             TestbenchCommand::Clock => {
                 if verbose {
@@ -804,7 +839,7 @@ fn main() {
                 if result != Value::Bit(true) {
                     println!("Assertion failed: {e:?}");
                     for path in e.paths() {
-                        println!("    {path} => {:?}", nettle.peek(&path));
+                        println!("    {path} => {:?}", nettle.peek(path.clone()));
 
                     }
                     panic!("");
@@ -1057,6 +1092,7 @@ fn path_depends() {
     ];
 
     for (expr_str, paths) in tests {
+        let paths: Vec<Path> = paths.into_iter().map(|s| s.into()).collect();
         let expr: Expr = expr_str.into();
         assert_eq!(expr.paths(), paths, "{expr:?} has paths {:?} /= {paths:?}", expr.paths());
     }
