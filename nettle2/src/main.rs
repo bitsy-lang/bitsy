@@ -333,8 +333,9 @@ impl Nettle {
             self.indent += 1;
         }
 
-        let set_path = format!("{path}.set");
-        self.state.insert(set_path, value);
+        let val_path = format!("{path}.val");
+        self.state.insert(val_path.clone(), value);
+        self.broadcast_update(&val_path);
 
         if self.debug {
             self.indent -= 1;
@@ -368,7 +369,7 @@ impl Nettle {
     fn broadcast_update(&mut self, path: &Path) {
         if self.debug {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}update({path})");
+            eprintln!("{padding}broadcast_update({path})");
             self.indent += 1;
         }
 
@@ -984,5 +985,73 @@ fn test_parse() {
     for e in exprs {
         let expr: Expr = e.into();
         assert_eq!(format!("{:?}", expr), e);
+    }
+}
+
+#[test]
+fn test_eval() {
+    let buffer = parse_top("
+        top {
+            node x;
+            reg r reset false;
+            x <= true;
+            r <= r;
+
+            reg a reset 2w32;
+            reg b reset 3w32;
+            a <= a;
+            b <= b;
+
+            node p;
+            node q;
+            p <= true;
+            q <= false;
+        }
+    ");
+
+    let mut nettle = Nettle::new(&buffer);
+    nettle.reset();
+
+    let tests = vec![
+        ("top.x", Value::Bit(true)),
+        ("1w8", Value::Word(8, 1)),
+        ("true", Value::Bit(true)),
+        ("false", Value::Bit(false)),
+        ("(top.a + top.b)", Value::Word(32, 5)),
+        ("(top.b - top.a)", Value::Word(32, 1)),
+//        "(a && b)",
+//        "(a || b)",
+        ("(top.a == top.b)".into(), Value::Bit(false)),
+        ("(top.a != top.b)".into(), Value::Bit(true)),
+        ("(!top.x)".into(), Value::Bit(false)),
+        ("if top.x { top.a } else { top.b }".into(), Value::Word(32, 2)),
+        ("if !top.x { top.a } else { top.b }".into(), Value::Word(32, 3)),
+    ];
+
+    for (expr_str, v) in tests {
+        let expr: Expr = expr_str.into();
+        assert_eq!(expr.eval(&nettle), v, "{expr:?} does not equal {v:?}");
+    }
+}
+
+#[test]
+fn path_depends() {
+    let tests = vec![
+        ("top.x", vec!["top.x"]),
+        ("1w8", vec![]),
+        ("true", vec![]),
+        ("false", vec![]),
+        ("(top.a + top.b)", vec!["top.a", "top.b"]),
+        ("(top.b - top.a)", vec!["top.a", "top.b"]),
+        ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
+        ("(top.a != top.b)".into(), vec!["top.a", "top.b"]),
+        ("(!top.x)".into(), vec!["top.x"]),
+        ("if top.x { top.a } else { top.b }".into(), vec!["top.a", "top.b", "top.x"]),
+//        ("if !top.x { top.a } else { top.b }".into(), ),
+    ];
+
+    for (expr_str, paths) in tests {
+        let expr: Expr = expr_str.into();
+        assert_eq!(expr.paths(), paths, "{expr:?} has paths {:?} /= {paths:?}", expr.paths());
     }
 }
