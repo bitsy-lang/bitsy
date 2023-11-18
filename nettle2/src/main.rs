@@ -635,16 +635,6 @@ impl ModuleDef {
     }
 }
 
-pub trait TermLookup {
-    fn terminal(&self, name: &str) -> Expr;
-}
-
-impl TermLookup for ModuleDef {
-    fn terminal(&self, name: &str) -> Expr {
-        Expr::Path(ModuleDef::terminal(self, name))
-    }
-}
-
 fn mod_to_module(m: Mod) -> ModuleDef {
     let Mod(name, decls) = m;
     let mut module = Module::new(&name);
