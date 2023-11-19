@@ -33,10 +33,10 @@ fn expand_regs() {
         .wire("m", &Expr::Path("r".into()))
         .build();
 
-    assert!(m.wires.contains_key(&"top.r.set".into()));
-    assert!(!m.wires.contains_key(&"top.r".into()));
-    assert!(m.wires.contains_key(&"top.m".into()));
-    assert_eq!(m.wires[&"top.m".into()], Expr::Path("top.r.val".into()));
+    assert!(m.wires().contains_key(&"top.r.set".into()));
+    assert!(!m.wires().contains_key(&"top.r".into()));
+    assert!(m.wires().contains_key(&"top.m".into()));
+    assert_eq!(m.wires()[&"top.m".into()], Expr::Path("top.r.val".into()));
 }
 
 #[test]

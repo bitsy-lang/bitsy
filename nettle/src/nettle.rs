@@ -11,7 +11,7 @@ pub struct Nettle {
 impl Nettle {
     pub fn new(circuit: &Circuit) -> Nettle {
         let mut state = BTreeMap::new();
-        for (terminal, typ) in &circuit.paths {
+        for (terminal, typ) in circuit.paths() {
             if let PathType::Node = typ {
                 state.insert(terminal.clone(), Value::X);
             }
@@ -33,7 +33,7 @@ impl Nettle {
     }
 
     fn wires(&self) -> &BTreeMap<Path, Expr> {
-        &self.circuit.wires
+        &self.circuit.wires()
     }
 
     pub fn paths(&self) -> Vec<Path> {
@@ -152,11 +152,11 @@ impl Nettle {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
-        if !self.circuit.paths.contains_key(&path) {
+        if !self.circuit.paths().contains_key(&path) {
             dbg!(path);
         }
 
-        if let PathType::Reg(_reset) = self.circuit.paths[&path] {
+        if let PathType::Reg(_reset) = self.circuit.paths()[&path] {
             true
         } else {
             false
@@ -165,7 +165,7 @@ impl Nettle {
 
     pub fn regs(&self) -> Vec<Path> {
         let mut result = vec![];
-        for (terminal, typ) in &self.circuit.paths {
+        for (terminal, typ) in self.circuit.paths() {
             if let PathType::Reg(_reset) = typ {
                 result.push(terminal.clone());
             }
@@ -221,7 +221,7 @@ impl Nettle {
 
         for path in self.regs() {
             let val_path = format!("{path}.val");
-            match self.circuit.paths.get(&path).unwrap() {
+            match self.circuit.paths().get(&path).unwrap() {
                 PathType::Node => (),
                 PathType::Reg(reset) => {
                     if *reset != Value::X {
