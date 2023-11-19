@@ -1,5 +1,11 @@
 use super::*;
 
+#[derive(Debug, Clone)]
+pub enum PathType {
+    Node,
+    Reg(Value),
+}
+
 #[derive(Debug)]
 pub struct CircuitNode {
     paths: BTreeMap<Path, PathType>,

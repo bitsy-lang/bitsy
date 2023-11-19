@@ -23,12 +23,6 @@ use ext::*;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
-enum PathType {
-    Node,
-    Reg(Value),
-}
-
 fn main() {
     let argv: Vec<String> = std::env::args().collect();
     let default = "Top.nettle".to_string();
