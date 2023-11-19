@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug)]
-pub(crate) struct Testbench(pub(crate) Vec<TestbenchCommand>);
+pub struct Testbench(pub(crate) Vec<TestbenchCommand>);
 
 #[derive(Debug)]
 pub(crate) enum TestbenchCommand {
@@ -14,13 +14,9 @@ pub(crate) enum TestbenchCommand {
     Assert(Expr),
 }
 
-pub(crate) fn parse_testbench(testbench: &str) -> Testbench {
-    parse::TestbenchParser::new().parse(testbench).unwrap()
-}
-
 pub(crate) fn read_testbench_file(filename: &str) -> Option<Testbench> {
     if let Ok(text) = std::fs::read_to_string(filename) {
-        Some(parse_testbench(&text))
+        Some(parse::parse_testbench(&text))
     } else {
         None
     }

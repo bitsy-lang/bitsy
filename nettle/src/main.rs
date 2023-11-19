@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod parse;
 mod value;
 mod expr;
 mod nettle;
@@ -9,6 +10,7 @@ mod ext;
 #[cfg(test)]
 mod tests;
 
+use parse::*;
 use value::*;
 use expr::*;
 use nettle::*;
@@ -18,22 +20,6 @@ use ext::*;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-
-use lalrpop_util::lalrpop_mod;
-lalrpop_mod!(parse);
-
-#[derive(Debug)]
-struct Mod(String, Vec<ModDecl>);
-#[derive(Debug)]
-enum ModDecl {
-    Node(String, Type),
-    Reg(String, Type, Value),
-    Mod(Mod),
-    Wire(Path, Expr),
-    Ext(String, Vec<(String, Type)>),
-}
-#[derive(Debug)]
-struct Ext(String, Vec<String>);
 
 #[derive(Debug, Clone)]
 enum PathType {
@@ -185,34 +171,6 @@ impl ModuleDef {
     pub fn build(self) -> Module {
         Module(Arc::new(self.expand_regs()))
     }
-}
-
-fn mod_to_module(m: Mod) -> ModuleDef {
-    let Mod(name, decls) = m;
-    let mut module = Module::new(&name);
-
-    for decl in decls {
-        match decl {
-            ModDecl::Node(name, _typ) => module = module.node(&name),
-            ModDecl::Reg(name, _typ, reset) => module = module.reg(&name, reset),
-            ModDecl::Mod(submodule) => {
-                let name = submodule.0.to_string();
-                module = module.instantiate(&name, &mod_to_module(submodule))
-            },
-            ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
-            ModDecl::Ext(name, ports) => {
-                let ports: Vec<_> = ports.iter().map(|(name, _typ)| name.as_str()).collect();
-                module = module.ext(&name, &ports)
-            },
-        }
-    }
-    module
-}
-
-
-pub fn parse_top(circuit: &str) -> Module {
-    let m: Mod = parse::TopParser::new().parse(circuit).unwrap();
-    mod_to_module(m).build()
 }
 
 fn main() {

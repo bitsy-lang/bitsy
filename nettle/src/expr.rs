@@ -171,9 +171,3 @@ impl Expr {
         }
     }
 }
-
-impl From<&str> for Expr {
-    fn from(expr: &str) -> Expr {
-        *parse::ExprParser::new().parse(expr).unwrap()
-    }
-}
