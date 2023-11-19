@@ -235,3 +235,49 @@ fn test_eval() {
         assert_eq!(expr.eval(&nettle), v, "{expr:?} does not equal {v:?}");
     }
 }
+
+#[test]
+fn test_nets() {
+    let top = parse_top("
+        top {
+            port in of Bit;
+            reg r of Bit;
+            port out of Bit;
+            r <= in;
+            out <= r;
+        }
+    ");
+
+    let nets = top.nets();
+    assert_eq!(nets.len(), 2);
+
+    let drivers: BTreeSet<Path> = nets
+        .iter()
+        .map(|net| net.driver().into())
+        .collect();
+
+    let expected_drivers: BTreeSet<Path> = vec!["top.r.val", "top.in"]
+        .into_iter()
+        .map(|path| path.into())
+        .collect();
+
+    assert_eq!(drivers, expected_drivers);
+
+    let triangle_numbers_top = parse_top("
+        top {
+            node out of Word<32>;
+            reg sum of Word<32> reset 0w32;
+            mod counter {
+                node out of Word<32>;
+                reg c of Word<32> reset 1w32;
+                c <= c + 1w4;
+                out <= c;
+            }
+            out <= sum;
+            sum <= sum + counter.out;
+        }
+    ");
+
+    let triangle_numbers_nets = triangle_numbers_top.nets();
+    assert_eq!(triangle_numbers_nets.len(), 4);
+}

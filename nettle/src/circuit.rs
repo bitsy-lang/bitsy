@@ -1,15 +1,44 @@
 use super::*;
 
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub struct Terminal(Path);
+
+impl From<Terminal> for Path {
+    fn from(terminal: Terminal) -> Path {
+        terminal.0
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct Net(Vec<Path>);
+pub struct Net(Terminal, Vec<Terminal>);
 
 impl Net {
-    pub fn driver(&self) -> Path {
-        self.0[0].clone()
+    fn from(terminal: Terminal) -> Net {
+        Net(terminal, vec![])
     }
 
-    pub fn drivees(&self) -> &[Path] {
-        &self.0[1..]
+    pub fn add(&mut self, terminal: Terminal) {
+        if self.0 != terminal {
+            self.1.push(terminal);
+            self.1.sort();
+            self.1.dedup();
+        }
+    }
+
+    pub fn driver(&self) -> Terminal {
+        self.0.clone()
+    }
+
+    pub fn drivees(&self) -> &[Terminal] {
+        &self.1
+    }
+
+    pub fn terminals(&self) -> Vec<Terminal> {
+        let mut results = vec![self.0.clone()];
+        for terminal in &self.1 {
+            results.push(terminal.clone());
+        }
+        results
     }
 }
 
@@ -56,9 +85,53 @@ impl Circuit {
         &self.0.exts
     }
 
-    pub fn nets(&self) -> Vec<Net> {
-        todo!()
+    pub fn terminals(&self) -> Vec<Terminal> {
+        let mut terminals = vec![];
+        for (path, path_type) in self.paths() {
+            if let PathType::Node(_typ) = path_type {
+                terminals.push(Terminal(path.clone()))
+            } else if let PathType::Reg(_typ, _reset) = path_type {
+                terminals.push(Terminal(format!("{path}.val").into()));
+                terminals.push(Terminal(format!("{path}.set").into()));
+            }
+        }
+        terminals
     }
+
+    pub fn nets(&self) -> Vec<Net> {
+        let mut immediate_driver_for: BTreeMap<Terminal, Terminal> = BTreeMap::new();
+        for (target, expr) in self.wires() {
+            if let Expr::Reference(driver) = expr {
+                immediate_driver_for.insert(Terminal(target.clone()), Terminal(driver.clone()));
+            }
+        }
+        let mut drivers: BTreeSet<Terminal> = BTreeSet::new();
+        for terminal in self.terminals() {
+            drivers.insert(driver_for(terminal, &immediate_driver_for));
+        }
+
+        let mut nets: BTreeMap<Terminal, Net> = BTreeMap::new();
+        for driver in &drivers {
+            nets.insert(driver.clone(), Net::from(driver.clone()));
+        }
+
+        for terminal in self.terminals() {
+            let driver = driver_for(terminal.clone(), &immediate_driver_for);
+            let net = nets.get_mut(&driver).unwrap();
+            net.add(terminal);
+        }
+
+        let nets: Vec<Net> = nets.values().into_iter().cloned().collect();
+        nets
+    }
+}
+
+fn driver_for(terminal: Terminal, immediate_driver_for: &BTreeMap<Terminal, Terminal>) -> Terminal {
+    let mut driver: &Terminal = &terminal;
+    while let Some(immediate_driver) = &immediate_driver_for.get(driver) {
+        driver = immediate_driver;
+    }
+    driver.clone()
 }
 
 impl CircuitNode {

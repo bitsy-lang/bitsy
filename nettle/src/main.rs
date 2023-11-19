@@ -21,6 +21,7 @@ use path::*;
 use ext::*;
 
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 fn main() {
