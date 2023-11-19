@@ -1,6 +1,19 @@
 use super::*;
 
 #[derive(Debug, Clone)]
+pub struct Net(Vec<Path>);
+
+impl Net {
+    pub fn driver(&self) -> Path {
+        self.0[0].clone()
+    }
+
+    pub fn drivees(&self) -> &[Path] {
+        &self.0[1..]
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum PathType {
     Node(Type),
     Reg(Type, Value),
@@ -41,6 +54,10 @@ impl Circuit {
 
     pub fn exts(&self) -> &[Path] {
         &self.0.exts
+    }
+
+    pub fn nets(&self) -> Vec<Net> {
+        todo!()
     }
 }
 
