@@ -43,9 +43,9 @@ fn expand_regs() {
 fn buffer() {
     let buffer = parse_top("
         top {
-            node in;
+            port in;
             reg r;
-            node out;
+            port out;
             r <= in;
             out <= r;
         }
@@ -66,7 +66,7 @@ fn buffer() {
 fn counter() {
     let counter = parse_top("
         top {
-            node out;
+            port out;
             reg counter reset 0w4;
             out <= counter;
             counter <= counter.val + 1w4;
@@ -88,10 +88,10 @@ fn counter() {
 fn triangle_numbers() {
     let top = parse_top("
         top {
-            node out;
+            port out;
             reg sum reset 0w32;
             mod counter {
-                node out;
+                port out;
                 reg counter reset 1w32;
                 out <= counter;
                 counter <= counter + 1w4;
@@ -116,14 +116,14 @@ fn vip() {
     let top = parse_top("
         top {
             mod counter {
-                node out;
+                port out;
                 reg counter;
                 counter <= counter + 1w4;
                 out <= counter;
             }
 
             ext vip {
-                node in;
+                port in;
             }
 
             vip.in <= counter.out;
@@ -147,8 +147,8 @@ fn vip() {
 fn ifs() {
     let top = parse_top("
         top {
-            node out;
-            node in;
+            port out;
+            port in;
 
             out <= if in {
                 42w8

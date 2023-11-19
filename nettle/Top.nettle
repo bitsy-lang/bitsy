@@ -1,5 +1,5 @@
 top {
-    node out;
+    port out;
     out <= counter.val;
 
     reg counter reset 0w2;
@@ -16,6 +16,6 @@ top {
     };
 
     ext vip {
-        node in;
+        port in;
     }
 }

@@ -11,6 +11,7 @@ The Bitsy Hardware Language
   interfaces
   principles
   examples
+  nettle/index
 
 Bitsy is a modern hardware description language.
 
