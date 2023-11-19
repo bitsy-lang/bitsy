@@ -7,7 +7,7 @@ pub enum PathType {
 }
 
 #[derive(Debug)]
-pub struct CircuitNode {
+pub(crate) struct CircuitNode {
     paths: BTreeMap<Path, PathType>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
@@ -16,13 +16,6 @@ pub struct CircuitNode {
 
 #[derive(Debug, Clone)]
 pub struct Circuit(Arc<CircuitNode>);
-
-impl std::ops::Deref for Circuit {
-    type Target = CircuitNode;
-    fn deref(&self) -> &CircuitNode {
-        &self.0
-    }
-}
 
 impl Circuit {
     pub fn new(name: &str) -> CircuitNode {
@@ -35,19 +28,19 @@ impl Circuit {
     }
 
     pub fn paths(&self) -> &BTreeMap<Path, PathType> {
-        &self.paths
+        &self.0.paths
     }
 
     pub fn wires(&self) -> &BTreeMap<Path, Expr> {
-        &self.wires
+        &self.0.wires
     }
 
     pub fn path(&self) -> &Vec<String> {
-        &self.path
+        &self.0.path
     }
 
     pub fn exts(&self) -> &Vec<Path> {
-        &self.exts
+        &self.0.exts
     }
 }
 
