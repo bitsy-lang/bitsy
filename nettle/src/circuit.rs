@@ -69,19 +69,19 @@ impl CircuitNode {
         self
     }
 
-    fn terminal(&self, name: &str) -> Path {
+    fn local_name_to_path(&self, name: &str) -> Path {
         let path = self.path.join(".");
         format!("{path}.{name}").into()
     }
 
     pub fn node(mut self, name: &str) -> Self {
-        let terminal = self.terminal(name);
-        self.paths.insert(terminal, PathType::Node);
+        let path = self.local_name_to_path(name);
+        self.paths.insert(path, PathType::Node);
         self
     }
 
     pub fn reg(mut self, name: &str, reset: Value) -> Self {
-        let path = self.terminal(name);
+        let path = self.local_name_to_path(name);
         let set_path = format!("{path}.set");
         let val_path = format!("{path}.val");
 
@@ -92,23 +92,23 @@ impl CircuitNode {
     }
 
     pub fn wire(mut self, name: &str, expr: &Expr) -> Self {
-        let terminal = self.terminal(name);
-        self.wires.insert(terminal, expr.clone().relative_to(&self.current_path()));
+        let path = self.local_name_to_path(name);
+        self.wires.insert(path, expr.clone().relative_to(&self.current_path()));
         self
     }
 
     pub fn instantiate(mut self, name:  &str, circuit: &CircuitNode) -> Self {
-        let path = self.current_path();
+        let mod_path = self.current_path();
         self = self.push(name);
 
-        for (terminal, typ) in &circuit.paths {
-            let target = relative_to(&path, terminal);
+        for (path, typ) in &circuit.paths {
+            let target = relative_to(&mod_path, path);
             self.paths.insert(target, typ.clone());
         }
 
-        for (terminal, expr) in &circuit.wires {
-            let target = relative_to(&path, terminal);
-            let expr = expr.clone().relative_to(&path);
+        for (path, expr) in &circuit.wires {
+            let target = relative_to(&mod_path, path);
+            let expr = expr.clone().relative_to(&mod_path);
             self.wires.insert(target, expr);
         }
         self = self.pop();
@@ -119,12 +119,12 @@ impl CircuitNode {
         self.path.join(".").into()
     }
 
-    pub fn ext(mut self, name: &str, terminals: &[&str]) -> Self {
-        let ext = self.terminal(name);
+    pub fn ext(mut self, name: &str, ports: &[&str]) -> Self {
+        let ext = self.local_name_to_path(name);
         self.exts.push(ext.clone());
 
-        for terminal in terminals {
-            let target = format!("{ext}.{terminal}");
+        for port in ports {
+            let target = format!("{ext}.{port}");
             self.paths.insert(target.into(), PathType::Node);
         }
         self
