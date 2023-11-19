@@ -12,7 +12,7 @@ impl Nettle {
     pub fn new(circuit: &Circuit) -> Nettle {
         let mut state = BTreeMap::new();
         for (terminal, typ) in circuit.paths() {
-            if let PathType::Node = typ {
+            if let PathType::Node(_typ) = typ {
                 state.insert(terminal.clone(), Value::X);
             }
         }
@@ -156,7 +156,7 @@ impl Nettle {
             dbg!(path);
         }
 
-        if let PathType::Reg(_reset) = self.circuit.paths()[&path] {
+        if let PathType::Reg(_typ, _reset) = self.circuit.paths()[&path] {
             true
         } else {
             false
@@ -166,7 +166,7 @@ impl Nettle {
     pub fn regs(&self) -> Vec<Path> {
         let mut result = vec![];
         for (terminal, typ) in self.circuit.paths() {
-            if let PathType::Reg(_reset) = typ {
+            if let PathType::Reg(_typ, _reset) = typ {
                 result.push(terminal.clone());
             }
         }
@@ -222,8 +222,8 @@ impl Nettle {
         for path in self.regs() {
             let val_path = format!("{path}.val");
             match self.circuit.paths().get(&path).unwrap() {
-                PathType::Node => (),
-                PathType::Reg(reset) => {
+                PathType::Node(_typ) => (),
+                PathType::Reg(_typ, reset) => {
                     if *reset != Value::X {
                         if self.debug {
                             let padding = " ".repeat(self.indent * 4);
@@ -262,7 +262,15 @@ impl std::fmt::Debug for Nettle {
         states.sort_by_key(|(terminal, _)| terminal.to_string());
         states = states.into_iter().rev().collect();
         for (terminal, value) in states {
-            writeln!(f, "    {:>5}  {terminal}", format!("{value:?}"))?;
+            let typ = match &self.circuit.paths()[&terminal] {
+                PathType::Node(typ) => typ,
+                _ => unreachable!(),
+            };
+            writeln!(
+                f, "    {:>5}  {:>10}  {terminal} ",
+                format!("{value:?}"),
+                format!("{typ:?}"),
+            )?;
         }
         // writeln!(f, "Wires:")?;
         // for (terminal, expr) in &self.circuit.wires {
@@ -272,4 +280,3 @@ impl std::fmt::Debug for Nettle {
         Ok(())
     }
 }
-

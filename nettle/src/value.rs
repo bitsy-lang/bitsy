@@ -1,6 +1,6 @@
 type Width = u64;
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum Type {
     Word(Width),
 }
@@ -11,6 +11,16 @@ pub enum Value {
     X,
     Bit(bool),
     Word(Width, u64),
+}
+
+impl std::fmt::Debug for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            Type::Word(1) => write!(f, "Bit"),
+            Type::Word(8) => write!(f, "Byte"),
+            Type::Word(n) => write!(f, "Word<{n}>"),
+        }
+    }
 }
 
 impl std::fmt::Debug for Value {

@@ -26,9 +26,9 @@ fn path_depends() {
 #[test]
 fn expand_regs() {
     let m = Circuit::new("top")
-        .reg("r", Value::X)
-        .node("n")
-        .node("m")
+        .reg("r", Type::Word(1), Value::X)
+        .node("n", Type::Word(1))
+        .node("m", Type::Word(1))
         .wire("r", &Expr::Path("n".into()))
         .wire("m", &Expr::Path("r".into()))
         .build();

@@ -2,8 +2,8 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub enum PathType {
-    Node,
-    Reg(Value),
+    Node(Type),
+    Reg(Type, Value),
 }
 
 #[derive(Debug)]
@@ -67,20 +67,20 @@ impl CircuitNode {
         format!("{path}.{name}").into()
     }
 
-    pub fn node(mut self, name: &str) -> Self {
+    pub fn node(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        self.paths.insert(path, PathType::Node);
+        self.paths.insert(path, PathType::Node(typ));
         self
     }
 
-    pub fn reg(mut self, name: &str, reset: Value) -> Self {
+    pub fn reg(mut self, name: &str, typ: Type, reset: Value) -> Self {
         let path = self.local_name_to_path(name);
         let set_path = format!("{path}.set");
         let val_path = format!("{path}.val");
 
-        self.paths.insert(path, PathType::Reg(reset));
-        self.paths.insert(set_path.into(), PathType::Node);
-        self.paths.insert(val_path.into(), PathType::Node);
+        self.paths.insert(path, PathType::Reg(typ, reset));
+        self.paths.insert(set_path.into(), PathType::Node(typ));
+        self.paths.insert(val_path.into(), PathType::Node(typ));
         self
     }
 
@@ -112,13 +112,13 @@ impl CircuitNode {
         self.path.join(".").into()
     }
 
-    pub fn ext(mut self, name: &str, ports: &[&str]) -> Self {
+    pub fn ext(mut self, name: &str, ports: &[(&str, Type)]) -> Self {
         let ext = self.local_name_to_path(name);
         self.exts.push(ext.clone());
 
-        for port in ports {
+        for (port, typ) in ports {
             let target = format!("{ext}.{port}");
-            self.paths.insert(target.into(), PathType::Node);
+            self.paths.insert(target.into(), PathType::Node(*typ));
         }
         self
     }
@@ -126,7 +126,7 @@ impl CircuitNode {
     fn regs(&self) -> Vec<Path> {
         let mut result = vec![];
         for (path, typ) in &self.paths {
-            if let PathType::Reg(_reset) = typ {
+            if let PathType::Reg(_typ, _reset) = typ {
                 result.push(path.clone());
             }
         }

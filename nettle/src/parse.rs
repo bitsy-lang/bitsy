@@ -24,15 +24,15 @@ fn mod_to_circuit(m: Mod) -> CircuitNode {
 
     for decl in decls {
         match decl {
-            ModDecl::Node(name, _typ) => module = module.node(&name),
-            ModDecl::Reg(name, _typ, reset) => module = module.reg(&name, reset),
+            ModDecl::Node(name, typ) => module = module.node(&name, typ),
+            ModDecl::Reg(name, typ, reset) => module = module.reg(&name, typ, reset),
             ModDecl::Mod(submodule) => {
                 let name = submodule.0.to_string();
                 module = module.instantiate(&name, &mod_to_circuit(submodule))
             },
             ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
             ModDecl::Ext(name, ports) => {
-                let ports: Vec<_> = ports.iter().map(|(name, _typ)| name.as_str()).collect();
+                let ports: Vec<(&str, Type)> = ports.iter().map(|(name, typ)| (name.as_str(), *typ)).collect();
                 module = module.ext(&name, &ports)
             },
         }
