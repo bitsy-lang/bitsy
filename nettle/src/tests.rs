@@ -29,14 +29,14 @@ fn expand_regs() {
         .reg("r", Type::Word(1), Value::X)
         .node("n", Type::Word(1))
         .node("m", Type::Word(1))
-        .wire("r", &Expr::Path("n".into()))
-        .wire("m", &Expr::Path("r".into()))
+        .wire("r", &Expr::Reference("n".into()))
+        .wire("m", &Expr::Reference("r".into()))
         .build();
 
     assert!(m.wires().contains_key(&"top.r.set".into()));
     assert!(!m.wires().contains_key(&"top.r".into()));
     assert!(m.wires().contains_key(&"top.m".into()));
-    assert_eq!(m.wires()[&"top.m".into()], Expr::Path("top.r.val".into()));
+    assert_eq!(m.wires()[&"top.m".into()], Expr::Reference("top.r.val".into()));
 }
 
 #[test]

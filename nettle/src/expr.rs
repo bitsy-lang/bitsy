@@ -2,7 +2,7 @@ use super::*;
 
 #[derive(Eq, PartialEq, Clone)]
 pub enum Expr {
-    Path(Path),
+    Reference(Path),
     Lit(Value),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
@@ -13,7 +13,7 @@ pub enum Expr {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Expr::Path(path) => write!(f, "{path}"),
+            Expr::Reference(path) => write!(f, "{path}"),
             Expr::Lit(val) => write!(f, "{val:?}"),
             Expr::UnOp(op, e) => {
                 let op_symbol = match op {
@@ -66,7 +66,7 @@ pub enum BinOp {
 impl Expr {
     pub fn paths(&self) -> Vec<Path> {
         match self {
-            Expr::Path(path) => vec![path.clone()],
+            Expr::Reference(path) => vec![path.clone()],
             Expr::Lit(_value) => vec![],
             Expr::UnOp(_op, e) => {
                 let mut result = e.paths();
@@ -103,7 +103,7 @@ impl Expr {
 
     pub fn relative_to(self, top: &Path) -> Expr {
         match self {
-            Expr::Path(path) => Expr::Path(relative_to(top, &path)),
+            Expr::Reference(path) => Expr::Reference(relative_to(top, &path)),
             Expr::Lit(_value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
@@ -114,7 +114,7 @@ impl Expr {
 
     pub fn eval(&self, nettle: &Nettle) -> Value {
         match self {
-            Expr::Path(path) => nettle.peek(path.clone()),
+            Expr::Reference(path) => nettle.peek(path.clone()),
             Expr::Lit(value) => *value,
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
@@ -156,11 +156,11 @@ impl Expr {
 
     pub fn expand_regs_as_val(self, regs: &[Path]) -> Expr {
         match self {
-            Expr::Path(path) => {
+            Expr::Reference(path) => {
                 if regs.contains(&path) {
-                    Expr::Path(format!("{path}.val").into())
+                    Expr::Reference(format!("{path}.val").into())
                 } else {
-                    Expr::Path(path)
+                    Expr::Reference(path)
                 }
             },
             Expr::Lit(_value) => self,
