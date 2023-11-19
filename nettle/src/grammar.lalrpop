@@ -42,7 +42,7 @@ pub ModDecl: ModDecl  = {
         ModDecl::Ext(id, ports)
     },
     <m:Mod> => ModDecl::Mod(m),
-    <path:Path> "<=" <e:Expr> ";" => ModDecl::Wire(path, *e),
+    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
 }
 
 pub Expr: Box<Expr> = {
@@ -79,7 +79,7 @@ pub ExprAdd: Box<Expr> = {
 
 pub ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
-    <e:ExprPath> => e,
+    <e:ExprReference> => e,
     <e:ExprIf> => e,
     <e:ExprHole> => e,
     "(" <e:Expr> ")" => e,
@@ -101,8 +101,8 @@ pub ExprLit: Box<Expr> = {
     <v:Value> => Box::new(Expr::Lit(v)),
 }
 
-pub ExprPath: Box<Expr> = {
-     <id:Path> => Box::new(Expr::Path(id))
+pub ExprReference: Box<Expr> = {
+     <reference:Reference> => Box::new(Expr::Path(reference))
 }
 
 pub Type: Type = {
@@ -136,6 +136,11 @@ pub Path: Path = {
         }
         path.into()
     },
+}
+
+pub Reference: Path = {
+    <submod:Id> "." <id:Id> => format!("{submod}.{id}").into(),
+    <id:Id> => id.into(),
 }
 
 pub Id: String = {
