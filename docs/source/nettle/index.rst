@@ -99,6 +99,8 @@ and wiring its terminals to the ports of its children.
 On the right hand side of the `<=`, we have the **driver**.
 This is an expression that continuously drives a signal to the target.
 
+A terminal can only appear as the target of a `<=` once in a circuit.
+
 Expressions
 -----------
 Expressions represent combinational logic.
@@ -204,3 +206,19 @@ Circuits with loops are rejected.
 
 Note that if `r` is a `reg`, the wire `r <= r + 1w8` is not a combinatorial loop,
 since the `r` on the left hand side implies the `set` terminal while the `r` on the right hand side implies the `val` terminal.
+
+Nets
+----
+A net is a collection of terminals, one of which is the driver.
+On any clock cycle, all of the terminals in a net have the same value.
+
+The nets of a Nettle circuit can be calculated by looking at the wire statements.
+Whenever a wire statement has on its driver (the right-hand side).
+If the driver is a reference, this indicates the two terminals are part of the same net.
+
+Because a terminal can only appear as a target (the left hand side) of a `<=` statement once in a circuit,
+we can create a tree of which terminals drive which terminals.
+The root of this tree is the driver of the net.
+Each net can be uniquely identified by its driver.
+
+Combinational logic and registers separate the nets from one another.
