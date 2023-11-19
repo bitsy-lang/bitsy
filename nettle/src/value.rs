@@ -1,5 +1,10 @@
 type Width = u64;
 
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub enum Type {
+    Word(Width),
+}
+
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
 pub enum Value {
     #[default]

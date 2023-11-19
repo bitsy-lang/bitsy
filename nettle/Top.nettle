@@ -1,21 +1,7 @@
 top {
-    port out;
-    out <= counter.val;
+    port out of Word<4>;
 
-    reg counter reset 0w2;
-    counter.set <= counter.val + 1w4;
-
-    vip.in <= counter.val;
-
-    node exit;
-
-    exit <= if counter.val !=  15w4 {
-        X
-    } else {
-        ?
-    };
-
-    ext vip {
-        port in;
-    }
+    reg counter of Word<4> reset 0w4;
+    counter <= counter + 1w4;
+    out <= counter;
 }

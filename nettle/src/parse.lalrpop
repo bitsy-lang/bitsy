@@ -29,14 +29,17 @@ pub Mod: Mod = {
 }
 
 pub ModDecl: ModDecl  = {
-    "port" <id:Id> ";" => ModDecl::Node(id),
-    "node" <id:Id> ";" => ModDecl::Node(id),
-    "reg" <id:Id> <reset_val:("reset" Value)?> ";" => ModDecl::Reg(id, reset_val.map(|opt| opt.1).unwrap_or(Value::X)),
+    "port" <id:Id> "of" <typ:Type> ";" => ModDecl::Node(id, typ),
+    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Node(id, typ),
+    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X)),
     "ext" <id:Id> "{"
-        <nodes:("port" Id ";")+>
+        <nodes:("port" Id "of" Type ";")+>
     "}" => {
-        let names: Vec<String> = nodes.into_iter().map(|(_, name, _)| name).collect();
-        ModDecl::Ext(id, names)
+        let ports: Vec<(String, Type)> = nodes
+            .into_iter()
+            .map(|(_, name, _, typ, _)| (name, typ))
+            .collect();
+        ModDecl::Ext(id, ports)
     },
     <m:Mod> => ModDecl::Mod(m),
     <path:Path> "<=" <e:Expr> ";" => ModDecl::Wire(path, *e),
@@ -100,6 +103,12 @@ pub ExprLit: Box<Expr> = {
 
 pub ExprPath: Box<Expr> = {
      <id:Path> => Box::new(Expr::Path(id))
+}
+
+pub Type: Type = {
+    "Word" "<" <n:Nat> ">" => Type::Word(n),
+    "Bit" => Type::Word(1),
+    "Byte" => Type::Word(8),
 }
 
 pub Value: Value = {

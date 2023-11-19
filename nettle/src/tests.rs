@@ -43,9 +43,9 @@ fn expand_regs() {
 fn buffer() {
     let buffer = parse_top("
         top {
-            port in;
-            reg r;
-            port out;
+            port in of Bit;
+            reg r of Bit;
+            port out of Bit;
             r <= in;
             out <= r;
         }
@@ -66,8 +66,8 @@ fn buffer() {
 fn counter() {
     let counter = parse_top("
         top {
-            port out;
-            reg counter reset 0w4;
+            port out of Word<4>;
+            reg counter of Word<4> reset 0w4;
             out <= counter;
             counter <= counter.val + 1w4;
         }
@@ -88,13 +88,13 @@ fn counter() {
 fn triangle_numbers() {
     let top = parse_top("
         top {
-            port out;
-            reg sum reset 0w32;
+            port out of Word<32>;
+            reg sum of Word<32> reset 0w32;
             mod counter {
-                port out;
-                reg counter reset 1w32;
+                port out of Word<32>;
+                reg counter of Word<32> reset 1w32;
                 out <= counter;
-                counter <= counter + 1w4;
+                counter <= counter + 1w32;
             }
             out <= sum;
             sum <= sum + counter.out;
@@ -116,14 +116,14 @@ fn vip() {
     let top = parse_top("
         top {
             mod counter {
-                port out;
-                reg counter;
+                port out of Word<4>;
+                reg counter of Word<4>;
                 counter <= counter + 1w4;
                 out <= counter;
             }
 
             ext vip {
-                port in;
+                port in of Word<4>;
             }
 
             vip.in <= counter.out;
@@ -136,7 +136,7 @@ fn vip() {
         Nettle::new(&top)
             .ext("top.vip", monitor);
 
-    nettle.set("top.counter.counter", Value::Word(4, 0));
+    nettle.reset();
     nettle.clock();
     nettle.clock();
     nettle.clock();
@@ -147,8 +147,8 @@ fn vip() {
 fn ifs() {
     let top = parse_top("
         top {
-            port out;
-            port in;
+            port out of Word<8>;
+            port in of Word<8>;
 
             out <= if in {
                 42w8
@@ -193,18 +193,18 @@ fn test_parse() {
 fn test_eval() {
     let buffer = parse_top("
         top {
-            node x;
-            reg r reset false;
+            node x of Bit;
+            reg r of Bit reset false;
             x <= true;
             r <= r;
 
-            reg a reset 2w32;
-            reg b reset 3w32;
+            reg a of Word<32> reset 2w32;
+            reg b of Word<32> reset 3w32;
             a <= a;
             b <= b;
 
-            node p;
-            node q;
+            node p of Bit;
+            node q of Bit;
             p <= true;
             q <= false;
         }
