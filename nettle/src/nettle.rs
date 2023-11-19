@@ -32,10 +32,6 @@ impl Nettle {
         self
     }
 
-    fn wires(&self) -> &BTreeMap<Path, Expr> {
-        &self.circuit.wires()
-    }
-
     pub fn paths(&self) -> Vec<Path> {
         self.state.keys().cloned().collect()
     }
@@ -103,7 +99,7 @@ impl Nettle {
             self.indent += 1;
         }
 
-        let wires = self.wires().clone();
+        let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.is_constant() {
                 if self.debug {
@@ -127,7 +123,7 @@ impl Nettle {
             self.indent += 1;
         }
 
-        let wires = self.wires().clone();
+        let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.depends_on(path.clone()) {
                 if self.debug {
