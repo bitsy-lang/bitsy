@@ -35,11 +35,11 @@ impl Circuit {
         &self.0.wires
     }
 
-    pub fn path(&self) -> &Vec<String> {
+    pub fn path(&self) -> &[String] {
         &self.0.path
     }
 
-    pub fn exts(&self) -> &Vec<Path> {
+    pub fn exts(&self) -> &[Path] {
         &self.0.exts
     }
 }
