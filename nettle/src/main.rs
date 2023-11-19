@@ -195,9 +195,9 @@ fn mod_to_module(m: Mod) -> ModuleDef {
         match decl {
             ModDecl::Node(name, _typ) => module = module.node(&name),
             ModDecl::Reg(name, _typ, reset) => module = module.reg(&name, reset),
-            ModDecl::Mod(subodule) => {
-                let name = subodule.0.to_string();
-                module = module.instantiate(&name, &mod_to_module(subodule))
+            ModDecl::Mod(submodule) => {
+                let name = submodule.0.to_string();
+                module = module.instantiate(&name, &mod_to_module(submodule))
             },
             ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
             ModDecl::Ext(name, ports) => {
@@ -209,8 +209,9 @@ fn mod_to_module(m: Mod) -> ModuleDef {
     module
 }
 
+
 pub fn parse_top(circuit: &str) -> Module {
-    let m = parse::TopParser::new().parse(circuit).unwrap();
+    let m: Mod = parse::TopParser::new().parse(circuit).unwrap();
     mod_to_module(m).build()
 }
 
