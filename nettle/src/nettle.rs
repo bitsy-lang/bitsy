@@ -1,7 +1,7 @@
 use super::*;
 
 pub struct Nettle {
-    circuit: Module,
+    circuit: Circuit,
     state: BTreeMap<Path, Value>,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     indent: usize,
@@ -9,7 +9,7 @@ pub struct Nettle {
 }
 
 impl Nettle {
-    pub fn new(circuit: &Module) -> Nettle {
+    pub fn new(circuit: &Circuit) -> Nettle {
         let mut state = BTreeMap::new();
         for (terminal, typ) in &circuit.paths {
             if let PathType::Node = typ {

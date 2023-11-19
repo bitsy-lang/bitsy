@@ -18,9 +18,9 @@ pub enum ModDecl {
 #[derive(Debug)]
 struct Ext(String, Vec<String>);
 
-fn mod_to_module(m: Mod) -> ModuleDef {
+fn mod_to_circuit(m: Mod) -> CircuitNode {
     let Mod(name, decls) = m;
-    let mut module = Module::new(&name);
+    let mut module = Circuit::new(&name);
 
     for decl in decls {
         match decl {
@@ -28,7 +28,7 @@ fn mod_to_module(m: Mod) -> ModuleDef {
             ModDecl::Reg(name, _typ, reset) => module = module.reg(&name, reset),
             ModDecl::Mod(submodule) => {
                 let name = submodule.0.to_string();
-                module = module.instantiate(&name, &mod_to_module(submodule))
+                module = module.instantiate(&name, &mod_to_circuit(submodule))
             },
             ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
             ModDecl::Ext(name, ports) => {
@@ -40,9 +40,9 @@ fn mod_to_module(m: Mod) -> ModuleDef {
     module
 }
 
-pub fn parse_top(circuit: &str) -> Module {
+pub fn parse_top(circuit: &str) -> Circuit {
     let m: Mod = grammar::TopParser::new().parse(circuit).unwrap();
-    mod_to_module(m).build()
+    mod_to_circuit(m).build()
 }
 
 impl From<&str> for Expr {

@@ -28,7 +28,7 @@ enum PathType {
 }
 
 #[derive(Debug)]
-pub struct ModuleDef {
+pub struct CircuitNode {
     paths: BTreeMap<Path, PathType>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
@@ -36,18 +36,18 @@ pub struct ModuleDef {
 }
 
 #[derive(Debug, Clone)]
-pub struct Module(Arc<ModuleDef>);
+pub struct Circuit(Arc<CircuitNode>);
 
-impl std::ops::Deref for Module {
-    type Target = ModuleDef;
-    fn deref(&self) -> &ModuleDef {
+impl std::ops::Deref for Circuit {
+    type Target = CircuitNode;
+    fn deref(&self) -> &CircuitNode {
         &self.0
     }
 }
 
-impl Module {
-    pub fn new(name: &str) -> ModuleDef {
-        ModuleDef {
+impl Circuit {
+    pub fn new(name: &str) -> CircuitNode {
+        CircuitNode {
             paths: BTreeMap::new(),
             wires: BTreeMap::new(),
             path: vec![name.to_string()],
@@ -56,7 +56,7 @@ impl Module {
     }
 }
 
-impl ModuleDef {
+impl CircuitNode {
     pub fn module(mut self, path: &str, with_module: impl FnOnce(Self) -> Self) -> Self {
         self = self.push(path);
         self = with_module(self);
@@ -102,7 +102,7 @@ impl ModuleDef {
         self
     }
 
-    pub fn instantiate(mut self, name:  &str, circuit: &ModuleDef) -> Self {
+    pub fn instantiate(mut self, name:  &str, circuit: &CircuitNode) -> Self {
         let path = self.current_path();
         self = self.push(name);
 
@@ -168,8 +168,8 @@ impl ModuleDef {
         self
     }
 
-    pub fn build(self) -> Module {
-        Module(Arc::new(self.expand_regs()))
+    pub fn build(self) -> Circuit {
+        Circuit(Arc::new(self.expand_regs()))
     }
 }
 

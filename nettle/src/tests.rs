@@ -25,7 +25,7 @@ fn path_depends() {
 
 #[test]
 fn expand_regs() {
-    let m = Module::new("top")
+    let m = Circuit::new("top")
         .reg("r", Value::X)
         .node("n")
         .node("m")
