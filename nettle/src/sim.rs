@@ -1,5 +1,7 @@
 use super::*;
 
+const DEBUG: bool = true;
+
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct NetId(usize);
 
@@ -9,7 +11,6 @@ pub struct Sim {
     indent: usize,
     nets: Vec<Net>,
     net_values: BTreeMap<NetId, Value>,
-    debug: bool,
 }
 
 impl Sim {
@@ -23,7 +24,6 @@ impl Sim {
             nets,
             net_values,
             indent: 0,
-            debug: false,
         };
         nettle.broadcast_update_constants();
         nettle
@@ -70,7 +70,7 @@ impl Sim {
             value
         };
 
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}peek({path}) = {:?}", value);
         }
@@ -80,7 +80,7 @@ impl Sim {
     pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
         let path: Path = path.into();
 
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}poke({path}, {value:?})");
             self.indent += 1;
@@ -97,14 +97,14 @@ impl Sim {
         }
 
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
 
     pub fn set<P: Into<Path>>(&mut self, path: P, value: Value) {
         let path: Path = path.into();
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}set({path}, {value:?})");
             self.indent += 1;
@@ -115,13 +115,13 @@ impl Sim {
         self.poke_net(net_id, value.clone());
         self.broadcast_update(val_path);
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
 
     fn broadcast_update_constants(&mut self) {
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}update_constants()");
             self.indent += 1;
@@ -130,7 +130,7 @@ impl Sim {
         let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.is_constant() {
-                if self.debug {
+                if DEBUG {
                     let padding = " ".repeat(self.indent * 4);
                     eprintln!("{padding}affected: {target_terminal}");
                 }
@@ -139,13 +139,13 @@ impl Sim {
             }
         }
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
 
     fn broadcast_update(&mut self, path: Path) {
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}broadcast_update({path})");
             self.indent += 1;
@@ -154,7 +154,7 @@ impl Sim {
         let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.depends_on(path.clone()) {
-                if self.debug {
+                if DEBUG {
                     let padding = " ".repeat(self.indent * 4);
                     eprintln!("{padding}affected: {target_terminal}");
                 }
@@ -168,21 +168,22 @@ impl Sim {
         if self.exts.contains_key(&ext_path) {
             let ext = self.exts.get_mut(&ext_path).unwrap();
             let local_path: Path = path[ext_path.len() + 1..].into();
-            let affects = ext.poke(&local_path, value);
-            let mut poke_values: Vec<(Path, Value)> = vec![];
-            for port_name in affects {
-                let affected_path: Path = format!("{ext_path}.{port_name}").into();
-                let local_path = &path[ext_path.len() + 1..];
-                let new_value = ext.peek(local_path);
-                poke_values.push((affected_path, new_value));
-            }
+            let updates = ext.poke(local_path.to_string(), value);
+            let poke_values: Vec<(Path, Value)> = updates
+                .into_iter()
+                .map(|(port_name, value)| {
+                    let affected_path: Path = format!("{ext_path}.{port_name}").into();
+                    (affected_path, value)
+                })
+                .collect();
+
             for (path, value) in poke_values {
                 let net_id = self.net_id_for(path.clone());
                 self.poke_net(net_id, value);
             }
         }
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
@@ -210,7 +211,7 @@ impl Sim {
     }
 
     pub fn clock(&mut self) {
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}clock()");
             self.indent += 1;
@@ -221,7 +222,7 @@ impl Sim {
             let val_path: Path = format!("{path}.val").into();
             let set_value = self.peek(set_path);
 
-            if self.debug {
+            if DEBUG {
                 let padding = " ".repeat(self.indent * 4);
                 let val_value = self.peek(val_path.clone());
                 eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
@@ -230,12 +231,26 @@ impl Sim {
             self.poke(val_path, set_value);
         }
 
-        for (path, ext) in &mut self.exts {
-            ext.clock();
-            if self.debug {
+        let mut poke_values: Vec<(Path, Value)> = vec![];
+        for (ext_path, ext) in &mut self.exts {
+            if DEBUG {
                 let padding = " ".repeat(self.indent * 4);
-                eprintln!("{padding}ext clocked: {path}");
+                eprintln!("{padding}ext clocked: {ext_path}");
             }
+            let updates = ext.clock();
+            poke_values.extend(updates
+                .into_iter()
+                .map(|(port_name, value)| {
+                    let affected_path: Path = format!("{ext_path}.{port_name}").into();
+                    (affected_path, value)
+                }));
+        }
+
+        for (path, value) in poke_values {
+            self.poke(path, value);
+//            let net_id = self.net_id_for(path.clone());
+//            self.poke_net(net_id, value);
+//            self.broadcast_update(path);
         }
 
         for path in self.regs() {
@@ -243,13 +258,13 @@ impl Sim {
             self.broadcast_update(val_path);
         }
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
 
     pub fn reset(&mut self) {
-        if self.debug {
+        if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}reset()");
             self.indent += 1;
@@ -263,7 +278,7 @@ impl Sim {
                 PathType::Outgoing(_typ) => (),
                 PathType::Reg(_typ, reset) => {
                     if *reset != Value::X {
-                        if self.debug {
+                        if DEBUG {
                             let padding = " ".repeat(self.indent * 4);
                             let val_value = self.peek(val_path.clone());
                             eprintln!("{padding}register reset: {path} {val_value:?}");
@@ -276,7 +291,7 @@ impl Sim {
 
         for (path, ext) in &mut self.exts {
             ext.reset();
-            if self.debug {
+            if DEBUG {
                 let padding = " ".repeat(self.indent * 4);
                 eprintln!("{padding}ext reset: {path}");
             }
@@ -287,7 +302,7 @@ impl Sim {
             self.broadcast_update(val_path);
         }
 
-        if self.debug {
+        if DEBUG {
             self.indent -= 1;
         }
     }
