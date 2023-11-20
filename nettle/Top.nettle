@@ -1,7 +1,7 @@
 top {
-    port out of Word<4>;
-
+    outgoing out of Word<4>;
     reg counter of Word<4> reset 0w4;
+
     counter <= counter + 1w4;
     out <= counter;
 }

@@ -14,12 +14,6 @@ pub struct Sim {
 
 impl Sim {
     pub fn new(circuit: &Circuit) -> Sim {
-        let mut state = BTreeMap::new();
-        for (path, typ) in circuit.paths() {
-            if let PathType::Node(_typ) = typ {
-                state.insert(path.clone(), Value::X);
-            }
-        }
         let nets = circuit.nets();
         let net_values = nets.iter().enumerate().map(|(net_id, _net)| (NetId(net_id), Value::X)).collect();
 
@@ -253,6 +247,8 @@ impl Sim {
             let val_path = format!("{path}.val");
             match self.circuit.paths().get(&path).unwrap() {
                 PathType::Node(_typ) => (),
+                PathType::Incoming(_typ) => (),
+                PathType::Outgoing(_typ) => (),
                 PathType::Reg(_typ, reset) => {
                     if *reset != Value::X {
                         if self.debug {

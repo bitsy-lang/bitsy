@@ -29,20 +29,20 @@ pub Mod: Mod = {
 }
 
 pub ModDecl: ModDecl  = {
-    "port" <id:Id> "of" <typ:Type> ";" => ModDecl::Node(id, typ),
+    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Incoming(id, typ),
+    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Outgoing(id, typ),
     "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Node(id, typ),
     "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X)),
     "ext" <id:Id> "{"
-        <nodes:("port" Id "of" Type ";")+>
-    "}" => {
-        let ports: Vec<(String, Type)> = nodes
-            .into_iter()
-            .map(|(_, name, _, typ, _)| (name, typ))
-            .collect();
-        ModDecl::Ext(id, ports)
-    },
+        <ports:ExtDecl*>
+    "}" => ModDecl::Ext(Ext(id, ports)),
     <m:Mod> => ModDecl::Mod(m),
     <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
+}
+
+pub ExtDecl: ExtDecl = {
+    "incoming" <id:Id> "of" <typ:Type> ";" => ExtDecl(id, PortDirection::Incoming, typ),
+    "outgoing" <id:Id> "of" <typ:Type> ";" => ExtDecl(id, PortDirection::Outgoing, typ),
 }
 
 pub Expr: Box<Expr> = {

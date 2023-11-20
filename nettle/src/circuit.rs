@@ -3,6 +3,12 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Net(Path, Vec<Path>);
 
+#[derive(Debug, Clone, Copy)]
+pub enum PortDirection {
+    Incoming,
+    Outgoing,
+}
+
 impl Net {
     fn from(terminal: Path) -> Net {
         Net(terminal, vec![])
@@ -44,6 +50,8 @@ impl Net {
 #[derive(Debug, Clone)]
 pub enum PathType {
     Node(Type),
+    Incoming(Type),
+    Outgoing(Type),
     Reg(Type, Value),
 }
 
@@ -87,11 +95,14 @@ impl Circuit {
     pub fn terminals(&self) -> Vec<Path> {
         let mut terminals = vec![];
         for (path, path_type) in self.paths() {
-            if let PathType::Node(_typ) = path_type {
-                terminals.push(path.clone())
-            } else if let PathType::Reg(_typ, _reset) = path_type {
-                terminals.push(format!("{path}.val").into());
-                terminals.push(format!("{path}.set").into());
+            match path_type {
+                PathType::Node(_typ) => terminals.push(path.clone()),
+                PathType::Incoming(_typ) => terminals.push(path.clone()),
+                PathType::Outgoing(_typ) => terminals.push(path.clone()),
+                PathType::Reg(_typ, _reset) => {
+                    terminals.push(format!("{path}.val").into());
+                    terminals.push(format!("{path}.set").into());
+                },
             }
         }
         terminals
@@ -134,13 +145,6 @@ fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Pa
 }
 
 impl CircuitNode {
-    pub fn module(mut self, path: &str, with_module: impl FnOnce(Self) -> Self) -> Self {
-        self = self.push(path);
-        self = with_module(self);
-        self = self.pop();
-        self
-    }
-
     fn push(mut self, path: &str) -> Self {
         self.path.push(path.to_string());
         self
@@ -156,13 +160,25 @@ impl CircuitNode {
         format!("{path}.{name}").into()
     }
 
-    pub fn node(mut self, name: &str, typ: Type) -> Self {
+    pub(crate) fn node(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
         self.paths.insert(path, PathType::Node(typ));
         self
     }
 
-    pub fn reg(mut self, name: &str, typ: Type, reset: Value) -> Self {
+    pub(crate) fn incoming(mut self, name: &str, typ: Type) -> Self {
+        let path = self.local_name_to_path(name);
+        self.paths.insert(path, PathType::Incoming(typ));
+        self
+    }
+
+    pub(crate) fn outgoing(mut self, name: &str, typ: Type) -> Self {
+        let path = self.local_name_to_path(name);
+        self.paths.insert(path, PathType::Outgoing(typ));
+        self
+    }
+
+    pub(crate) fn reg(mut self, name: &str, typ: Type, reset: Value) -> Self {
         let path = self.local_name_to_path(name);
         let set_path = format!("{path}.set");
         let val_path = format!("{path}.val");
@@ -173,7 +189,7 @@ impl CircuitNode {
         self
     }
 
-    pub fn wire(mut self, name: &str, expr: &Expr) -> Self {
+    pub(crate) fn wire(mut self, name: &str, expr: &Expr) -> Self {
         let path = self.local_name_to_path(name);
         self.wires.insert(path, expr.clone().relative_to(&self.current_path()));
         self
@@ -201,13 +217,16 @@ impl CircuitNode {
         self.path.join(".").into()
     }
 
-    pub fn ext(mut self, name: &str, ports: &[(&str, Type)]) -> Self {
+    pub(crate) fn ext(mut self, name: &str, ports: &[(String, PortDirection, Type)]) -> Self {
         let ext = self.local_name_to_path(name);
         self.exts.push(ext.clone());
 
-        for (port, typ) in ports {
+        for (port, dir, typ) in ports {
             let target = format!("{ext}.{port}");
-            self.paths.insert(target.into(), PathType::Node(*typ));
+            match dir {
+                PortDirection::Incoming => self.paths.insert(target.into(), PathType::Incoming(*typ)),
+                PortDirection::Outgoing => self.paths.insert(target.into(), PathType::Outgoing(*typ)),
+            };
         }
         self
     }

@@ -43,9 +43,9 @@ fn expand_regs() {
 fn buffer() {
     let buffer = parse_top("
         top {
-            port in of Bit;
+            incoming in of Bit;
             reg r of Bit;
-            port out of Bit;
+            outgoing out of Bit;
             r <= in;
             out <= r;
         }
@@ -66,7 +66,7 @@ fn buffer() {
 fn counter() {
     let counter = parse_top("
         top {
-            port out of Word<4>;
+            outgoing out of Word<4>;
             reg counter of Word<4> reset 0w4;
             out <= counter;
             counter <= counter.val + 1w4;
@@ -88,10 +88,10 @@ fn counter() {
 fn triangle_numbers() {
     let top = parse_top("
         top {
-            port out of Word<32>;
+            outgoing out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
-                port out of Word<32>;
+                outgoing out of Word<32>;
                 reg counter of Word<32> reset 0w32;
                 out <= counter;
                 counter <= counter + 1w32;
@@ -116,14 +116,14 @@ fn vip() {
     let top = parse_top("
         top {
             mod counter {
-                port out of Word<4>;
+                outgoing out of Word<4>;
                 reg counter of Word<4>;
                 counter <= counter + 1w4;
                 out <= counter;
             }
 
             ext vip {
-                port in of Word<4>;
+                incoming in of Word<4>;
             }
 
             vip.in <= counter.out;
@@ -147,8 +147,8 @@ fn vip() {
 fn ifs() {
     let top = parse_top("
         top {
-            port out of Word<8>;
-            port in of Word<8>;
+            outgoing out of Word<8>;
+            incoming in of Word<8>;
 
             out <= if in {
                 42w8
@@ -240,9 +240,9 @@ fn test_eval() {
 fn test_nets() {
     let top = parse_top("
         top {
-            port in of Bit;
+            incoming in of Bit;
             reg r of Bit;
-            port out of Bit;
+            outgoing out of Bit;
             r <= in;
             out <= r;
         }

@@ -9,14 +9,19 @@ pub struct Mod(String, Vec<ModDecl>);
 #[derive(Debug)]
 pub enum ModDecl {
     Node(String, Type),
+    Incoming(String, Type),
+    Outgoing(String, Type),
     Reg(String, Type, Value),
     Mod(Mod),
     Wire(Path, Expr),
-    Ext(String, Vec<(String, Type)>),
+    Ext(Ext),
 }
 
 #[derive(Debug)]
-struct Ext(String, Vec<String>);
+pub(crate) struct Ext(String, Vec<ExtDecl>);
+
+#[derive(Debug)]
+pub struct ExtDecl(String, PortDirection, Type);
 
 fn mod_to_circuit(m: Mod) -> CircuitNode {
     let Mod(name, decls) = m;
@@ -25,14 +30,20 @@ fn mod_to_circuit(m: Mod) -> CircuitNode {
     for decl in decls {
         match decl {
             ModDecl::Node(name, typ) => module = module.node(&name, typ),
+            ModDecl::Incoming(name, typ) => module = module.incoming(&name, typ),
+            ModDecl::Outgoing(name, typ) => module = module.outgoing(&name, typ),
             ModDecl::Reg(name, typ, reset) => module = module.reg(&name, typ, reset),
             ModDecl::Mod(submodule) => {
                 let name = submodule.0.to_string();
                 module = module.instantiate(&name, &mod_to_circuit(submodule))
             },
             ModDecl::Wire(terminal, expr) => module = module.wire(&terminal, &expr),
-            ModDecl::Ext(name, ports) => {
-                let ports: Vec<(&str, Type)> = ports.iter().map(|(name, typ)| (name.as_str(), *typ)).collect();
+            ModDecl::Ext(Ext(name, ports)) => {
+                let ports: Vec<(String, PortDirection, Type)> =
+                    ports
+                        .into_iter()
+                        .map(|ExtDecl(name, dir, typ)| (name.to_string(), dir, typ))
+                        .collect();
                 module = module.ext(&name, &ports)
             },
         }
