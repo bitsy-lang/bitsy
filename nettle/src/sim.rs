@@ -5,7 +5,6 @@ pub struct NetId(usize);
 
 pub struct Sim {
     circuit: Circuit,
-    state: BTreeMap<Path, Value>,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     indent: usize,
     nets: Vec<Net>,
@@ -26,7 +25,6 @@ impl Sim {
 
         let mut nettle = Sim {
             circuit: circuit.clone(),
-            state,
             exts: BTreeMap::new(),
             nets,
             net_values,
@@ -54,10 +52,6 @@ impl Sim {
     fn net_for(&mut self, terminal: Path) -> &mut Net {
         let NetId(net_id) = self.net_id_for(terminal);
         &mut self.nets[net_id]
-    }
-
-    pub fn paths(&self) -> Vec<Path> {
-        self.state.keys().cloned().collect()
     }
 
     fn peek_net(&self, net_id: NetId) -> Value {
@@ -101,13 +95,11 @@ impl Sim {
         if !self.is_reg(&path) {
             let net_id = self.net_id_for(path.clone());
             self.poke_net(net_id, value.clone());
-            self.state.insert(path.clone(), value);
             self.broadcast_update(path);
         } else {
             let set_path: Path = format!("{path}.set").into();
             let net_id = self.net_id_for(set_path.clone());
             self.poke_net(net_id, value.clone());
-            self.state.insert(set_path.into(), value);
         }
 
 
@@ -127,7 +119,6 @@ impl Sim {
         let val_path: Path = format!("{path}.val").into();
         let net_id = self.net_id_for(val_path.clone());
         self.poke_net(net_id, value.clone());
-        self.state.insert(val_path.clone(), value);
         self.broadcast_update(val_path);
 
         if self.debug {
@@ -225,8 +216,8 @@ impl Sim {
             let set_value = self.peek(set_path);
 
             if self.debug {
-                let val_value = self.state[&val_path.clone()];
                 let padding = " ".repeat(self.indent * 4);
+                let val_value = self.peek(val_path.clone());
                 eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
             }
 
@@ -266,7 +257,7 @@ impl Sim {
                     if *reset != Value::X {
                         if self.debug {
                             let padding = " ".repeat(self.indent * 4);
-                            let val_value = self.state[&val_path.clone().into()];
+                            let val_value = self.peek(val_path.clone());
                             eprintln!("{padding}register reset: {path} {val_value:?}");
                         }
                         self.poke(val_path, *reset);
@@ -296,33 +287,11 @@ impl Sim {
 
 impl std::fmt::Debug for Sim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        // writeln!(f, "State:")?;
-        let mut states: Vec<(_, _)> = self.state.iter().collect();
-        states.sort_by_key(|(terminal, _)| terminal.to_string());
-        states = states.into_iter().rev().collect();
-        for (terminal, value) in states {
-            let typ = match &self.circuit.paths()[&terminal] {
-                PathType::Node(typ) => typ,
-                _ => unreachable!(),
-            };
-            writeln!(
-                f, "    {:>5}  {:>10}  {terminal} ",
-                format!("{value:?}"),
-                format!("{typ:?}"),
-            )?;
-        }
-
-        writeln!(f, "Nets:")?;
         for (NetId(net_id), value) in &self.net_values {
             let net = &self.nets[*net_id];
             write!(f, "    {:>5}   ", format!("{value:?}"))?;
             writeln!(f, "{}", net.terminals().iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" "))?;
         }
-
-        // writeln!(f, "Wires:")?;
-        // for (terminal, expr) in &self.circuit.wires {
-        //     writeln!(f, "    {terminal:<25} <= {expr:?}")?;
-        // }
 
         Ok(())
     }
