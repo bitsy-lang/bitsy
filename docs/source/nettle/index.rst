@@ -9,26 +9,27 @@ Here is an example circuit in Nettle:
 .. code-block:: nettle
 
     top {
-        reg sum reset 0w32;
+        reg sum of Word<32> reset 0w32;
 
         mod counter {
-            port out;
-            reg c reset 1w32;
-            c <= c + 1w4;
+            outgoing out of Word<32>;
+            reg c of Word<32> reset 1w32;
+            c <= c + 1w32;
             out <= c;
         }
 
         ext monitor {
-            port out;
+            incoming in of Word<32>;
         }
 
         sum <= sum + counter.out;
-        monitor.out <= sum;
+        monitor.in <= sum;
     }
 
 As you can see, the top of a Nettle circuit is labeled with `top` and contains a number of declarations.
 
-* `ports`\s represent ports.
+* `outgoing`\s represent outgoing ports.
+* `incoming`\s represent input ports.
 * `node`\s represent intermediate values.
 * `reg`\s represent registers.
 * `mod`\s represent submodules.
@@ -47,12 +48,11 @@ The above example creates the following paths:
   top.sum             // the register `sum`
   top.sum.set         // the input of the register `sum`
   top.sum.val         // the output of the register `sum`
-  top.counter.out     // the port `out` in the submodule `counter`
-  top.counter.c.set   // the input of the register `c` in the submodule `counter`
+  top.counter.out     // the output port `out` in the submodule `counter`
+  top.counter.c.set   // the input port of the register `c` in the submodule `counter`
   top.counter.c.val   // the output of the register `c` in the submodule `counter`
   top.monitor         // the external module `monitor`
-  top.monitor.in      // the port `in` on the external module `monitor`
-
+  top.monitor.in      // the input port `in` on the external module `monitor`
 
 Terminals
 ---------
@@ -72,11 +72,13 @@ Of the paths above, the following are **terminals**:
 
 The rules for terminals are:
 
-* Every `node` creates a terminal.
-* Every `reg` creates two terminals.
-  The one which ends in `.val` is the current stored value.
-  The one which ends in `.set` is the current staged value,
-  to be latched on the next clock cycle.
+* Each `incoming`, `outgoing`, and `node` creates a terminal.
+* Each `reg` creates two terminals:
+
+  * The one which ends in `.val` is the current stored value.
+
+  * The one which ends in `.set` is the current staged value
+    to be latched on the next clock cycle.
 
 Wires
 -----
@@ -85,10 +87,9 @@ The left hand side is called the **target**.
 
 The target may be one of:
 
-* the name of a `node` in the same module
-* the name of a `reg` in the same module
-* the name of a submodule dotted with a `node`
-* the name of an external module dotted with one of its `node`
+* the name of a `node`, `reg`, or `outgoing` in the same module.
+* the name of a submodule dotted with a `node` or `incoming` of that sub module.
+* the name of an external module dotted with one of its `incoming` ports.
 
 `reg`\s targeted in this way implicitly refer to the `set` terminal.
 See **Registers** below.
@@ -116,10 +117,9 @@ A reference is a way to access the value of a terminal.
 
 Similar to the target of a wire, a reference may be one of:
 
-* the name of a `node` in the same module
-* the name of a `reg` in the same module
-* the name of a submodule dotted with a `node`
-* the name of an external module dotted with one of its `node`
+* the name of a `node`, `reg`, or `incoming` in the same module
+* the name of a submodule dotted with a `node` or `outgoing` of that submodule.
+* the name of an external module dotted with one of its `outgoing` ports.
 
 The difference with references is that references to `reg`\s implicitly refer to the `val` terminal instead of `set`.
 See **Registers** below.
@@ -157,10 +157,16 @@ Values for the top-level input ports must be provided by the testbench during si
 
 Ports may also appear in ext modules and must match the portlist for the implementation.
 
+Only `outgoing` ports in current module or `incoming` ports of a submodule may be the target of a `wire` statement.
+This is reversed for reference expressions: only `outgoing` ports of a submodule
+or `incoming` ports of the current module may be referenced.
+
 Nodes
 -----
 Nodes represent a intermediate value.
 They are useful for naming common subexpressions in a circuit.
+
+Nodes may only be referenced in the module they are declared in.
 
 Registers
 ---------
@@ -175,6 +181,8 @@ The `val` is the current value of the register, while `set` is the value to be l
 
 When a `reg` appears as the target of a wire, it implies we are connecting to its `set` terminal.
 When a `reg` appears in an expression, it implies we are connecting to its `val` terminal.
+
+Registers may only be referenced in the module they are declared in.
 
 Modules
 -------
@@ -206,6 +214,10 @@ Circuits with loops are rejected.
 
 Note that if `r` is a `reg`, the wire `r <= r + 1w8` is not a combinatorial loop,
 since the `r` on the left hand side implies the `set` terminal while the `r` on the right hand side implies the `val` terminal.
+
+Connectivity
+------------
+All terminals must be given a single driver in a circuit.
 
 Nets
 ----

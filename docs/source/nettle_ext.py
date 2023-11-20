@@ -28,6 +28,7 @@ class NettleLexer(RegexLexer):
             (r'[-+()<>{}\[\],;]', Punctuation),
             (r'\$', Punctuation),
             (r'[0-9]+w[0-9]+', Number.Integer),
+            (r'[0-9]+', Number.Integer),
             (words(KEYWORDS, suffix=r'\b'), Keyword),
             (r'@\b([a-zA-Z][a-zA-Z0-9]*)\b', Name.Decorator),
             (r'\s+', Text),
