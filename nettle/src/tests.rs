@@ -220,6 +220,7 @@ fn test_eval() {
         ("false", Value::Bit(false)),
         ("(top.a + top.b)", Value::Word(32, 5)),
         ("(top.b - top.a)", Value::Word(32, 1)),
+        ("(1w1 + 1w1)", Value::Word(1, 0)),
 //        "(a && b)",
 //        "(a || b)",
         ("(top.a == top.b)".into(), Value::Bit(false)),
