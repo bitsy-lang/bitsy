@@ -16,9 +16,9 @@ pub struct Sim {
 impl Sim {
     pub fn new(circuit: &Circuit) -> Sim {
         let mut state = BTreeMap::new();
-        for (terminal, typ) in circuit.paths() {
+        for (path, typ) in circuit.paths() {
             if let PathType::Node(_typ) = typ {
-                state.insert(terminal.clone(), Value::X);
+                state.insert(path.clone(), Value::X);
             }
         }
         let nets = circuit.nets();
@@ -60,13 +60,26 @@ impl Sim {
         self.state.keys().cloned().collect()
     }
 
+    fn peek_net(&self, net_id: NetId) -> Value {
+        self.net_values[&net_id]
+    }
+
+    fn poke_net(&mut self, net_id: NetId, value: Value) {
+        self.net_values.insert(net_id, value);
+    }
+
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
         let path: Path = path.into();
         let value = if !self.is_reg(&path) {
-            self.state[&path]
+            // let value = self.state[&path];
+            let net_id = self.net_id_for(path.clone());
+            let value = self.peek_net(net_id);
+            value
         } else {
-            let val_path = format!("{path}.val");
-            self.state[&val_path.into()]
+            let val_path = format!("{path}.val").into();
+            let net_id = self.net_id_for(val_path);
+            let value = self.peek_net(net_id);
+            value
         };
 
         if self.debug {
@@ -86,10 +99,14 @@ impl Sim {
         }
 
         if !self.is_reg(&path) {
+            let net_id = self.net_id_for(path.clone());
+            self.poke_net(net_id, value.clone());
             self.state.insert(path.clone(), value);
             self.broadcast_update(path);
         } else {
-            let set_path = format!("{path}.set");
+            let set_path: Path = format!("{path}.set").into();
+            let net_id = self.net_id_for(set_path.clone());
+            self.poke_net(net_id, value.clone());
             self.state.insert(set_path.into(), value);
         }
 
@@ -108,6 +125,8 @@ impl Sim {
         }
 
         let val_path: Path = format!("{path}.val").into();
+        let net_id = self.net_id_for(val_path.clone());
+        self.poke_net(net_id, value.clone());
         self.state.insert(val_path.clone(), value);
         self.broadcast_update(val_path);
 
@@ -203,7 +222,7 @@ impl Sim {
         for path in self.regs() {
             let set_path: Path = format!("{path}.set").into();
             let val_path: Path = format!("{path}.val").into();
-            let set_value = self.state[&set_path.into()];
+            let set_value = self.peek(set_path);
 
             if self.debug {
                 let val_value = self.state[&val_path.clone()];
@@ -211,7 +230,7 @@ impl Sim {
                 eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
             }
 
-            self.state.insert(val_path, set_value);
+            self.poke(val_path, set_value);
         }
 
         for (path, ext) in &mut self.exts {
@@ -250,7 +269,7 @@ impl Sim {
                             let val_value = self.state[&val_path.clone().into()];
                             eprintln!("{padding}register reset: {path} {val_value:?}");
                         }
-                        self.state.insert(val_path.into(), *reset);
+                        self.poke(val_path, *reset);
                     }
                 },
             }

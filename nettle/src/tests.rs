@@ -92,7 +92,7 @@ fn triangle_numbers() {
             reg sum of Word<32> reset 0w32;
             mod counter {
                 port out of Word<32>;
-                reg counter of Word<32> reset 1w32;
+                reg counter of Word<32> reset 0w32;
                 out <= counter;
                 counter <= counter + 1w32;
             }
@@ -106,7 +106,7 @@ fn triangle_numbers() {
 
     for i in 0..16 {
         let triange = (i * (i + 1)) / 2;
-        assert_eq!(nettle.peek("top.out"), Value::Word(32, triange));
+        assert_eq!(nettle.peek("top.out"), Value::Word(32, triange), "Failed on iteration i = {i}");
         nettle.clock();
     }
 }
