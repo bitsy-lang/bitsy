@@ -42,7 +42,7 @@ impl Sim {
         self
     }
 
-    fn net_id_for(&self, terminal: Terminal) -> NetId {
+    fn net_id_for(&self, terminal: Path) -> NetId {
         for (net_id, net) in self.nets.iter().enumerate() {
             if net.contains(terminal.clone()) {
                 return NetId(net_id);
@@ -51,7 +51,7 @@ impl Sim {
         panic!("No net found for terminal: {terminal:?}")
     }
 
-    fn net_for(&mut self, terminal: Terminal) -> &mut Net {
+    fn net_for(&mut self, terminal: Path) -> &mut Net {
         let NetId(net_id) = self.net_id_for(terminal);
         &mut self.nets[net_id]
     }

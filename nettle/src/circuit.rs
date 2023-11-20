@@ -1,29 +1,14 @@
 use super::*;
 
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct Terminal(Path);
-
-impl std::fmt::Display for Terminal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<Terminal> for Path {
-    fn from(terminal: Terminal) -> Path {
-        terminal.0
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct Net(Terminal, Vec<Terminal>);
+pub struct Net(Path, Vec<Path>);
 
 impl Net {
-    fn from(terminal: Terminal) -> Net {
+    fn from(terminal: Path) -> Net {
         Net(terminal, vec![])
     }
 
-    pub fn add(&mut self, terminal: Terminal) {
+    pub fn add(&mut self, terminal: Path) {
         if self.0 != terminal {
             self.1.push(terminal);
             self.1.sort();
@@ -31,15 +16,15 @@ impl Net {
         }
     }
 
-    pub fn driver(&self) -> Terminal {
+    pub fn driver(&self) -> Path {
         self.0.clone()
     }
 
-    pub fn drivees(&self) -> &[Terminal] {
+    pub fn drivees(&self) -> &[Path] {
         &self.1
     }
 
-    pub fn terminals(&self) -> Vec<Terminal> {
+    pub fn terminals(&self) -> Vec<Path> {
         let mut results = vec![self.0.clone()];
         for terminal in &self.1 {
             results.push(terminal.clone());
@@ -47,7 +32,7 @@ impl Net {
         results
     }
 
-    pub fn contains(&self, terminal: Terminal) -> bool {
+    pub fn contains(&self, terminal: Path) -> bool {
         if terminal == self.0 {
             true
         } else {
@@ -99,32 +84,32 @@ impl Circuit {
         &self.0.exts
     }
 
-    pub fn terminals(&self) -> Vec<Terminal> {
+    pub fn terminals(&self) -> Vec<Path> {
         let mut terminals = vec![];
         for (path, path_type) in self.paths() {
             if let PathType::Node(_typ) = path_type {
-                terminals.push(Terminal(path.clone()))
+                terminals.push(path.clone())
             } else if let PathType::Reg(_typ, _reset) = path_type {
-                terminals.push(Terminal(format!("{path}.val").into()));
-                terminals.push(Terminal(format!("{path}.set").into()));
+                terminals.push(format!("{path}.val").into());
+                terminals.push(format!("{path}.set").into());
             }
         }
         terminals
     }
 
     pub fn nets(&self) -> Vec<Net> {
-        let mut immediate_driver_for: BTreeMap<Terminal, Terminal> = BTreeMap::new();
+        let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
         for (target, expr) in self.wires() {
             if let Expr::Reference(driver) = expr {
-                immediate_driver_for.insert(Terminal(target.clone()), Terminal(driver.clone()));
+                immediate_driver_for.insert(target.clone(), driver.clone());
             }
         }
-        let mut drivers: BTreeSet<Terminal> = BTreeSet::new();
+        let mut drivers: BTreeSet<Path> = BTreeSet::new();
         for terminal in self.terminals() {
             drivers.insert(driver_for(terminal, &immediate_driver_for));
         }
 
-        let mut nets: BTreeMap<Terminal, Net> = BTreeMap::new();
+        let mut nets: BTreeMap<Path, Net> = BTreeMap::new();
         for driver in &drivers {
             nets.insert(driver.clone(), Net::from(driver.clone()));
         }
@@ -140,8 +125,8 @@ impl Circuit {
     }
 }
 
-fn driver_for(terminal: Terminal, immediate_driver_for: &BTreeMap<Terminal, Terminal>) -> Terminal {
-    let mut driver: &Terminal = &terminal;
+fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Path {
+    let mut driver: &Path = &terminal;
     while let Some(immediate_driver) = &immediate_driver_for.get(driver) {
         driver = immediate_driver;
     }
