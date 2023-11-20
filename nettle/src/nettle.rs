@@ -1,10 +1,15 @@
 use super::*;
 
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub struct NetId(usize);
+
 pub struct Nettle {
     circuit: Circuit,
     state: BTreeMap<Path, Value>,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     indent: usize,
+    nets: Vec<Net>,
+    net_values: BTreeMap<NetId, Value>,
     debug: bool,
 }
 
@@ -16,10 +21,15 @@ impl Nettle {
                 state.insert(terminal.clone(), Value::X);
             }
         }
+        let nets = circuit.nets();
+        let net_values = nets.iter().enumerate().map(|(net_id, _net)| (NetId(net_id), Value::X)).collect();
+
         let mut nettle = Nettle {
             circuit: circuit.clone(),
             state,
             exts: BTreeMap::new(),
+            nets,
+            net_values,
             indent: 0,
             debug: false,
         };
@@ -30,6 +40,20 @@ impl Nettle {
     pub fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
         self.exts.insert(path.into(), ext_inst);
         self
+    }
+
+    fn net_id_for(&self, terminal: Terminal) -> NetId {
+        for (net_id, net) in self.nets.iter().enumerate() {
+            if net.contains(terminal.clone()) {
+                return NetId(net_id);
+            }
+        }
+        panic!("No net found for terminal: {terminal:?}")
+    }
+
+    fn net_for(&mut self, terminal: Terminal) -> &mut Net {
+        let NetId(net_id) = self.net_id_for(terminal);
+        &mut self.nets[net_id]
     }
 
     pub fn paths(&self) -> Vec<Path> {
@@ -268,6 +292,14 @@ impl std::fmt::Debug for Nettle {
                 format!("{typ:?}"),
             )?;
         }
+
+        writeln!(f, "Nets:")?;
+        for (NetId(net_id), value) in &self.net_values {
+            let net = &self.nets[*net_id];
+            write!(f, "    {:>5}   ", format!("{value:?}"))?;
+            writeln!(f, "{}", net.terminals().iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" "))?;
+        }
+
         // writeln!(f, "Wires:")?;
         // for (terminal, expr) in &self.circuit.wires {
         //     writeln!(f, "    {terminal:<25} <= {expr:?}")?;

@@ -3,6 +3,12 @@ use super::*;
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Terminal(Path);
 
+impl std::fmt::Display for Terminal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl From<Terminal> for Path {
     fn from(terminal: Terminal) -> Path {
         terminal.0
@@ -39,6 +45,14 @@ impl Net {
             results.push(terminal.clone());
         }
         results
+    }
+
+    pub fn contains(&self, terminal: Terminal) -> bool {
+        if terminal == self.0 {
+            true
+        } else {
+            self.1.contains(&terminal)
+        }
     }
 }
 
