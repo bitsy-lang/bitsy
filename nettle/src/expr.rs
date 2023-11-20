@@ -112,7 +112,7 @@ impl Expr {
         }
     }
 
-    pub fn eval(&self, nettle: &Nettle) -> Value {
+    pub fn eval(&self, nettle: &Sim) -> Value {
         match self {
             Expr::Reference(path) => nettle.peek(path.clone()),
             Expr::Lit(value) => *value,

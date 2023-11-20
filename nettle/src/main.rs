@@ -42,7 +42,7 @@ fn main() {
     let monitor = Box::new(Monitor::new());
 
     let mut nettle =
-        Nettle::new(&top)
+        Sim::new(&top)
             .ext("top.vip", monitor);
 
     let verbose = true;

@@ -3,7 +3,7 @@ use super::*;
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct NetId(usize);
 
-pub struct Nettle {
+pub struct Sim {
     circuit: Circuit,
     state: BTreeMap<Path, Value>,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
@@ -13,8 +13,8 @@ pub struct Nettle {
     debug: bool,
 }
 
-impl Nettle {
-    pub fn new(circuit: &Circuit) -> Nettle {
+impl Sim {
+    pub fn new(circuit: &Circuit) -> Sim {
         let mut state = BTreeMap::new();
         for (terminal, typ) in circuit.paths() {
             if let PathType::Node(_typ) = typ {
@@ -24,7 +24,7 @@ impl Nettle {
         let nets = circuit.nets();
         let net_values = nets.iter().enumerate().map(|(net_id, _net)| (NetId(net_id), Value::X)).collect();
 
-        let mut nettle = Nettle {
+        let mut nettle = Sim {
             circuit: circuit.clone(),
             state,
             exts: BTreeMap::new(),
@@ -275,7 +275,7 @@ impl Nettle {
     }
 }
 
-impl std::fmt::Debug for Nettle {
+impl std::fmt::Debug for Sim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         // writeln!(f, "State:")?;
         let mut states: Vec<(_, _)> = self.state.iter().collect();

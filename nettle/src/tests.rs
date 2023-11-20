@@ -51,7 +51,7 @@ fn buffer() {
         }
     ");
 
-    let mut nettle = Nettle::new(&buffer);
+    let mut nettle = Sim::new(&buffer);
 
     nettle.poke("top.in", true.into());
     assert_eq!(nettle.peek("top.r"), Value::X);
@@ -73,7 +73,7 @@ fn counter() {
         }
     ");
 
-    let mut nettle = Nettle::new(&counter);
+    let mut nettle = Sim::new(&counter);
 
     nettle.reset();
 
@@ -101,7 +101,7 @@ fn triangle_numbers() {
         }
     ");
 
-    let mut nettle = Nettle::new(&top);
+    let mut nettle = Sim::new(&top);
     nettle.reset();
 
     for i in 0..16 {
@@ -133,7 +133,7 @@ fn vip() {
     let monitor = Box::new(Monitor::new());
 
     let mut nettle =
-        Nettle::new(&top)
+        Sim::new(&top)
             .ext("top.vip", monitor);
 
     nettle.reset();
@@ -158,7 +158,7 @@ fn ifs() {
         }
     ");
 
-    let mut nettle = Nettle::new(&top);
+    let mut nettle = Sim::new(&top);
 
     nettle.poke("top.in", Value::Bit(true));
     assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
@@ -210,7 +210,7 @@ fn test_eval() {
         }
     ");
 
-    let mut nettle = Nettle::new(&buffer);
+    let mut nettle = Sim::new(&buffer);
     nettle.reset();
 
     let tests = vec![
