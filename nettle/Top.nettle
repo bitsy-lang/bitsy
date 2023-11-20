@@ -1,7 +1,16 @@
 top {
-    outgoing out of Word<4>;
-    reg counter of Word<4> reset 0w4;
+    mod foo {
+        outgoing out of Word<1>;
 
-    counter <= counter + 1w4;
-    out <= counter;
+        reg counter of Word<4> reset 1w4;
+
+        counter <= cat(counter[3..0], counter[3]);
+        out <= counter[3];
+    }
+
+    ext vip {
+        incoming in of Word<1>;
+    }
+
+    vip.in <= foo.out;
 }

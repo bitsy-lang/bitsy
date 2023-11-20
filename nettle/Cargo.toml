@@ -10,3 +10,5 @@ lalrpop = "0.20.0"
 [dependencies]
 lalrpop = "0.20.0"
 lalrpop-util = "0.20.0"
+lazy_static = "1.4.0"
+rustyline = { version = "12.0.0", features = ["with-file-history"] }
