@@ -165,9 +165,21 @@ impl Sim {
 
         let ext_path = parent_of(path.clone());
         let value = self.peek(path.clone());
-        if let Some(ext) = self.exts.get_mut(&ext_path) {
+        if self.exts.contains_key(&ext_path) {
+            let ext = self.exts.get_mut(&ext_path).unwrap();
             let local_path: Path = path[ext_path.len() + 1..].into();
-            ext.poke(&local_path, value);
+            let affects = ext.poke(&local_path, value);
+            let mut poke_values: Vec<(Path, Value)> = vec![];
+            for port_name in affects {
+                let affected_path: Path = format!("{ext_path}.{port_name}").into();
+                let local_path = &path[ext_path.len() + 1..];
+                let new_value = ext.peek(local_path);
+                poke_values.push((affected_path, new_value));
+            }
+            for (path, value) in poke_values {
+                let net_id = self.net_id_for(path.clone());
+                self.poke_net(net_id, value);
+            }
         }
 
         if self.debug {

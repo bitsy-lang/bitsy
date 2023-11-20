@@ -36,10 +36,12 @@ fn main() {
 
     let top = parse_top(&text);
     let monitor = Box::new(Monitor::new());
+    let ram = Box::new(Ram::new());
 
     let mut nettle =
         Sim::new(&top)
-            .ext("top.vip", monitor);
+            .ext("top.vip", monitor)
+            .ext("top.ram", ram);
 
     if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
@@ -116,8 +118,9 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
         },
         TestbenchCommand::Assert(e) => {
             let result = e.eval(&nettle);
+                println!("ASSERT {e:?}");
             if result != Value::Bit(true) {
-                println!("Assertion failed: {e:?}");
+                println!("Assertion failed");
                 for path in e.paths() {
                     println!("    {path} => {:?}", nettle.peek(path.clone()));
 

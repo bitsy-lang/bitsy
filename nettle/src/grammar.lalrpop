@@ -120,7 +120,7 @@ pub ExprLit: Box<Expr> = {
 }
 
 pub ExprReference: Box<Expr> = {
-     <reference:Reference> => Box::new(Expr::Reference(reference))
+     <path:Path> => Box::new(Expr::Reference(path.into()))
 }
 
 pub Type: Type = {
