@@ -93,8 +93,26 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
             }
             nettle.reset();
         },
+        TestbenchCommand::Show => {
+            println!("{nettle:#?}");
+        },
         TestbenchCommand::Debug => {
             println!("{nettle:#?}");
+            loop {
+                match parse_testbench_command(&readline()) {
+                    Ok(command) => {
+                        if let TestbenchCommand::Debug = command {
+                            () // you can't nest debug commands
+                        } else if let TestbenchCommand::Show = command {
+                            () // implied
+                        } else {
+                            exec_tb_command(nettle, command);
+                            println!("{nettle:#?}");
+                        }
+                    },
+                    Err(err) => eprintln!("{err:?}"),
+                }
+            }
         },
         TestbenchCommand::Assert(e) => {
             let result = e.eval(&nettle);

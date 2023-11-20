@@ -10,6 +10,7 @@ pub(crate) enum TestbenchCommand {
     Set(Path, Value),
     Clock,
     Reset,
+    Show,
     Debug,
     Assert(Expr),
 }
