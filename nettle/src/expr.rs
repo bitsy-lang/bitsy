@@ -133,19 +133,23 @@ impl Expr {
         self.paths().contains(&path)
     }
 
-    pub fn relative_to(self, top: &Path) -> Expr {
+    pub fn to_absolute(self, current_path: &Path) -> Expr {
         match self {
-            Expr::Reference(path) => Expr::Reference(relative_to(top, &path)),
+            Expr::Reference(path) => Expr::Reference(current_path.join(path)),
             Expr::Lit(_value) => self,
-            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
-            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
-            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.relative_to(top)), Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
-            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.relative_to(top)).collect()),
-            Expr::Idx(e, i) => Expr::Idx(Box::new(e.relative_to(top)), i),
-            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.relative_to(top)), j, i),
-            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.relative_to(top)), Box::new(i.relative_to(top))),
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.to_absolute(current_path))),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.to_absolute(current_path)), Box::new(e2.to_absolute(current_path))),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.to_absolute(current_path)), Box::new(e1.to_absolute(current_path)), Box::new(e2.to_absolute(current_path))),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.to_absolute(current_path)).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.to_absolute(current_path)), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.to_absolute(current_path)), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.to_absolute(current_path)), Box::new(i.to_absolute(current_path))),
             Expr::Hole(name) => Expr::Hole(name),
         }
+    }
+
+    pub fn is_absolute(self) -> bool {
+        self.paths().iter().all(|path| path.is_absolute())
     }
 
     pub fn eval(&self, nettle: &Sim) -> Value {
@@ -247,27 +251,6 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
-        }
-    }
-
-    pub fn expand_regs_as_val(self, regs: &[Path]) -> Expr {
-        match self {
-            Expr::Reference(path) => {
-                if regs.contains(&path) {
-                    Expr::Reference(format!("{path}.val").into())
-                } else {
-                    Expr::Reference(path)
-                }
-            },
-            Expr::Lit(_value) => self,
-            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.expand_regs_as_val(regs))),
-            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
-            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.expand_regs_as_val(regs)), Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
-            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.expand_regs_as_val(regs)).collect()),
-            Expr::Idx(e, i) => Expr::Idx(Box::new(e.expand_regs_as_val(regs)), i),
-            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.expand_regs_as_val(regs)), j, i),
-            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.expand_regs_as_val(regs)), Box::new(i.expand_regs_as_val(regs))),
-            Expr::Hole(name) => Expr::Hole(name),
         }
     }
 }

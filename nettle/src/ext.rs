@@ -1,11 +1,12 @@
 use super::*;
 
+pub type PortName = String;
+
 #[allow(unused_variables)]
 pub trait ExtInstance: std::fmt::Debug {
-    fn peek(&mut self, port: &str) -> Value { panic!(); }
-    fn poke(&mut self, port: &str, value: Value) -> Vec<String> { panic!(); }
-    fn clock(&mut self) {}
-    fn reset(&mut self) {}
+    fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
+    fn clock(&mut self) -> Vec<(PortName, Value)> { vec![] }
+    fn reset(&mut self) -> Vec<(PortName, Value)> { vec![] }
 }
 
 #[derive(Debug)]
@@ -18,16 +19,17 @@ impl Monitor {
 }
 
 impl ExtInstance for Monitor {
-    fn poke(&mut self, _port: &str, value: Value) -> Vec<String> {
+    fn poke(&mut self, _port: PortName, value: Value) -> Vec<(PortName, Value)> {
         self.0 = Some(format!("{value:?}"));
         vec![]
     }
 
-    fn clock(&mut self) {
+    fn clock(&mut self) -> Vec<(PortName, Value)> {
         if let Some(s) = &self.0 {
             println!("Monitor: {s}");
             self.0 = None
         }
+        vec![]
     }
 }
 
@@ -42,10 +44,7 @@ pub struct Ram {
 
 impl Ram {
     pub fn new() -> Ram {
-        let mut mem = [0; 1 << 16];
-        for (i, ch) in "Hello, World!\0".bytes().enumerate() {
-            mem[i] = ch;
-        }
+        let mem = [0; 1 << 16];
         Ram {
             mem,
             read_addr: 0,
@@ -54,19 +53,18 @@ impl Ram {
             write_data: 0,
         }
     }
+
+    fn read(&self) -> Value {
+        Value::Word(16,self.mem[self.read_addr as usize] as u64)
+    }
 }
 
 impl ExtInstance for Ram {
-    fn peek(&mut self, _port: &str) -> Value {
-        let value = self.mem[self.read_addr as usize];
-        Value::Word(16, value.into())
-    }
-
-    fn poke(&mut self, port: &str, value: Value) -> Vec<String> {
+    fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
         if port == "read_addr" {
             if let Value::Word(_width, addr) = value {
                 self.read_addr = addr as u16;
-                return vec!["read_data".to_string()];
+                return vec![("read_data".to_string(), self.read())];
             } else {
                 panic!("Ram must receive a Word<16> on read_addr")
             }
@@ -84,7 +82,7 @@ impl ExtInstance for Ram {
         } else if port == "write_data" {
             match value {
                 Value::Word(8, v) => self.write_data = v.try_into().unwrap(),
-                _ => panic!(),
+                _ => panic!("write_data value must be Word<8>: {value:?}"),
             }
         } else {
             panic!("Ram may only recieve data on read_data: received data on {port} {value:?}")
@@ -92,26 +90,35 @@ impl ExtInstance for Ram {
         vec![]
     }
 
-    fn reset(&mut self) {
+    fn reset(&mut self) -> Vec<(PortName, Value)> {
+        for (i, ch) in "Hello, World!\0".bytes().enumerate() {
+            self.mem[i] = ch;
+        }
+
+        println!("{}", self.render());
+        vec![("read_data".to_string(), self.read())]
+    }
+
+    fn clock(&mut self) -> Vec<(PortName, Value)> {
+        println!("LOL CLOCK {}", self.render());
+        if self.write_enable {
+            println!("WE");
+            self.mem[self.write_addr as usize] =  self.write_data;
+            vec![("read_data".to_string(), Value::X)]
+        } else {
+            println!("NO WE");
+            vec![]
+        }
+    }
+}
+
+impl Ram {
+    fn render(&self) -> String {
         let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
             &self.mem[..index+1]
         } else {
             &self.mem
         };
-
-        println!("RAM: {:?}", String::from_utf8_lossy(mem));
-    }
-
-    fn clock(&mut self) {
-        if self.write_enable {
-            self.mem[self.write_addr as usize] =  self.write_data;
-
-            let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
-                &self.mem[..index+1]
-            } else {
-                &self.mem
-            };
-            println!("RAM: {:?}", String::from_utf8_lossy(mem));
-        }
+        format!("RAM: {:?}", String::from_utf8_lossy(mem))
     }
 }
