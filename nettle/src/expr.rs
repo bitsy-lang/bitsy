@@ -8,6 +8,9 @@ pub enum Expr {
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Cat(Vec<Expr>),
+    Idx(Box<Expr>, u64),
+    IdxRange(Box<Expr>, u64, u64),
+    IdxDyn(Box<Expr>, Box<Expr>),
     Hole(Option<String>),
 }
 
@@ -44,6 +47,9 @@ impl std::fmt::Debug for Expr {
                 }
                 write!(f, ")")
             },
+            Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
+            Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
+            Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
             Expr::Hole(opt_name) => {
                 if let Some(_name) = opt_name {
                     todo!()
@@ -106,6 +112,15 @@ impl Expr {
                 result.dedup();
                 result
             },
+            Expr::Idx(e, _i) => e.paths(),
+            Expr::IdxRange(e, _j, _i) => e.paths(),
+            Expr::IdxDyn(e, i) => {
+                let mut result = e.paths();
+                result.extend(i.paths());
+                result.sort();
+                result.dedup();
+                result
+            },
             Expr::Hole(_name) => vec![],
         }
     }
@@ -126,6 +141,9 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.relative_to(top)), Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.relative_to(top)).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.relative_to(top)), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.relative_to(top)), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.relative_to(top)), Box::new(i.relative_to(top))),
             Expr::Hole(name) => Expr::Hole(name),
         }
     }
@@ -176,6 +194,53 @@ impl Expr {
                 }
                 Value::Word(cat_width, cat_val)
             },
+            Expr::Idx(e, i) => {
+                let value = e.eval(nettle);
+                if let Value::Word(width, val) = value {
+                    if *i < width {
+                        Value::Word(1, (val >> i) & 1)
+                    } else {
+                        panic!("Index at {i} out of range (width {width})")
+                    }
+                } else {
+                        panic!("Index with invalid value: {value:?}")
+                }
+            },
+            Expr::IdxRange(e, j, i) => {
+                let value = e.eval(nettle);
+                if let Value::Word(width, val) = value {
+                    // TODO make errors better
+                    if *i < width && *j >= *i {
+                        let new_width = j - i;
+                        // eg, if new_width = 3, shift over 3 to get 0b1000
+                        // then subtract 1 to get 0b01111
+                        let mask = (1 << new_width) - 1;
+                        Value::Word(new_width, (val >> i) & mask)
+                    } else {
+                        panic!("Index {j}..{i} out of range (width {width})")
+                    }
+                } else {
+                        panic!("Index with invalid value: {value:?}")
+                }
+            },
+            Expr::IdxDyn(e, i) => {
+                let index = if let Value::Word(_width, val) = i.eval(nettle) {
+                    val
+                } else {
+                    panic!("Invalid index: {i:?}");
+                };
+
+                let value = e.eval(nettle);
+                if let Value::Word(width, val) = value {
+                    if index < val {
+                        Value::Word(1, (val >> index) & 1)
+                    } else {
+                        panic!("Index at {index} out of range (width {width})")
+                    }
+                } else {
+                        panic!("Index with invalid value: {value:?}")
+                }
+            },
             Expr::Hole(opt_name) => {
                 match opt_name {
                     Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
@@ -199,6 +264,9 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.expand_regs_as_val(regs)), Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.expand_regs_as_val(regs)).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.expand_regs_as_val(regs)), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.expand_regs_as_val(regs)), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.expand_regs_as_val(regs)), Box::new(i.expand_regs_as_val(regs))),
             Expr::Hole(name) => Expr::Hole(name),
         }
     }
