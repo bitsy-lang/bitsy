@@ -72,8 +72,13 @@ pub ExprEq: Box<Expr> = {
 }
 
 pub ExprAdd: Box<Expr> = {
-    <e1:ExprBase> "+" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Add, e1, e2)),
-    <e1:ExprBase> "-" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Sub, e1, e2)),
+    <e1:ExprCall> "+" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Add, e1, e2)),
+    <e1:ExprCall> "-" <e2:ExprAdd> => Box::new(Expr::BinOp(BinOp::Sub, e1, e2)),
+    <e:ExprCall> => e,
+}
+
+pub ExprCall: Box<Expr> = {
+    "cat" "(" <e1:Expr> "," <e2:Expr> ")" => Box::new(Expr::Cat(vec![*e1, *e2])),
     <e:ExprBase> => e,
 }
 

@@ -7,6 +7,7 @@ pub enum Expr {
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
+    Cat(Vec<Expr>),
     Hole(Option<String>),
 }
 
@@ -35,6 +36,13 @@ impl std::fmt::Debug for Expr {
             },
             Expr::If(cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
+            },
+            Expr::Cat(es) => {
+                write!(f, "cat(")?;
+                for e in es {
+                    write!(f, "{e:?}")?;
+                }
+                write!(f, ")")
             },
             Expr::Hole(opt_name) => {
                 if let Some(_name) = opt_name {
@@ -89,6 +97,15 @@ impl Expr {
                 result.dedup();
                 result
             },
+            Expr::Cat(es) => {
+                let mut result = vec![];
+                for e in es {
+                    result.extend(e.paths());
+                }
+                result.sort();
+                result.dedup();
+                result
+            },
             Expr::Hole(_name) => vec![],
         }
     }
@@ -108,6 +125,7 @@ impl Expr {
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.relative_to(top))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.relative_to(top)), Box::new(e1.relative_to(top)), Box::new(e2.relative_to(top))),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.relative_to(top)).collect()),
             Expr::Hole(name) => Expr::Hole(name),
         }
     }
@@ -145,6 +163,19 @@ impl Expr {
                     _ => Value::X,
                 }
             },
+            Expr::Cat(es) => {
+                let mut cat_width: u64 = 0;
+                let mut cat_val: u64 = 0;
+                for v in es.iter().map(|e| e.eval(nettle)).rev() {
+                    if let Value::Word(width, val) = v {
+                        cat_val |= val << cat_width;
+                        cat_width += width;
+                    } else {
+                        panic!("Can't cat on a non-Word");
+                    }
+                }
+                Value::Word(cat_width, cat_val)
+            },
             Expr::Hole(opt_name) => {
                 match opt_name {
                     Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
@@ -167,6 +198,7 @@ impl Expr {
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.expand_regs_as_val(regs))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.expand_regs_as_val(regs)), Box::new(e1.expand_regs_as_val(regs)), Box::new(e2.expand_regs_as_val(regs))),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.expand_regs_as_val(regs)).collect()),
             Expr::Hole(name) => Expr::Hole(name),
         }
     }
