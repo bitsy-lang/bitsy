@@ -11,59 +11,7 @@ pub enum Component {
 }
 
 #[derive(Debug, Clone)]
-pub struct Net(Path, Vec<Path>);
-
-#[derive(Debug, Clone, Copy)]
-pub enum PortDirection {
-    Incoming,
-    Outgoing,
-}
-
-impl Net {
-    fn from(terminal: Path) -> Net {
-        Net(terminal, vec![])
-    }
-
-    pub fn add(&mut self, terminal: Path) {
-        if self.0 != terminal {
-            self.1.push(terminal);
-            self.1.sort();
-            self.1.dedup();
-        }
-    }
-
-    pub fn driver(&self) -> Path {
-        self.0.clone()
-    }
-
-    pub fn drivees(&self) -> &[Path] {
-        &self.1
-    }
-
-    pub fn terminals(&self) -> Vec<Path> {
-        let mut results = vec![self.0.clone()];
-        for terminal in &self.1 {
-            results.push(terminal.clone());
-        }
-        results
-    }
-
-    pub fn contains(&self, terminal: Path) -> bool {
-        if terminal == self.0 {
-            true
-        } else {
-            self.1.contains(&terminal)
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum PathType {
-    Node(Type),
-    Incoming(Type),
-    Outgoing(Type),
-    Reg(Type, Value),
-}
+pub struct Circuit(Arc<CircuitNode>);
 
 #[derive(Debug)]
 pub(crate) struct CircuitNode {
@@ -73,9 +21,6 @@ pub(crate) struct CircuitNode {
     path: Vec<String>,
     exts: Vec<Path>,
 }
-
-#[derive(Debug, Clone)]
-pub struct Circuit(Arc<CircuitNode>);
 
 impl Circuit {
     pub fn new(name: &str) -> CircuitNode {
@@ -297,4 +242,59 @@ impl CircuitNode {
     pub fn build(self) -> Circuit {
         Circuit(Arc::new(self.expand_regs()))
     }
+}
+
+impl Net {
+    fn from(terminal: Path) -> Net {
+        Net(terminal, vec![])
+    }
+
+    pub fn add(&mut self, terminal: Path) {
+        if self.0 != terminal {
+            self.1.push(terminal);
+            self.1.sort();
+            self.1.dedup();
+        }
+    }
+
+    pub fn driver(&self) -> Path {
+        self.0.clone()
+    }
+
+    pub fn drivees(&self) -> &[Path] {
+        &self.1
+    }
+
+    pub fn terminals(&self) -> Vec<Path> {
+        let mut results = vec![self.0.clone()];
+        for terminal in &self.1 {
+            results.push(terminal.clone());
+        }
+        results
+    }
+
+    pub fn contains(&self, terminal: Path) -> bool {
+        if terminal == self.0 {
+            true
+        } else {
+            self.1.contains(&terminal)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum PathType {
+    Node(Type),
+    Incoming(Type),
+    Outgoing(Type),
+    Reg(Type, Value),
+}
+
+#[derive(Debug, Clone)]
+pub struct Net(Path, Vec<Path>);
+
+#[derive(Debug, Clone, Copy)]
+pub enum PortDirection {
+    Incoming,
+    Outgoing,
 }
