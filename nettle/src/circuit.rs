@@ -15,7 +15,6 @@ pub struct Circuit(Arc<CircuitNode>);
 
 #[derive(Debug)]
 pub(crate) struct CircuitNode {
-    paths: BTreeMap<Path, PathType>,
     components: BTreeMap<Path, Component>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
@@ -26,7 +25,6 @@ impl Circuit {
     pub fn new(name: &str) -> CircuitNode {
         let components = vec![("top".into(), Component::Mod)].into_iter().collect();
         CircuitNode {
-            paths: BTreeMap::new(),
             components,
             wires: BTreeMap::new(),
             path: vec![name.to_string()],
@@ -38,10 +36,6 @@ impl Circuit {
         &self.0.components
     }
 
-    pub fn paths(&self) -> &BTreeMap<Path, PathType> {
-        &self.0.paths
-    }
-
     pub fn wires(&self) -> &BTreeMap<Path, Expr> {
         &self.0.wires
     }
@@ -50,19 +44,29 @@ impl Circuit {
         &self.0.exts
     }
 
+    pub fn regs(&self) -> Vec<Path> {
+        let mut result = vec![];
+        for (path, typ) in &self.0.components {
+            if let Component::Reg(_typ, _reset) = typ {
+                result.push(path.clone());
+            }
+        }
+        result
+    }
+
     pub fn terminals(&self) -> Vec<Path> {
         let mut terminals = vec![];
         for (path, component) in self.components() {
             match component {
-                Component::Incoming(_typ) => terminals.push(format!("{path}.val").into()),
-                Component::Outgoing(_typ) => terminals.push(format!("{path}.set").into()),
+                Component::Incoming(_typ) => terminals.push(path.val()),
+                Component::Outgoing(_typ) => terminals.push(path.set()),
                 Component::Node(_typ) => {
-                    terminals.push(format!("{path}.val").into());
-                    terminals.push(format!("{path}.set").into());
+                    terminals.push(path.val());
+                    terminals.push(path.set());
                 },
                 Component::Reg(_typ, _reset) => {
-                    terminals.push(format!("{path}.val").into());
-                    terminals.push(format!("{path}.set").into());
+                    terminals.push(path.val());
+                    terminals.push(path.set());
                 },
                 Component::Mod => (),
                 Component::Ext => (),
@@ -78,7 +82,6 @@ impl Circuit {
                 immediate_driver_for.insert(target.clone(), driver.clone());
             }
         }
-        dbg!(&self);
         for terminal in self.terminals() {
             println!("TERMINAL: {terminal}");
         }
@@ -130,7 +133,6 @@ impl CircuitNode {
 
     pub(crate) fn node(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        self.paths.insert(path.clone(), PathType::Node(typ));
         self.components.insert(path.clone(), Component::Node(typ));
         let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
         let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
@@ -140,34 +142,18 @@ impl CircuitNode {
 
     pub(crate) fn incoming(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
-        let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
-        self.paths.insert(set_path, PathType::Outgoing(typ));
-        self.paths.insert(val_path, PathType::Outgoing(typ));
-        self.paths.insert(path.clone(), PathType::Incoming(typ));
         self.components.insert(path, Component::Incoming(typ));
         self
     }
 
     pub(crate) fn outgoing(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
-        let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
-        self.paths.insert(set_path, PathType::Outgoing(typ));
-        self.paths.insert(val_path, PathType::Outgoing(typ));
-        self.paths.insert(path.clone(), PathType::Outgoing(typ));
         self.components.insert(path, Component::Outgoing(typ));
         self
     }
 
     pub(crate) fn reg(mut self, name: &str, typ: Type, reset: Value) -> Self {
         let path = self.local_name_to_path(name);
-        let set_path = format!("{path}.set");
-        let val_path = format!("{path}.val");
-
-        self.paths.insert(path.clone(), PathType::Reg(typ, reset));
-        self.paths.insert(set_path.into(), PathType::Node(typ));
-        self.paths.insert(val_path.into(), PathType::Node(typ));
         self.components.insert(path, Component::Reg(typ, reset));
         self
     }
@@ -182,11 +168,6 @@ impl CircuitNode {
         let mod_path = self.current_path();
         self = self.push(name);
         self.components.insert(self.current_path(), Component::Mod);
-
-        for (path, typ) in &circuit.paths {
-            let target = relative_to(&mod_path, path);
-            self.paths.insert(target, typ.clone());
-        }
 
         for (path, component) in &circuit.components {
             if path != &"top".into() {
@@ -215,49 +196,16 @@ impl CircuitNode {
         for (port, dir, typ) in ports {
             let target = format!("{ext}.{port}");
             match dir {
-                PortDirection::Incoming => self.paths.insert(target.into(), PathType::Incoming(*typ)),
-                PortDirection::Outgoing => self.paths.insert(target.into(), PathType::Outgoing(*typ)),
+                PortDirection::Incoming => self.components.insert(target.into(), Component::Incoming(*typ)),
+                PortDirection::Outgoing => self.components.insert(target.into(), Component::Outgoing(*typ)),
             };
         }
         self.components.insert(ext, Component::Ext);
         self
     }
 
-    fn regs(&self) -> Vec<Path> {
-        let mut result = vec![];
-        for (path, typ) in &self.paths {
-            if let PathType::Reg(_typ, _reset) = typ {
-                result.push(path.clone());
-            }
-        }
-        result
-    }
-
-    fn expand_regs(mut self) -> Self {
-        let regs: Vec<Path> = self.regs();
-
-        // fix sets (on the right)
-        let targets: Vec<Path> = self.wires.keys().cloned().collect();
-        for target in targets {
-            if regs.contains(&target) {
-                let set_path = format!("{target}.set");
-                let expr = self.wires.remove(&target).unwrap();
-                self.wires.insert(set_path.into(), expr);
-            }
-        }
-
-        // fix vals (on the left)
-        let mut wires: Vec<(Path, Expr)> = vec![];
-        for (target, expr) in &self.wires {
-            let expr = expr.clone().expand_regs_as_val(&regs);
-            wires.push((target.clone(), expr));
-        }
-        self.wires = wires.into_iter().collect();
-        self
-    }
-
     pub fn build(self) -> Circuit {
-        Circuit(Arc::new(self.expand_regs()))
+        Circuit(Arc::new(self))
     }
 }
 

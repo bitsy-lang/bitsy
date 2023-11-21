@@ -52,18 +52,15 @@ fn buffer() {
     ");
 
     let mut nettle = Sim::new(&buffer);
-
     dbg!(&nettle);
-    nettle.poke("top.in.val", true.into());
-    assert_eq!(nettle.peek("top.r.val"), Value::X);
-    assert_eq!(nettle.peek("top.out.val"), Value::X);
-    panic!();
 
-
+    nettle.poke("top.in", true.into());
+    assert_eq!(nettle.peek("top.r"), Value::X);
+    assert_eq!(nettle.peek("top.out"), Value::X);
 
     nettle.clock();
-    assert_eq!(nettle.peek("top.r.val"), true.into());
-    assert_eq!(nettle.peek("top.out.val"), true.into());
+    assert_eq!(nettle.peek("top.r"), true.into());
+    assert_eq!(nettle.peek("top.out"), true.into());
 }
 
 #[test]
@@ -214,10 +211,7 @@ fn test_eval() {
         }
     ");
 
-    println!("HI");
     let mut nettle = Sim::new(&buffer);
-    println!("HO");
-    dbg!(&nettle);
     nettle.reset();
 
     let tests = vec![
@@ -248,7 +242,6 @@ fn test_eval() {
     ];
 
     for (expr_str, v) in tests {
-        dbg!(&expr_str);
         let expr: Expr = expr_str.into();
         assert_eq!(expr.eval(&nettle), v, "{expr:?} does not equal {v:?}");
     }
@@ -317,9 +310,6 @@ fn circuit_component_parents() {
         }
     ");
     let component_paths: Vec<Path> = top.components().keys().cloned().collect();
-    for path in &component_paths {
-        eprintln!("{path}");
-    }
     for path in &component_paths {
         if path != &"top".into() {
             assert!(

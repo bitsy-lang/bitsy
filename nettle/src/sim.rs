@@ -59,13 +59,33 @@ impl Sim {
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
         let path: Path = path.into();
 
-        let net_id = self.net_id_for(path.clone());
+        if DEBUG {
+            let padding = " ".repeat(self.indent * 4);
+            eprint!("{padding}peek({path}) = ");
+            use std::io::Write;
+            std::io::stderr().flush().unwrap();
+        }
+
+        if !self.circuit.components().contains_key(&path.parent()) {
+            eprintln!("NO PATH: {path}");
+        }
+
+        let terminal_path = match &self.circuit.components()[&path.parent()] {
+            Component::Outgoing(_typ) => path.set(),
+            Component::Incoming(_typ) => path.val(),
+            Component::Node(_typ) => path.val(),
+            Component::Reg(_typ, _reset) => path.val(),
+            Component::Mod => panic!(),
+            Component::Ext => panic!(),
+        };
+
+        let net_id = self.net_id_for(terminal_path);
         let value = self.peek_net(net_id);
 
         if DEBUG {
-            let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}peek({path}) = {:?}", value);
+            eprintln!("{:?}", value);
         }
+
         value
     }
 
@@ -78,11 +98,20 @@ impl Sim {
             self.indent += 1;
         }
 
-        let net_id = self.net_id_for(path.clone());
+        let terminal_path = match &self.circuit.components()[&path] {
+            Component::Outgoing(_typ) => path.set(),
+            Component::Incoming(_typ) => path.val(),
+            Component::Node(_typ) => path.set(),
+            Component::Reg(_typ, _reset) => path.set(),
+            Component::Mod => panic!(),
+            Component::Ext => panic!(),
+        };
+
+        let net_id = self.net_id_for(terminal_path.clone());
         self.poke_net(net_id, value.clone());
 
         if !self.is_reg(&path) {
-            self.broadcast_update(path);
+            self.broadcast_update(terminal_path);
         }
 
         if DEBUG {
@@ -115,8 +144,6 @@ impl Sim {
             self.indent += 1;
         }
 
-        dbg!(&self);
-
         let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
             if expr.is_constant() {
@@ -134,30 +161,30 @@ impl Sim {
         }
     }
 
-    fn broadcast_update(&mut self, path: Path) {
+    fn broadcast_update(&mut self, terminal: Path) {
         if DEBUG {
             let padding = " ".repeat(self.indent * 4);
-            eprintln!("{padding}broadcast_update({path})");
+            eprintln!("{padding}broadcast_update({terminal})");
             self.indent += 1;
         }
 
         let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
-            if expr.depends_on(path.clone()) {
+            if expr.depends_on(terminal.clone()) {
                 if DEBUG {
                     let padding = " ".repeat(self.indent * 4);
                     eprintln!("{padding}affected: {target_terminal}");
                 }
                 let value = expr.eval(&self);
-                self.poke(target_terminal.clone(), value);
+                self.poke(target_terminal.parent(), value);
             }
         }
 
-        let ext_path = parent_of(path.clone());
-        let value = self.peek(path.clone());
+        let ext_path = parent_of(terminal.clone());
+        let value = self.peek(terminal.clone());
         if self.exts.contains_key(&ext_path) {
             let ext = self.exts.get_mut(&ext_path).unwrap();
-            let local_path: Path = path[ext_path.len() + 1..].into();
+            let local_path: Path = terminal[ext_path.len() + 1..].into();
             let updates = ext.poke(local_path.to_string(), value);
             let poke_values: Vec<(Path, Value)> = updates
                 .into_iter()
@@ -179,29 +206,11 @@ impl Sim {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
-        if !self.circuit.paths().contains_key(&path) {
-            eprintln!("NO SUCH PATH: {path}");
-        }
-
-        if !self.circuit.paths().contains_key(&path.parent()) {
-            println!("is_reg({path})");
-            println!("NO SUCH PATH FOR PARENT: {}", path.parent());
-        }
-        if let PathType::Reg(_typ, _reset) = self.circuit.paths()[&path.parent()] {
+        if let Component::Reg(_typ, _reset) = self.circuit.components()[&path.parent()] {
             true
         } else {
             false
         }
-    }
-
-    pub fn regs(&self) -> Vec<Path> {
-        let mut result = vec![];
-        for (terminal, typ) in self.circuit.paths() {
-            if let PathType::Reg(_typ, _reset) = typ {
-                result.push(terminal.clone());
-            }
-        }
-        result
     }
 
     pub fn clock(&mut self) {
@@ -211,18 +220,16 @@ impl Sim {
             self.indent += 1;
         }
 
-        for path in self.regs() {
-            let set_path: Path = format!("{path}.set").into();
-            let val_path: Path = format!("{path}.val").into();
-            let set_value = self.peek(set_path);
+        for path in self.circuit.regs() {
+            let set_value = self.peek(path.clone());
 
             if DEBUG {
                 let padding = " ".repeat(self.indent * 4);
-                let val_value = self.peek(val_path.clone());
+                let val_value = self.peek(path.clone());
                 eprintln!("{padding}register clocked: {path} {val_value:?} => {set_value:?}");
             }
 
-            self.poke(val_path, set_value);
+            self.poke(path, set_value);
         }
 
         let mut poke_values: Vec<(Path, Value)> = vec![];
@@ -247,9 +254,8 @@ impl Sim {
 //            self.broadcast_update(path);
         }
 
-        for path in self.regs() {
-            let val_path: Path = format!("{path}.val").into();
-            self.broadcast_update(val_path);
+        for path in self.circuit.regs() {
+            self.broadcast_update(path);
         }
 
         if DEBUG {
@@ -264,22 +270,20 @@ impl Sim {
             self.indent += 1;
         }
 
-        for path in self.regs() {
+        for path in self.circuit.regs() {
             let val_path = format!("{path}.val");
-            match self.circuit.paths().get(&path).unwrap() {
-                PathType::Node(_typ) => (),
-                PathType::Incoming(_typ) => (),
-                PathType::Outgoing(_typ) => (),
-                PathType::Reg(_typ, reset) => {
-                    if *reset != Value::X {
-                        if DEBUG {
-                            let padding = " ".repeat(self.indent * 4);
-                            let val_value = self.peek(val_path.clone());
-                            eprintln!("{padding}register reset: {path} {val_value:?}");
-                        }
-                        self.poke(val_path, *reset);
+            let component = self.circuit.components().get(&path).unwrap();
+            if let Component::Reg(_typ, reset) = component {
+                if *reset != Value::X {
+                    if DEBUG {
+                        let padding = " ".repeat(self.indent * 4);
+                        let val_value = self.peek(val_path.clone());
+                        eprintln!("{padding}register reset: {path} {val_value:?}");
                     }
-                },
+                    self.poke(val_path, *reset);
+                } else {
+                    unreachable!()
+                }
             }
         }
 
@@ -291,7 +295,7 @@ impl Sim {
             }
         }
 
-        for path in self.regs() {
+        for path in self.circuit.regs() {
             let val_path: Path = format!("{path}.val").into();
             self.broadcast_update(val_path);
         }

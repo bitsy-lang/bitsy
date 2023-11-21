@@ -9,6 +9,14 @@ impl Path {
         path_parts.pop();
         path_parts.join(".").into()
     }
+
+    pub fn set(&self) -> Path {
+        format!("{self}.set").into()
+    }
+
+    pub fn val(&self) -> Path {
+        format!("{self}.val").into()
+    }
 }
 
 pub(crate) fn relative_to(top: &Path, path: &Path) -> Path {
