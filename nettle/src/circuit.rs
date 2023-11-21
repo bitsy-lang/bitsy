@@ -173,11 +173,7 @@ impl CircuitNode {
 
     pub(crate) fn wire(mut self, name: &str, expr: &Expr) -> Self {
         let path: Path = self.to_abs_path(name).into();
-        if let Component::Reg(_typ, _reset) = self.components[&path] {
-            self.wires.insert(path.set(), expr.clone().to_absolute(&self.current_path()));
-        } else {
-            self.wires.insert(path, expr.clone().to_absolute(&self.current_path()));
-        }
+        self.wires.insert(path, expr.clone().to_absolute(&self.current_path()));
         self
     }
 

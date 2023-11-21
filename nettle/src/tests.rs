@@ -29,7 +29,7 @@ fn expand_regs() {
         .reg("r", Type::Word(1), Value::X)
         .node("n", Type::Word(1))
         .node("m", Type::Word(1))
-        .wire("r", &Expr::Reference("n".into()))
+        .wire("r.set", &Expr::Reference("n".into()))
         .wire("m", &Expr::Reference("r".into()))
         .build();
 
@@ -46,7 +46,7 @@ fn buffer() {
             incoming in of Bit;
             reg r of Bit;
             outgoing out of Bit;
-            r <= in;
+            r.set <= in;
             out <= r;
         }
     ");
@@ -69,7 +69,7 @@ fn counter() {
             outgoing out of Word<4>;
             reg counter of Word<4> reset 0w4;
             out <= counter;
-            counter <= counter + 1w4;
+            counter.set <= counter + 1w4;
         }
     ");
 
@@ -94,10 +94,10 @@ fn triangle_numbers() {
                 outgoing out of Word<32>;
                 reg counter of Word<32> reset 1w32;
                 out <= counter;
-                counter <= counter + 1w32;
+                counter.set <= counter + 1w32;
             }
             out <= sum;
-            sum <= sum + counter.out;
+            sum.set <= sum + counter.out;
         }
     ");
 
@@ -196,12 +196,12 @@ fn test_eval() {
             node x of Bit;
             reg r of Bit reset false;
             x <= true;
-            r <= r;
+            r.set <= r;
 
             reg a of Word<32> reset 2w32;
             reg b of Word<32> reset 3w32;
-            a <= a;
-            b <= b;
+            a.set <= a;
+            b.set <= b;
 
             node p of Bit;
             node q of Bit;
@@ -253,7 +253,7 @@ fn test_nets() {
             incoming in of Bit;
             reg r of Bit;
             outgoing out of Bit;
-            r <= in;
+            r.set <= in;
             out <= r;
         }
     ");
