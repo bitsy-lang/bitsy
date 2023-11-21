@@ -4,13 +4,18 @@ use super::*;
 pub struct Path(Arc<String>);
 
 impl Path {
-    // TODO
+    pub fn parent(&self) -> Path {
+        let mut path_parts: Vec<&str> = self.split('.').collect();
+        path_parts.pop();
+        path_parts.join(".").into()
+    }
 }
 
 pub(crate) fn relative_to(top: &Path, path: &Path) -> Path {
     format!("{}.{}", top, &path).into()
 }
 
+// TODO remove this, replace with Path::parent()
 pub(crate) fn parent_of(path: Path) -> Path {
     let mut path_parts: Vec<&str> = path.split('.').collect();
     path_parts.pop();

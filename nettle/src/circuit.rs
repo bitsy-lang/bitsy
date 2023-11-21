@@ -1,5 +1,15 @@
 use super::*;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Component {
+    Incoming(Type),
+    Outgoing(Type),
+    Node(Type),
+    Reg(Type, Value),
+    Mod,
+    Ext,
+}
+
 #[derive(Debug, Clone)]
 pub struct Net(Path, Vec<Path>);
 
@@ -58,6 +68,7 @@ pub enum PathType {
 #[derive(Debug)]
 pub(crate) struct CircuitNode {
     paths: BTreeMap<Path, PathType>,
+    components: BTreeMap<Path, Component>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
     exts: Vec<Path>,
@@ -68,12 +79,18 @@ pub struct Circuit(Arc<CircuitNode>);
 
 impl Circuit {
     pub fn new(name: &str) -> CircuitNode {
+        let components = vec![("top".into(), Component::Mod)].into_iter().collect();
         CircuitNode {
             paths: BTreeMap::new(),
+            components,
             wires: BTreeMap::new(),
             path: vec![name.to_string()],
             exts: vec![],
         }
+    }
+
+    pub fn components(&self) -> &BTreeMap<Path, Component> {
+        &self.0.components
     }
 
     pub fn paths(&self) -> &BTreeMap<Path, PathType> {
@@ -162,19 +179,22 @@ impl CircuitNode {
 
     pub(crate) fn node(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        self.paths.insert(path, PathType::Node(typ));
+        self.paths.insert(path.clone(), PathType::Node(typ));
+        self.components.insert(path, Component::Node(typ));
         self
     }
 
     pub(crate) fn incoming(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        self.paths.insert(path, PathType::Incoming(typ));
+        self.paths.insert(path.clone(), PathType::Incoming(typ));
+        self.components.insert(path, Component::Incoming(typ));
         self
     }
 
     pub(crate) fn outgoing(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
-        self.paths.insert(path, PathType::Outgoing(typ));
+        self.paths.insert(path.clone(), PathType::Outgoing(typ));
+        self.components.insert(path, Component::Outgoing(typ));
         self
     }
 
@@ -183,9 +203,10 @@ impl CircuitNode {
         let set_path = format!("{path}.set");
         let val_path = format!("{path}.val");
 
-        self.paths.insert(path, PathType::Reg(typ, reset));
+        self.paths.insert(path.clone(), PathType::Reg(typ, reset));
         self.paths.insert(set_path.into(), PathType::Node(typ));
         self.paths.insert(val_path.into(), PathType::Node(typ));
+        self.components.insert(path, Component::Reg(typ, reset));
         self
     }
 
@@ -195,13 +216,21 @@ impl CircuitNode {
         self
     }
 
-    pub fn instantiate(mut self, name:  &str, circuit: &CircuitNode) -> Self {
+    pub fn instantiate(mut self, name: &str, circuit: &CircuitNode) -> Self {
         let mod_path = self.current_path();
         self = self.push(name);
+        self.components.insert(self.current_path(), Component::Mod);
 
         for (path, typ) in &circuit.paths {
             let target = relative_to(&mod_path, path);
             self.paths.insert(target, typ.clone());
+        }
+
+        for (path, component) in &circuit.components {
+            if path != &"top".into() {
+                let target = relative_to(&mod_path, path);
+                self.components.insert(target, component.clone());
+            }
         }
 
         for (path, expr) in &circuit.wires {
@@ -228,6 +257,7 @@ impl CircuitNode {
                 PortDirection::Outgoing => self.paths.insert(target.into(), PathType::Outgoing(*typ)),
             };
         }
+        self.components.insert(ext, Component::Ext);
         self
     }
 
