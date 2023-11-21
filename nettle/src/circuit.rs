@@ -46,25 +46,26 @@ impl Circuit {
         &self.0.wires
     }
 
-    pub fn path(&self) -> &[String] {
-        &self.0.path
-    }
-
     pub fn exts(&self) -> &[Path] {
         &self.0.exts
     }
 
     pub fn terminals(&self) -> Vec<Path> {
         let mut terminals = vec![];
-        for (path, path_type) in self.paths() {
-            match path_type {
-                PathType::Node(_typ) => terminals.push(path.clone()),
-                PathType::Incoming(_typ) => terminals.push(path.clone()),
-                PathType::Outgoing(_typ) => terminals.push(path.clone()),
-                PathType::Reg(_typ, _reset) => {
+        for (path, component) in self.components() {
+            match component {
+                Component::Incoming(_typ) => terminals.push(format!("{path}.val").into()),
+                Component::Outgoing(_typ) => terminals.push(format!("{path}.set").into()),
+                Component::Node(_typ) => {
                     terminals.push(format!("{path}.val").into());
                     terminals.push(format!("{path}.set").into());
                 },
+                Component::Reg(_typ, _reset) => {
+                    terminals.push(format!("{path}.val").into());
+                    terminals.push(format!("{path}.set").into());
+                },
+                Component::Mod => (),
+                Component::Ext => (),
             }
         }
         terminals
@@ -77,6 +78,11 @@ impl Circuit {
                 immediate_driver_for.insert(target.clone(), driver.clone());
             }
         }
+        dbg!(&self);
+        for terminal in self.terminals() {
+            println!("TERMINAL: {terminal}");
+        }
+
         let mut drivers: BTreeSet<Path> = BTreeSet::new();
         for terminal in self.terminals() {
             drivers.insert(driver_for(terminal, &immediate_driver_for));
@@ -125,12 +131,19 @@ impl CircuitNode {
     pub(crate) fn node(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
         self.paths.insert(path.clone(), PathType::Node(typ));
-        self.components.insert(path, Component::Node(typ));
+        self.components.insert(path.clone(), Component::Node(typ));
+        let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
+        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
+        self.wires.insert(val_path, Expr::Reference(set_path));
         self
     }
 
     pub(crate) fn incoming(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
+        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
+        let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
+        self.paths.insert(set_path, PathType::Outgoing(typ));
+        self.paths.insert(val_path, PathType::Outgoing(typ));
         self.paths.insert(path.clone(), PathType::Incoming(typ));
         self.components.insert(path, Component::Incoming(typ));
         self
@@ -138,6 +151,10 @@ impl CircuitNode {
 
     pub(crate) fn outgoing(mut self, name: &str, typ: Type) -> Self {
         let path = self.local_name_to_path(name);
+        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
+        let val_path: Path = format!("{}.val", self.local_name_to_path(name)).into();
+        self.paths.insert(set_path, PathType::Outgoing(typ));
+        self.paths.insert(val_path, PathType::Outgoing(typ));
         self.paths.insert(path.clone(), PathType::Outgoing(typ));
         self.components.insert(path, Component::Outgoing(typ));
         self
@@ -156,8 +173,8 @@ impl CircuitNode {
     }
 
     pub(crate) fn wire(mut self, name: &str, expr: &Expr) -> Self {
-        let path = self.local_name_to_path(name);
-        self.wires.insert(path, expr.clone().relative_to(&self.current_path()));
+        let set_path: Path = format!("{}.set", self.local_name_to_path(name)).into();
+        self.wires.insert(set_path, expr.clone().expand_references_as_val().relative_to(&self.current_path()));
         self
     }
 

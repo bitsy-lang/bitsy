@@ -58,17 +58,9 @@ impl Sim {
 
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
         let path: Path = path.into();
-        let value = if !self.is_reg(&path) {
-            // let value = self.state[&path];
-            let net_id = self.net_id_for(path.clone());
-            let value = self.peek_net(net_id);
-            value
-        } else {
-            let val_path = format!("{path}.val").into();
-            let net_id = self.net_id_for(val_path);
-            let value = self.peek_net(net_id);
-            value
-        };
+
+        let net_id = self.net_id_for(path.clone());
+        let value = self.peek_net(net_id);
 
         if DEBUG {
             let padding = " ".repeat(self.indent * 4);
@@ -86,16 +78,12 @@ impl Sim {
             self.indent += 1;
         }
 
-        if !self.is_reg(&path) {
-            let net_id = self.net_id_for(path.clone());
-            self.poke_net(net_id, value.clone());
-            self.broadcast_update(path);
-        } else {
-            let set_path: Path = format!("{path}.set").into();
-            let net_id = self.net_id_for(set_path.clone());
-            self.poke_net(net_id, value.clone());
-        }
+        let net_id = self.net_id_for(path.clone());
+        self.poke_net(net_id, value.clone());
 
+        if !self.is_reg(&path) {
+            self.broadcast_update(path);
+        }
 
         if DEBUG {
             self.indent -= 1;
@@ -126,6 +114,8 @@ impl Sim {
             eprintln!("{padding}update_constants()");
             self.indent += 1;
         }
+
+        dbg!(&self);
 
         let wires = self.circuit.wires().clone();
         for (target_terminal, expr) in &wires {
@@ -190,10 +180,14 @@ impl Sim {
 
     fn is_reg(&self, path: &Path) -> bool {
         if !self.circuit.paths().contains_key(&path) {
-            dbg!(path);
+            eprintln!("NO SUCH PATH: {path}");
         }
 
-        if let PathType::Reg(_typ, _reset) = self.circuit.paths()[&path] {
+        if !self.circuit.paths().contains_key(&path.parent()) {
+            println!("is_reg({path})");
+            println!("NO SUCH PATH FOR PARENT: {}", path.parent());
+        }
+        if let PathType::Reg(_typ, _reset) = self.circuit.paths()[&path.parent()] {
             true
         } else {
             false

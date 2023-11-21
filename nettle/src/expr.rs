@@ -270,4 +270,19 @@ impl Expr {
             Expr::Hole(name) => Expr::Hole(name),
         }
     }
+
+    pub fn expand_references_as_val(self) -> Expr {
+        match self {
+            Expr::Reference(path) => Expr::Reference(format!("{path}.val").into()),
+            Expr::Lit(_value) => self,
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.expand_references_as_val())),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.expand_references_as_val()), Box::new(e2.expand_references_as_val())),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.expand_references_as_val()), Box::new(e1.expand_references_as_val()), Box::new(e2.expand_references_as_val())),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.expand_references_as_val()).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.expand_references_as_val()), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.expand_references_as_val()), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.expand_references_as_val()), Box::new(i.expand_references_as_val())),
+            Expr::Hole(name) => Expr::Hole(name),
+        }
+    }
 }

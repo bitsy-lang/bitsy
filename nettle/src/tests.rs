@@ -53,13 +53,17 @@ fn buffer() {
 
     let mut nettle = Sim::new(&buffer);
 
-    nettle.poke("top.in", true.into());
-    assert_eq!(nettle.peek("top.r"), Value::X);
-    assert_eq!(nettle.peek("top.out"), Value::X);
+    dbg!(&nettle);
+    nettle.poke("top.in.val", true.into());
+    assert_eq!(nettle.peek("top.r.val"), Value::X);
+    assert_eq!(nettle.peek("top.out.val"), Value::X);
+    panic!();
+
+
 
     nettle.clock();
-    assert_eq!(nettle.peek("top.r"), true.into());
-    assert_eq!(nettle.peek("top.out"), true.into());
+    assert_eq!(nettle.peek("top.r.val"), true.into());
+    assert_eq!(nettle.peek("top.out.val"), true.into());
 }
 
 #[test]
@@ -210,7 +214,10 @@ fn test_eval() {
         }
     ");
 
+    println!("HI");
     let mut nettle = Sim::new(&buffer);
+    println!("HO");
+    dbg!(&nettle);
     nettle.reset();
 
     let tests = vec![
@@ -241,6 +248,7 @@ fn test_eval() {
     ];
 
     for (expr_str, v) in tests {
+        dbg!(&expr_str);
         let expr: Expr = expr_str.into();
         assert_eq!(expr.eval(&nettle), v, "{expr:?} does not equal {v:?}");
     }
@@ -352,4 +360,18 @@ fn circuit_components() {
                ("top.counter.c".into(), Component::Reg(Type::Word(32), Value::Word(32, 1))),
         ].into_iter().collect::<BTreeMap<Path, Component>>(),
     );
+}
+
+#[test]
+fn test_node() {
+    let top = parse_top("
+        top {
+            outgoing out of Word<1>;
+            node n of Word<1>;
+            n <= 1w1;
+        }
+    ");
+
+    let nettle = Sim::new(&top);
+    assert_eq!(nettle.peek("top.n.val"), Value::Word(1, 1));
 }
