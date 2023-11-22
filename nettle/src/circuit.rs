@@ -98,9 +98,6 @@ impl Circuit {
                 immediate_driver_for.insert(target.clone(), driver.clone());
             }
         }
-        for terminal in self.terminals() {
-            println!("TERMINAL: {terminal}");
-        }
 
         let mut drivers: BTreeSet<Path> = BTreeSet::new();
         for terminal in self.terminals() {

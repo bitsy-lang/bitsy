@@ -4,6 +4,8 @@ pub type PortName = String;
 
 #[allow(unused_variables)]
 pub trait ExtInstance: std::fmt::Debug {
+    fn incoming_ports(&self) -> Vec<PortName>;
+    fn outgoing_ports(&self) -> Vec<PortName>;
     fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
     fn clock(&mut self) -> Vec<(PortName, Value)> { vec![] }
     fn reset(&mut self) -> Vec<(PortName, Value)> { vec![] }
@@ -19,6 +21,9 @@ impl Monitor {
 }
 
 impl ExtInstance for Monitor {
+    fn incoming_ports(&self) -> Vec<PortName> { vec!["in".to_string()] }
+    fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
+
     fn poke(&mut self, _port: PortName, value: Value) -> Vec<(PortName, Value)> {
         self.0 = Some(format!("{value:?}"));
         vec![]
@@ -60,6 +65,16 @@ impl Ram {
 }
 
 impl ExtInstance for Ram {
+    fn incoming_ports(&self) -> Vec<PortName> {
+        vec![
+            "read_addr".to_string(),
+            "write_enable".to_string(),
+            "write_addr".to_string(),
+            "write_data".to_string(),
+        ]
+    }
+    fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
+
     fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
         if port == "read_addr" {
             if let Value::Word(_width, addr) = value {
@@ -95,18 +110,17 @@ impl ExtInstance for Ram {
             self.mem[i] = ch;
         }
 
-        println!("{}", self.render());
         vec![("read_data".to_string(), self.read())]
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-        println!("LOL CLOCK {}", self.render());
+        //println!("Ram was clocked: {}");
         if self.write_enable {
-            println!("WE");
             self.mem[self.write_addr as usize] =  self.write_data;
-            vec![("read_data".to_string(), Value::X)]
+            let read_data = Value::Word(8, self.mem[self.read_addr as usize].into());
+            //println!("Ram wrote {read_data:?} at address 0x{:x}", self.write_addr);
+            vec![("read_data".to_string(), read_data)]
         } else {
-            println!("NO WE");
             vec![]
         }
     }
@@ -114,6 +128,7 @@ impl ExtInstance for Ram {
 
 impl Ram {
     fn render(&self) -> String {
+        //dbg!(self);
         let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
             &self.mem[..index+1]
         } else {
