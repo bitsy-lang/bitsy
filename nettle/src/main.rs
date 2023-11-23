@@ -136,7 +136,7 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
         TestbenchCommand::Assert(e) => {
             let result = e.eval(&nettle);
             println!("ASSERT {e:?}");
-            if result != Value::Bit(true) {
+            if result != true.into() {
                 println!("Assertion failed");
                 for path in e.paths() {
                     println!("    {path} => {:?}", nettle.peek(path.clone()));

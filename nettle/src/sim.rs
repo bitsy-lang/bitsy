@@ -342,12 +342,8 @@ impl Sim {
 
     pub fn clocks_per_second(&self) -> f64 {
         let end_time = SystemTime::now();
-        if true { // self.start_time < end_time {
-            let duration: Duration = end_time.duration_since(self.start_time).unwrap();
-            1_000_000.0 * self.clock_ticks as f64 / duration.as_micros() as f64
-        } else {
-            0.0
-        }
+        let duration: Duration = end_time.duration_since(self.start_time).unwrap();
+        1_000_000.0 * self.clock_ticks as f64 / duration.as_micros() as f64
     }
 }
 

@@ -5,8 +5,6 @@ fn path_depends() {
     let tests = vec![
         ("top.x", vec!["top.x"]),
         ("1w8", vec![]),
-        ("true", vec![]),
-        ("false", vec![]),
         ("(top.a + top.b)", vec!["top.a", "top.b"]),
         ("(top.b - top.a)", vec!["top.a", "top.b"]),
         ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
@@ -43,9 +41,9 @@ fn expand_regs() {
 fn buffer() {
     let buffer = parse_top("
         top {
-            incoming in of Bit;
-            reg r of Bit;
-            outgoing out of Bit;
+            incoming in of Word<1>;
+            reg r of Word<1>;
+            outgoing out of Word<1>;
             r.set <= in;
             out <= r;
         }
@@ -160,9 +158,9 @@ fn ifs() {
 
     let mut nettle = Sim::new(&top);
 
-    nettle.poke("top.in", Value::Bit(true));
+    nettle.poke("top.in", true.into());
     assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
-    nettle.poke("top.in", Value::Bit(false));
+    nettle.poke("top.in", false.into());
     assert_eq!(nettle.peek("top.out"), Value::Word(8, 100));
 }
 
@@ -193,9 +191,9 @@ fn test_parse() {
 fn test_eval() {
     let buffer = parse_top("
         top {
-            node x of Bit;
-            reg r of Bit reset false;
-            x <= true;
+            node x of Word<1>;
+            reg r of Word<1> reset 0w1;
+            x <= 1w1;
             r.set <= r;
 
             reg a of Word<32> reset 2w32;
@@ -203,10 +201,10 @@ fn test_eval() {
             a.set <= a;
             b.set <= b;
 
-            node p of Bit;
-            node q of Bit;
-            p <= true;
-            q <= false;
+            node p of Word<1>;
+            node q of Word<1>;
+            p <= 1w1;
+            q <= 0w1;
         }
     ");
 
@@ -214,10 +212,8 @@ fn test_eval() {
     nettle.reset();
 
     let tests = vec![
-        ("top.x", Value::Bit(true)),
+        ("top.x", true.into()),
         ("1w8", Value::Word(8, 1)),
-        ("true", Value::Bit(true)),
-        ("false", Value::Bit(false)),
         ("(top.a + top.b)", Value::Word(32, 5)),
         ("(top.b - top.a)", Value::Word(32, 1)),
         ("(1w1 + 1w1)", Value::Word(1, 0)),
@@ -232,10 +228,10 @@ fn test_eval() {
         ("7w4[0w2]", Value::Word(1, 1)),
 //        "(a && b)",
 //        "(a || b)",
-        ("(top.a == top.b)".into(), Value::Bit(false)),
-        ("(top.b < top.a)".into(), Value::Bit(false)),
-        ("(top.a != top.b)".into(), Value::Bit(true)),
-        ("(!top.x)".into(), Value::Bit(false)),
+        ("(top.a == top.b)".into(), false.into()),
+        ("(top.b < top.a)".into(), false.into()),
+        ("(top.a != top.b)".into(), true.into()),
+        ("(!top.x)".into(), false.into()),
         ("if top.x { top.a } else { top.b }".into(), Value::Word(32, 2)),
         ("if !top.x { top.a } else { top.b }".into(), Value::Word(32, 3)),
     ];
@@ -250,9 +246,9 @@ fn test_eval() {
 fn test_nets() {
     let top = parse_top("
         top {
-            incoming in of Bit;
-            reg r of Bit;
-            outgoing out of Bit;
+            incoming in of Word<1>;
+            reg r of Word<1>;
+            outgoing out of Word<1>;
             r.set <= in;
             out <= r;
         }

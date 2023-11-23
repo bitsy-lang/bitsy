@@ -154,7 +154,6 @@ impl Expr {
             Expr::Lit(value) => *value,
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
-                    (UnOp::Not, Value::Bit(b)) => Value::Bit(!b),
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
@@ -165,13 +164,9 @@ impl Expr {
                     (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % (1 << w)),
                     (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
                     (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
-                    (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a == b),
-                    (BinOp::Lt,  Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a < b),
-                    (BinOp::Neq, Value::Word(_w, a), Value::Word(_v, b)) => Value::Bit(a != b),
-                    (BinOp::Eq,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
-                    (BinOp::Neq, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
-                    (BinOp::And, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 && b2),
-                    (BinOp::Or,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 || b2),
+                    (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => (a == b).into(),
+                    (BinOp::Lt,  Value::Word(_w, a), Value::Word(_v, b)) => (a < b).into(),
+                    (BinOp::Neq, Value::Word(_w, a), Value::Word(_v, b)) => (a != b).into(),
                     (BinOp::Xor, Value::Word(n, a),  Value::Word(_m, b)) => Value::Word(n, a ^ b),
                     _ => Value::X,
                 }
@@ -180,8 +175,6 @@ impl Expr {
                 match cond.eval(nettle) {
                     Value::Word(1, 1) => e1.eval(nettle),
                     Value::Word(1, 0) => e2.eval(nettle),
-                    Value::Bit(true) => e1.eval(nettle),
-                    Value::Bit(false) => e2.eval(nettle),
                     _ => Value::X,
                 }
             },

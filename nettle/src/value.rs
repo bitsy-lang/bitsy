@@ -9,7 +9,6 @@ pub enum Type {
 pub enum Value {
     #[default]
     X,
-    Bit(bool),
     Word(Width, u64),
 }
 
@@ -33,7 +32,6 @@ impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             Value::X => write!(f, "X"),
-            Value::Bit(b) => write!(f, "{b}"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
         }
     }
@@ -41,7 +39,7 @@ impl std::fmt::Debug for Value {
 
 impl From<bool> for Value {
     fn from(x: bool) -> Value {
-        Value::Bit(x)
+        Value::Word(1, if x { 1 } else { 0 })
     }
 }
 
@@ -50,7 +48,6 @@ impl TryFrom<Value> for bool {
     fn try_from(value: Value) -> Result<bool, Self::Error> {
         match value {
             Value::X => Err(()),
-            Value::Bit(b) => Ok(b),
             Value::Word(1, n) => Ok(n == 1),
             Value::Word(_w, _n) => Err(()),
         }
@@ -62,7 +59,6 @@ impl TryFrom<Value> for u8 {
     fn try_from(value: Value) -> Result<u8, Self::Error> {
         match value {
             Value::X => Err(()),
-            Value::Bit(_b) => Err(()),
             Value::Word(_w, n) => Ok(n as u8), // TODO
         }
     }
@@ -73,7 +69,6 @@ impl TryFrom<Value> for u64 {
     fn try_from(value: Value) -> Result<u64, Self::Error> {
         match value {
             Value::X => Err(()),
-            Value::Bit(_b) => Err(()),
             Value::Word(_w, n) => Ok(n),
         }
     }

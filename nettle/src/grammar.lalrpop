@@ -128,14 +128,10 @@ pub ExprReference: Box<Expr> = {
 
 pub Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
-    "Bit" => Type::Word(1),
-    "Byte" => Type::Word(8),
 }
 
 pub Value: Value = {
     "X" => Value::X,
-    "true" => Value::Bit(true),
-    "false" => Value::Bit(false),
     <lit:r"[0-9]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();
