@@ -1,7 +1,10 @@
 use super::*;
 
 #[derive(Debug)]
-pub struct Testbench(pub(crate) Vec<TestbenchCommand>);
+pub struct Testbench(pub(crate) Vec<TestbenchLink>, pub(crate) Vec<TestbenchCommand>);
+
+#[derive(Debug)]
+pub(crate) struct TestbenchLink(pub(crate) Path, pub(crate) String, pub(crate) Vec<(String, String)>);
 
 #[derive(Debug)]
 pub(crate) enum TestbenchCommand {

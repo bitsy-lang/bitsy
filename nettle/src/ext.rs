@@ -59,12 +59,13 @@ impl Ram {
         }
     }
 
-    pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) {
-        let data = std::fs::read(&path).unwrap();
+    pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) -> anyhow::Result<()> {
+        let data = std::fs::read(&path)?;
         let len = data.len().min(1<<16);
         for i in 0..len {
             self.mem[i] = data[i];
         }
+        Ok(())
     }
 
     fn read(&self) -> Value {

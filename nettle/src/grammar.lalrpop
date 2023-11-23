@@ -3,7 +3,14 @@ use super::*;
 grammar;
 
 pub Testbench: Testbench = {
-    <commands:TestbenchCommand*> => Testbench(commands),
+    <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
+}
+
+pub TestbenchLink: TestbenchLink = {
+    "link" <path:Path> "=" <id:Id> "{" <params:(Id "=" Str)*> "}" => {
+        let params: Vec<(String, String)> = params.iter().map(|(id, _, value)| (id.to_string(), value.to_string())).collect();
+        TestbenchLink(path, id, params)
+    },
 }
 
 pub TestbenchCommand: TestbenchCommand = {
@@ -158,6 +165,10 @@ pub Path: Path = {
 pub Reference: Path = {
     <submod:Id> "." <id:Id> => format!("{submod}.{id}").into(),
     <id:Id> => id.into(),
+}
+
+pub Str: String = {
+    <s:r#""[^"]*""#> => s[1..s.len()-1].to_string(),
 }
 
 pub Id: String = {

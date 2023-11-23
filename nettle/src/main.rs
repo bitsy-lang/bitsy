@@ -35,22 +35,38 @@ fn main() {
     let text = std::fs::read_to_string(filename).unwrap();
 
     let top = parse_top(&text);
-    let monitor = Box::new(Monitor::new());
-    let video = Box::new(Video::new());
-    let mut ram = Box::new(Ram::new());
-    ram.load_from_file("data.bin");
 
-    let mut nettle =
-        Sim::new(&top)
+    let mut nettle = Sim::new(&top);
 //            .cap_clock_freq(10_000.0)
-            .ext("top.vip", monitor)
-            .ext("top.ram", ram)
-            .ext("top.video", video);
 
     if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
         let tb = read_testbench_file(&tb_filename).unwrap();
-        for command in tb.0 {
+
+        for TestbenchLink(path, extname, params) in tb.0 {
+            let ext: Box<dyn ExtInstance> = match extname.as_str() {
+                "Monitor" => {
+                    let e = Box::new(Monitor::new());
+                    e
+                },
+                "Ram" => {
+                    let mut e = Box::new(Ram::new());
+                    let data_filename = &params.into_iter().collect::<BTreeMap<_, _>>()[&"file".to_string()];
+                    e.load_from_file(data_filename).expect(&format!("Couldn't load {data_filename}"));
+                    e
+                },
+                "Video" => {
+                    let e = Box::new(Video::new());
+                    e
+                },
+                _ => panic!("Unknown ext module being linked: {extname}")
+            };
+
+            nettle = nettle.ext(path, ext);
+        }
+
+
+        for command in tb.1 {
             exec_tb_command(&mut nettle, command);
         }
     } else {
