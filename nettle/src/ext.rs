@@ -84,12 +84,15 @@ impl ExtInstance for Ram {
     fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
 
     fn update(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
+        if value.is_x() {
+            return vec![("read_data".to_string(), self.read())];
+        }
         if port == "read_addr" {
             if let Value::Word(_width, addr) = value {
                 self.read_addr = addr as u16;
                 return vec![("read_data".to_string(), self.read())];
             } else {
-                panic!("Ram must receive a Word<16> on read_addr")
+                panic!("Ram must receive a Word<16> on read_addr. Received {value:?}")
             }
         } else if port == "write_enable" {
             match value {

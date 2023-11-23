@@ -191,7 +191,9 @@ impl Expr {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 for v in es.iter().map(|e| e.eval(nettle)).rev() {
-                    if let Value::Word(width, val) = v {
+                    if let Value::X = v {
+                        return Value::X;
+                    } else if let Value::Word(width, val) = v {
                         cat_val |= val << cat_width;
                         cat_width += width;
                     } else {
