@@ -54,6 +54,7 @@ pub Expr: Box<Expr> = {
 
 pub ExprOr: Box<Expr> = {
     <e1:ExprAnd> "||" <e2:ExprOr> => Box::new(Expr::BinOp(BinOp::Or, e1, e2)),
+    <e1:ExprAnd> "^" <e2:ExprOr> => Box::new(Expr::BinOp(BinOp::Xor, e1, e2)),
     <e:ExprAnd> => e,
 }
 

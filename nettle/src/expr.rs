@@ -31,6 +31,7 @@ impl std::fmt::Debug for Expr {
                     BinOp::Sub => "-",
                     BinOp::And => "&&",
                     BinOp::Or => "||",
+                    BinOp::Xor => "^",
                     BinOp::Eq => "==",
                     BinOp::Neq => "!=",
                     BinOp::Lt => "<",
@@ -40,13 +41,7 @@ impl std::fmt::Debug for Expr {
             Expr::If(cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
             },
-            Expr::Cat(es) => {
-                write!(f, "cat(")?;
-                for e in es {
-                    write!(f, "{e:?}")?;
-                }
-                write!(f, ")")
-            },
+            Expr::Cat(es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
             Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
             Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
@@ -72,6 +67,7 @@ pub enum BinOp {
     Sub,
     And,
     Or,
+    Xor,
     Eq,
     Neq,
     Lt,
@@ -159,6 +155,7 @@ impl Expr {
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
                     (UnOp::Not, Value::Bit(b)) => Value::Bit(!b),
+                    (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
             },
@@ -175,6 +172,7 @@ impl Expr {
                     (BinOp::Neq, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 == b2),
                     (BinOp::And, Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 && b2),
                     (BinOp::Or,  Value::Bit(b1),     Value::Bit(b2)) => Value::Bit(b1 || b2),
+                    (BinOp::Xor, Value::Word(n, a),  Value::Word(_m, b)) => Value::Word(n, a ^ b),
                     _ => Value::X,
                 }
             },

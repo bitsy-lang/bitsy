@@ -202,6 +202,7 @@ impl ExtInstance for Video {
 
             // clear screen
             print!("\x1B[2J");
+
             // move cursor to the upper left corner
             print!("\x1B[H");
 

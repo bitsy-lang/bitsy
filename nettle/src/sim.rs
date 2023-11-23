@@ -223,6 +223,12 @@ impl Sim {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
+        if !self.circuit.components().contains_key(&path.parent()) &&
+           !self.circuit.components().contains_key(&path) {
+            eprintln!("is_reg({path}) failed");
+        }
+
+
         if let Component::Reg(_typ, _reset) = self.circuit.components()[&path.parent()] {
             true
         } else if let Component::Reg(_typ, _reset) = self.circuit.components()[&path] {
