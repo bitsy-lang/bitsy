@@ -22,6 +22,7 @@ class NettleLexer(RegexLexer):
         'root': [
             (r'=>', Punctuation),
             (r'<=', Punctuation),
+            (r':=', Punctuation),
             (r'=', Punctuation),
             (r'==', Punctuation),
             (r'\.', Punctuation),

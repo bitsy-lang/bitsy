@@ -47,10 +47,10 @@ The above example creates the following paths:
   top                 // the circuit itself
   top.sum             // the register `sum`
   top.sum.set         // the input of the register `sum`
-  top.sum.val         // the output of the register `sum`
+  top.sum             // the output of the register `sum`
   top.counter.out     // the output port `out` in the submodule `counter`
   top.counter.c.set   // the input port of the register `c` in the submodule `counter`
-  top.counter.c.val   // the output of the register `c` in the submodule `counter`
+  top.counter.c       // the output of the register `c` in the submodule `counter`
   top.monitor         // the external module `monitor`
   top.monitor.in      // the input port `in` on the external module `monitor`
 
@@ -64,10 +64,10 @@ Of the paths above, the following are **terminals**:
 .. code-block:: none
 
   top.sum.set
-  top.sum.val
+  top.sum
   top.counter.out
   top.counter.c.set
-  top.counter.c.val
+  top.counter.c
   top.monitor.in
 
 The rules for terminals are:
@@ -75,32 +75,34 @@ The rules for terminals are:
 * Each `incoming`, `outgoing`, and `node` creates a terminal.
 * Each `reg` creates two terminals:
 
-  * The one which ends in `.val` is the current stored value.
+  * The one with the same name as the register itself is the current stored value.
 
   * The one which ends in `.set` is the current staged value
     to be latched on the next clock cycle.
 
 Wires
 -----
-In Nettle, wires are created with the `<=` syntax.
-The left hand side is called the **target**.
+In Nettle, wires connect together terminals.
 
-The target may be one of:
+The left hand side is called the **target**.
+It may be one of:
 
 * the name of a `node`, `reg`, or `outgoing` in the same module.
 * the name of a submodule dotted with a `node` or `incoming` of that sub module.
 * the name of an external module dotted with one of its `incoming` ports.
 
-`reg`\s targeted in this way implicitly refer to the `set` terminal.
+When connecting to a `node` `incoming` or `outgoing`, you use the syntax `:=`.
+When connecting to a `reg`, you use the syntax `<=`.
+This syntactic distinction allows you to equationally reason about the circuit without remembering the types.
+It helps you remeber that `reg`\s targeted in this way implicitly refer to the `set` terminal.
+The arrow head of `<=` helps remind you that the value is "on its way" to setting the register.
 See **Registers** below.
 
-In this way, every module in a circuit is responsible for wiring up its own terminals
-and wiring its terminals to the ports of its children.
-
-On the right hand side of the `<=`, we have the **driver**.
+On the right hand side of the arrow, we have the **driver**.
 This is an expression that continuously drives a signal to the target.
 
-A terminal can only appear as the target of a `<=` once in a circuit.
+Every module in a circuit is responsible for wiring up its own terminals
+and wiring its terminals to the ports of its children.
 
 Expressions
 -----------
@@ -131,11 +133,36 @@ Some basic operations are supported:
 * `||` or
 * `&&` and
 * `!` not
+* `^` xor
 * `==` equals
 * `!=` different
 * `<` less than
 * `+` sum (wrapping)
 * `-` difference (wrapping)
+
+**Concatenation, Indexing, and Slicing**
+
+You can concatenate words with the syntax `cat(w1, w2)`.
+If `w1` is `Word<n>` and `w2` is `Word<m>`, the result is `Word<n + m>`.
+The bits of `w1` become the high-order bits and `w2` become the lower bits.
+
+You can index into a `Word<n>` with the syntax `w[0]`.
+Note that we use a plain old literal and not `0w8` here.
+This creates a static indexing of the word.
+It has type `Word<1>`.
+
+If you do use `0w8` or any value `i` of shape `Word<k>`,
+you end up with dynamic indexing.
+An out of bounds dynamic index results in `XXX`.
+
+You can also slice a word with the syntax `w[8..4]`.
+This will give you a `Word<4>` with the same result as if you had written
+`cat(w[7], w[6], w[5], w[4])`.
+Pay attention!
+This might surprise you coming from Verilog, since `w[8]` is *not* included in the result.
+However, experience from programming languages such as Python and Rust shows
+that this is a very natural way to handle slicing
+(albeit the ordering is reversed to align with the way we write out bitstrings).
 
 **if statements**
 
@@ -144,11 +171,17 @@ Some basic operations are supported:
 All `if` statements must have an `else` branch.
 If you don't care what the value is for the `else` branch, you can use `X`.
 
-**X**
+**Undefined Values**
 
-`X` is the undefined value.
-Any operation involving an X will result in X.
-This includes `if` statements when the condition or any branch is X.
+The is the undefined value is used for terminals which aren't being driven or
+invalid values are driven (eg, when `Valid` where the invalid bit is set but a payload is given).
+
+The undefined value is written `XXX`.
+
+Any operation involving `XXX` will result in `XXX`.
+This includes `if` statements when the condition or any branch is `XXX`.
+
+DON'T USE `XXX`.
 
 Ports
 -----
@@ -172,15 +205,14 @@ Registers
 ---------
 Registers are stateful components.
 
-All `reg`\s start off with an `X` value.
+All `reg`\s start off with an `XXX` value.
 They may optionally have a reset value supplied using the syntax `reg r reset 0w8;`.
 
 Unlike `node`\s, `reg`\s create two terminals.
-One is named `val` and the other is `set`.
-The `val` is the current value of the register, while `set` is the value to be latched on the next clock cycle.
+One is named the same as the `reg` and the other is appended to with `.set`.
 
 When a `reg` appears as the target of a wire, it implies we are connecting to its `set` terminal.
-When a `reg` appears in an expression, it implies we are connecting to its `val` terminal.
+When a `reg` appears in an expression, it implies we are connecting to its value terminal.
 
 Registers may only be referenced in the module they are declared in.
 
@@ -213,7 +245,7 @@ Nettle checks for combinational loops before simulation.
 Circuits with loops are rejected.
 
 Note that if `r` is a `reg`, the wire `r <= r + 1w8` is not a combinatorial loop,
-since the `r` on the left hand side implies the `set` terminal while the `r` on the right hand side implies the `val` terminal.
+since the `r` on the left hand side implies the `set` terminal while the `r` on the right hand side implies the current value terminal.
 
 Connectivity
 ------------
@@ -228,7 +260,7 @@ The nets of a Nettle circuit can be calculated by looking at the wire statements
 Whenever a wire statement has on its driver (the right-hand side).
 If the driver is a reference, this indicates the two terminals are part of the same net.
 
-Because a terminal can only appear as a target (the left hand side) of a `<=` statement once in a circuit,
+Because a terminal can only appear as a target (the left hand side) of a connect statement once in a circuit,
 we can create a tree of which terminals drive which terminals.
 The root of this tree is the driver of the net.
 Each net can be uniquely identified by its driver.

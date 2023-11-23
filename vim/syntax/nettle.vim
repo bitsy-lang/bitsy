@@ -28,6 +28,7 @@ hi link nettleUpperIdentifier Type
 syn match nettleAt "@"
 syn match nettleColon ":"
 syn match nettleRevFatArrow "<="
+syn match nettleRevColonArrow ":="
 syn match lt "<"
 syn match gt ">"
 syn match nettleArrow "->"
@@ -46,6 +47,7 @@ hi link lt Keyword
 hi link gt Keyword
 hi link nettleArrow Keyword
 hi link nettleRevFatArrow Keyword
+hi link nettleRevColonArrow Keyword
 hi link nettleFatArrow Keyword
 hi link nettleEq Keyword
 hi link nettleEqOp Keyword
