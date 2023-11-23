@@ -18,7 +18,6 @@ pub(crate) struct CircuitNode {
     components: BTreeMap<Path, Component>,
     wires: BTreeMap<Path, Expr>,
     path: Vec<String>,
-    exts: Vec<Path>,
 }
 
 impl Circuit {
@@ -28,7 +27,6 @@ impl Circuit {
             components,
             wires: BTreeMap::new(),
             path: vec![name.to_string()],
-            exts: vec![],
         }
     }
 
@@ -36,11 +34,11 @@ impl Circuit {
         &self.0.components
     }
 
-    pub fn component(&self, path: Path) -> &Component {
+    pub fn component(&self, path: Path) -> Option<&Component> {
         if let Some(component) = &self.0.components.get(&path) {
-            &component
+            Some(&component)
         } else {
-            panic!("No such component: {path}")
+            None
         }
     }
 
@@ -48,8 +46,14 @@ impl Circuit {
         &self.0.wires
     }
 
-    pub fn exts(&self) -> &[Path] {
-        &self.0.exts
+    pub fn exts(&self) -> Vec<Path> {
+        let mut result = vec![];
+        for (path, typ) in &self.0.components {
+            if let Component::Ext = typ {
+                result.push(path.clone());
+            }
+        }
+        result
     }
 
     pub fn regs(&self) -> Vec<Path> {
@@ -62,18 +66,18 @@ impl Circuit {
         result
     }
 
-    pub fn reset_for_reg(&self, path: Path) -> Value {
+    pub fn reset_for_reg(&self, path: Path) -> Option<Value> {
         let component = self.component(path);
-        if let Component::Reg(_typ, reset) = component {
-            reset.clone()
+        if let Some(Component::Reg(_typ, reset)) = component {
+            Some(reset.clone())
         } else {
-            unreachable!()
+            None
         }
     }
 
     pub fn terminals(&self) -> Vec<Path> {
         let mut terminals = vec![];
-        for (path, component) in self.components() {
+        for (path, component) in &self.0.components {
             match component {
                 Component::Incoming(_typ) => terminals.push(path.clone()),
                 Component::Outgoing(_typ) => terminals.push(path.clone()),
@@ -201,7 +205,6 @@ impl CircuitNode {
 
     pub(crate) fn ext(mut self, name: &str, ports: &[(String, PortDirection, Type)]) -> Self {
         let ext = self.to_abs_path(name);
-        self.exts.push(ext.clone());
 
         for (port, dir, typ) in ports {
             let target = format!("{ext}.{port}");

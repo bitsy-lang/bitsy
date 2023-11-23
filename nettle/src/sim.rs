@@ -130,17 +130,14 @@ impl Sim {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
-        if !self.circuit.components().contains_key(&path.parent()) &&
-           !self.circuit.components().contains_key(&path) {
-            eprintln!("is_reg({path}) failed");
-        }
-
-        if let Component::Reg(_typ, _reset) = self.circuit.components()[&path.parent()] {
+        if let Some(Component::Reg(_typ, _reset)) = self.circuit.component(path.parent()) {
             true
-        } else if let Component::Reg(_typ, _reset) = self.circuit.components()[&path] {
+        } else if let Some(Component::Reg(_typ, _reset)) = self.circuit.component(path.clone()) {
             true
-        } else {
+        } else if let Some(_) = self.circuit.component(path.clone()) {
             false
+        } else {
+            panic!("is_reg({path}) failed")
         }
     }
 
@@ -182,7 +179,7 @@ impl Sim {
 
     pub fn reset(&mut self) {
         for path in self.circuit.regs() {
-            let reset = self.circuit.reset_for_reg(path.clone());
+            let reset = self.circuit.reset_for_reg(path.clone()).unwrap();
             self.poke(path, reset);
         }
 
