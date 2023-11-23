@@ -15,7 +15,7 @@ Here is an example circuit in Nettle:
             outgoing out of Word<32>;
             reg c of Word<32> reset 1w32;
             c <= c + 1w32;
-            out <= c;
+            out := c;
         }
 
         ext monitor {
@@ -23,7 +23,7 @@ Here is an example circuit in Nettle:
         }
 
         sum <= sum + counter.out;
-        monitor.in <= sum;
+        monitor.in := sum;
     }
 
 As you can see, the top of a Nettle circuit is labeled with `top` and contains a number of declarations.
