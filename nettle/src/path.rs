@@ -23,13 +23,6 @@ impl Path {
     }
 }
 
-// TODO remove this, replace with Path::parent()
-pub(crate) fn parent_of(path: Path) -> Path {
-    let mut path_parts: Vec<&str> = path.split('.').collect();
-    path_parts.pop();
-    path_parts.join(".").into()
-}
-
 impl std::ops::Deref for Path {
     type Target = str;
 

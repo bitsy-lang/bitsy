@@ -72,13 +72,7 @@ impl Sim {
     pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
         let path: Path = path.into();
 
-        let terminal_path = if !self.is_reg(&path) {
-            path.clone()
-        } else {
-            path.clone()
-        };
-
-        let net_id = self.net_id_for(terminal_path.clone());
+        let net_id = self.net_id_for(path.clone());
         self.net_values.insert(net_id, value);
 
         if !self.is_reg(&path) {
@@ -113,9 +107,9 @@ impl Sim {
             }
         }
 
-        let ext_path = parent_of(terminal.clone());
-        let value = self.peek(terminal.clone());
+        let ext_path = terminal.parent();
         if self.exts.contains_key(&ext_path) {
+            let value = self.peek(terminal.clone());
             let ext = self.exts.get_mut(&ext_path).unwrap();
             let port_name: PortName = terminal[ext_path.len() + 1..].into();
             if ext.incoming_ports().contains(&port_name) {
@@ -151,7 +145,6 @@ impl Sim {
     }
 
     pub fn clock(&mut self) {
-
         self.clock_ticks += 1;
 
         // frequency cap
@@ -161,7 +154,6 @@ impl Sim {
                 clock_freq = self.clocks_per_second();
             }
         }
-
 
         for path in self.circuit.regs() {
             let set_value = self.peek(path.set());
