@@ -63,14 +63,6 @@ impl Sim {
         &mut self.nets[net_id]
     }
 
-    fn peek_net(&self, net_id: NetId) -> Value {
-        self.net_values[&net_id]
-    }
-
-    fn poke_net(&mut self, net_id: NetId, value: Value) {
-        self.net_values.insert(net_id, value);
-    }
-
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
         let path: Path = path.into();
 
@@ -83,7 +75,7 @@ impl Sim {
 
         let terminal_path = path.clone();
         let net_id = self.net_id_for(terminal_path);
-        let value = self.peek_net(net_id);
+        let value = self.net_values[&net_id];
 
         if DEBUG {
             eprintln!("{:?}", value);
@@ -108,7 +100,7 @@ impl Sim {
         };
 
         let net_id = self.net_id_for(terminal_path.clone());
-        self.poke_net(net_id, value.clone());
+        self.net_values.insert(net_id, value);
 
         if !self.is_reg(&path) {
             self.broadcast_update(path);
@@ -127,10 +119,9 @@ impl Sim {
             self.indent += 1;
         }
 
-        let val_path: Path = format!("{path}.val").into();
-        let net_id = self.net_id_for(val_path.clone());
-        self.poke_net(net_id, value.clone());
-        self.broadcast_update(val_path);
+        let net_id = self.net_id_for(path.clone());
+        self.net_values.insert(net_id, value);
+        self.broadcast_update(path);
 
         if DEBUG {
             self.indent -= 1;
@@ -228,7 +219,6 @@ impl Sim {
             eprintln!("is_reg({path}) failed");
         }
 
-
         if let Component::Reg(_typ, _reset) = self.circuit.components()[&path.parent()] {
             true
         } else if let Component::Reg(_typ, _reset) = self.circuit.components()[&path] {
@@ -239,12 +229,6 @@ impl Sim {
     }
 
     pub fn clock(&mut self) {
-//        for (target_path, expr) in self.circuit.wires() {
-//            println!("{target_path} <= {expr:?}");
-//            for path in expr.paths() {
-//                println!("    {path}");
-//            }
-//        }
         if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}clock()");
@@ -291,9 +275,6 @@ impl Sim {
 
         for (path, value) in poke_values {
             self.poke(path, value);
-//            let net_id = self.net_id_for(path.clone());
-//            self.poke_net(net_id, value);
-//            self.broadcast_update(path);
         }
 
         for path in self.circuit.regs() {
