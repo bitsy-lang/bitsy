@@ -37,11 +37,13 @@ fn main() {
     let top = parse_top(&text);
     let monitor = Box::new(Monitor::new());
     let ram = Box::new(Ram::new());
+    let video = Box::new(Video::new());
 
     let mut nettle =
         Sim::new(&top)
             .ext("top.vip", monitor)
-            .ext("top.ram", ram);
+            .ext("top.ram", ram)
+            .ext("top.video", video);
 
     if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
@@ -95,6 +97,14 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
             }
             nettle.reset();
         },
+        TestbenchCommand::Run => {
+            if verbose {
+                println!("RUN");
+            }
+            loop {
+                nettle.clock();
+            }
+        },
         TestbenchCommand::Show => {
             println!("{nettle:#?}");
         },
@@ -106,7 +116,7 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
                         if let TestbenchCommand::Debug = command {
                             () // you can't nest debug commands
                         } else if let TestbenchCommand::Show = command {
-                            () // implied
+                            println!("{nettle:#?}");
                         } else {
                             exec_tb_command(nettle, command);
                             println!("{nettle:#?}");
@@ -116,9 +126,14 @@ fn exec_tb_command(nettle: &mut Sim, command: TestbenchCommand) {
                 }
             }
         },
+        TestbenchCommand::Eval(e) => {
+            print!("EVAL {e:?}");
+            let result = e.eval(&nettle);
+            println!("=> {result:?}");
+        },
         TestbenchCommand::Assert(e) => {
             let result = e.eval(&nettle);
-                println!("ASSERT {e:?}");
+            println!("ASSERT {e:?}");
             if result != Value::Bit(true) {
                 println!("Assertion failed");
                 for path in e.paths() {

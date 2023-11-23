@@ -13,6 +13,12 @@ pub enum Value {
     Word(Width, u64),
 }
 
+impl Value {
+    pub fn is_x(&self) -> bool {
+        *self == Value::X
+    }
+}
+
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -36,5 +42,39 @@ impl std::fmt::Debug for Value {
 impl From<bool> for Value {
     fn from(x: bool) -> Value {
         Value::Bit(x)
+    }
+}
+
+impl TryFrom<Value> for bool {
+    type Error = ();
+    fn try_from(value: Value) -> Result<bool, Self::Error> {
+        match value {
+            Value::X => Err(()),
+            Value::Bit(b) => Ok(b),
+            Value::Word(1, n) => Ok(n == 1),
+            Value::Word(_w, _n) => Err(()),
+        }
+    }
+}
+
+impl TryFrom<Value> for u8 {
+    type Error = ();
+    fn try_from(value: Value) -> Result<u8, Self::Error> {
+        match value {
+            Value::X => Err(()),
+            Value::Bit(_b) => Err(()),
+            Value::Word(_w, n) => Ok(n as u8), // TODO
+        }
+    }
+}
+
+impl TryFrom<Value> for u64 {
+    type Error = ();
+    fn try_from(value: Value) -> Result<u64, Self::Error> {
+        match value {
+            Value::X => Err(()),
+            Value::Bit(_b) => Err(()),
+            Value::Word(_w, n) => Ok(n),
+        }
     }
 }

@@ -212,7 +212,9 @@ impl Expr {
             },
             Expr::IdxRange(e, j, i) => {
                 let value = e.eval(nettle);
-                if let Value::Word(width, val) = value {
+                if let Value::X = value {
+                    Value::X
+                } else if let Value::Word(width, val) = value {
                     // TODO make errors better
                     if *i < width && *j >= *i {
                         let new_width = j - i;
@@ -224,7 +226,7 @@ impl Expr {
                         panic!("Index {j}..{i} out of range (width {width})")
                     }
                 } else {
-                        panic!("Index with invalid value: {value:?}")
+                    panic!("Can't index into value: {value:?}")
                 }
             },
             Expr::IdxDyn(e, i) => {

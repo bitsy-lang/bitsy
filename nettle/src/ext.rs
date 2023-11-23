@@ -4,8 +4,8 @@ pub type PortName = String;
 
 #[allow(unused_variables)]
 pub trait ExtInstance: std::fmt::Debug {
-    fn incoming_ports(&self) -> Vec<PortName>;
-    fn outgoing_ports(&self) -> Vec<PortName>;
+    fn incoming_ports(&self) -> Vec<PortName> { vec![] }
+    fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
     fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
     fn clock(&mut self) -> Vec<(PortName, Value)> { vec![] }
     fn reset(&mut self) -> Vec<(PortName, Value)> { vec![] }
@@ -135,5 +135,75 @@ impl Ram {
             &self.mem
         };
         format!("RAM: {:?}", String::from_utf8_lossy(mem))
+    }
+}
+
+#[derive(Debug)]
+pub struct Video {
+    signal: u8,
+    hsync: bool,
+    vsync: bool,
+}
+
+impl Video {
+    pub fn new() -> Video {
+        Video {
+            signal: 0,
+            hsync: false,
+            vsync: false,
+        }
+    }
+}
+
+impl ExtInstance for Video {
+    fn incoming_ports(&self) -> Vec<PortName> { vec!["signal".to_string(), "hsync".to_string(), "vsync".to_string()] }
+
+    fn poke(&mut self, portname: PortName, value: value::Value) -> Vec<(String, value::Value)> {
+        if value.is_x() {
+            return vec![];
+        }
+        if portname == "signal" {
+            self.signal = value.try_into().unwrap();
+        } else if portname == "hsync" {
+            self.hsync = value.try_into().unwrap();
+        } else if portname == "vsync" {
+            self.vsync = value.try_into().unwrap();
+        }
+        vec![]
+    }
+
+    fn clock(&mut self) -> Vec<(PortName, Value)> {
+        use std::io::Write;
+        let c: char = " ░▒▓".chars().collect::<Vec<char>>()[self.signal as usize];
+
+        print!("{c}{c}");
+        if self.hsync {
+            println!();
+        } else {
+            std::io::stdout().flush().unwrap();
+        }
+        if self.vsync {
+//            std::thread::sleep(std::time::Duration::from_millis(100));
+            print!("\x1B[H"); // move cursor to the upper left corner
+            std::io::stdout().flush().unwrap();
+        }
+
+        vec![]
+    }
+
+    fn reset(&mut self) -> Vec<(PortName, Value)>{
+        ctrlc::set_handler(move || {
+            // show the cursor
+            println!("\x1B[?25h");
+            std::process::exit(0);
+        }).unwrap();
+
+        // hide the cursor
+        print!("\x1B[?25l");
+
+        // clear the screen
+        print!("\x1B[2J");
+
+        vec![]
     }
 }

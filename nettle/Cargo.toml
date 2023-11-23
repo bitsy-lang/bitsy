@@ -8,6 +8,7 @@ build = "build.rs"
 lalrpop = "0.20.0"
 
 [dependencies]
+ctrlc = "3.4.1"
 lalrpop = "0.20.0"
 lalrpop-util = "0.20.0"
 lazy_static = "1.4.0"

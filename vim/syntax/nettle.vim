@@ -34,6 +34,8 @@ syn match nettleArrow "->"
 syn match nettleEq "="
 syn match nettleEqOp "=="
 syn match nettleNeqOp "!="
+syn match nettleAnd "&&"
+syn match nettleOr "||"
 syn match nettleFatArrow "=>"
 syn match nettleAdd "+"
 syn match nettleMul "*"
@@ -48,7 +50,9 @@ hi link nettleFatArrow Keyword
 hi link nettleEq Keyword
 hi link nettleEqOp Keyword
 hi link nettleNeqOp Keyword
+hi link nettleAnd Keyword
 hi link nettleAdd Keyword
+hi link nettleOr Keyword
 hi link nettleMul Keyword
 hi link nettleHole Comment
 

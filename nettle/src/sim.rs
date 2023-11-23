@@ -1,5 +1,8 @@
 use super::*;
 
+use std::time::Duration;
+use std::time::SystemTime;
+
 const DEBUG: bool = false;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
@@ -11,6 +14,8 @@ pub struct Sim {
     indent: usize,
     nets: Vec<Net>,
     net_values: BTreeMap<NetId, Value>,
+    clock_ticks: u64,
+    start_time: SystemTime,
 }
 
 impl Sim {
@@ -24,6 +29,8 @@ impl Sim {
             nets,
             net_values,
             indent: 0,
+            start_time: SystemTime::now(),
+            clock_ticks: 0,
         };
         nettle.broadcast_update_constants();
         nettle
@@ -31,6 +38,7 @@ impl Sim {
 
     pub fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
         self.exts.insert(path.into(), ext_inst);
+        self.broadcast_update_constants();
         self
     }
 
@@ -214,6 +222,13 @@ impl Sim {
             self.indent += 1;
         }
 
+        self.clock_ticks += 1;
+        /*
+        if self.clock_ticks > 0 && self.clock_ticks % 10000 == 0 {
+            eprintln!("CPS: {}", self.clocks_per_second());
+        }
+        */
+
         for path in self.circuit.regs() {
             let set_value = self.peek(path.set());
 
@@ -289,6 +304,16 @@ impl Sim {
 
         if DEBUG {
             self.indent -= 1;
+        }
+    }
+
+    pub fn clocks_per_second(&self) -> f64 {
+        let end_time = SystemTime::now();
+        if true { // self.start_time < end_time {
+            let duration: Duration = end_time.duration_since(self.start_time).unwrap();
+            self.clock_ticks as f64 / duration.as_secs() as f64
+        } else {
+            0.0
         }
     }
 }

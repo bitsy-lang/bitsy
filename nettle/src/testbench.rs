@@ -11,7 +11,9 @@ pub(crate) enum TestbenchCommand {
     Clock,
     Reset,
     Show,
+    Run,
     Debug,
+    Eval(Expr),
     Assert(Expr),
 }
 
