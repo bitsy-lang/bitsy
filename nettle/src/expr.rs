@@ -172,9 +172,15 @@ impl Expr {
                 }
             },
             Expr::If(cond, e1, e2) => {
-                match cond.eval(nettle) {
-                    Value::Word(1, 1) => e1.eval(nettle),
-                    Value::Word(1, 0) => e2.eval(nettle),
+                let cond_v = cond.eval(nettle);
+                let v1 = e1.eval(nettle);
+                let v2 = e2.eval(nettle);
+                if cond_v.is_x() || v1.is_x() || v2.is_x() {
+                    return Value::X;
+                }
+                match cond_v {
+                    Value::Word(1, 1) => v1,
+                    Value::Word(1, 0) => v2,
                     _ => Value::X,
                 }
             },

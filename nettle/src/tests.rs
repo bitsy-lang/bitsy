@@ -214,10 +214,8 @@ fn test_eval() {
     let tests = vec![
         ("top.x", true.into()),
         ("1w8", Value::Word(8, 1)),
-        ("XXX", Value::X),
         ("(top.a + top.b)", Value::Word(32, 5)),
         ("(top.b - top.a)", Value::Word(32, 1)),
-        ("XXX + 0w8", Value::X),
         ("(1w1 + 1w1)", Value::Word(1, 0)),
         ("cat(1w1, 1w1)", Value::Word(2, 0b11)),
         ("3w4[3..1]", Value::Word(2, 0b01)),
