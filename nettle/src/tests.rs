@@ -44,8 +44,8 @@ fn buffer() {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
-            r.set <= in;
-            out <= r;
+            r <= in;
+            out := r;
         }
     ");
 
@@ -66,8 +66,8 @@ fn counter() {
         top {
             outgoing out of Word<4>;
             reg counter of Word<4> reset 0w4;
-            out <= counter;
-            counter.set <= counter + 1w4;
+            out := counter;
+            counter <= counter + 1w4;
         }
     ");
 
@@ -91,11 +91,11 @@ fn triangle_numbers() {
             mod counter {
                 outgoing out of Word<32>;
                 reg counter of Word<32> reset 1w32;
-                out <= counter;
-                counter.set <= counter + 1w32;
+                out := counter;
+                counter <= counter + 1w32;
             }
-            out <= sum;
-            sum.set <= sum + counter.out;
+            out := sum;
+            sum <= sum + counter.out;
         }
     ");
 
@@ -117,14 +117,14 @@ fn vip() {
                 outgoing out of Word<4>;
                 reg counter of Word<4>;
                 counter <= counter + 1w4;
-                out <= counter;
+                out := counter;
             }
 
             ext vip {
                 incoming in of Word<4>;
             }
 
-            vip.in <= counter.out;
+            vip.in := counter.out;
         }
     ");
 
@@ -148,7 +148,7 @@ fn ifs() {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
-            out <= if in {
+            out := if in {
                 42w8
             } else {
                 100w8
@@ -189,26 +189,26 @@ fn test_parse() {
 
 #[test]
 fn test_eval() {
-    let buffer = parse_top("
+    let top = parse_top("
         top {
             node x of Word<1>;
             reg r of Word<1> reset 0w1;
-            x <= 1w1;
-            r.set <= r;
+            x := 1w1;
+            r <= r;
 
             reg a of Word<32> reset 2w32;
             reg b of Word<32> reset 3w32;
-            a.set <= a;
-            b.set <= b;
+            a <= a;
+            b <= b;
 
             node p of Word<1>;
             node q of Word<1>;
-            p <= 1w1;
-            q <= 0w1;
+            p := 1w1;
+            q := 0w1;
         }
     ");
 
-    let mut nettle = Sim::new(&buffer);
+    let mut nettle = Sim::new(&top);
     nettle.reset();
 
     let tests = vec![
@@ -249,8 +249,8 @@ fn test_nets() {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
-            r.set <= in;
-            out <= r;
+            r <= in;
+            out := r;
         }
     ");
 
@@ -277,9 +277,9 @@ fn test_nets() {
                 node out of Word<32>;
                 reg c of Word<32> reset 1w32;
                 c <= c + 1w4;
-                out <= c;
+                out := c;
             }
-            out <= sum;
+            out := sum;
             sum <= sum + counter.out;
         }
     ");
@@ -298,9 +298,9 @@ fn circuit_component_parents() {
                 outgoing out of Word<32>;
                 reg c of Word<32> reset 1w32;
                 c <= c + 1w4;
-                out <= c;
+                out := c;
             }
-            result <= sum;
+            result := sum;
             sum <= sum + counter.out;
         }
     ");
@@ -327,9 +327,9 @@ fn circuit_components() {
                 outgoing out of Word<32>;
                 reg c of Word<32> reset 1w32;
                 c <= c + 1w4;
-                out <= c;
+                out := c;
             }
-            result <= sum;
+            result := sum;
             sum <= sum + counter.out;
         }
     ");
@@ -353,7 +353,7 @@ fn test_node() {
         top {
             outgoing out of Word<1>;
             node n of Word<1>;
-            n <= 1w1;
+            n := 1w1;
         }
     ");
 

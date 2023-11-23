@@ -40,7 +40,8 @@ pub ModDecl: ModDecl  = {
         <ports:ExtDecl*>
     "}" => ModDecl::Ext(Ext(id, ports)),
     <m:Mod> => ModDecl::Mod(m),
-    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
+    <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
+    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference.set(), *e),
 }
 
 pub ExtDecl: ExtDecl = {
