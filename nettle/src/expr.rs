@@ -180,6 +180,8 @@ impl Expr {
             },
             Expr::If(cond, e1, e2) => {
                 match cond.eval(nettle) {
+                    Value::Word(1, 1) => e1.eval(nettle),
+                    Value::Word(1, 0) => e2.eval(nettle),
                     Value::Bit(true) => e1.eval(nettle),
                     Value::Bit(false) => e2.eval(nettle),
                     _ => Value::X,
@@ -200,7 +202,9 @@ impl Expr {
             },
             Expr::Idx(e, i) => {
                 let value = e.eval(nettle);
-                if let Value::Word(width, val) = value {
+                if let Value::X = value {
+                    Value::X
+                } else if let Value::Word(width, val) = value {
                     if *i < width {
                         Value::Word(1, (val >> i) & 1)
                     } else {

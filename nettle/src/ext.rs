@@ -6,7 +6,7 @@ pub type PortName = String;
 pub trait ExtInstance: std::fmt::Debug {
     fn incoming_ports(&self) -> Vec<PortName> { vec![] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
-    fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
+    fn update(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
     fn clock(&mut self) -> Vec<(PortName, Value)> { vec![] }
     fn reset(&mut self) -> Vec<(PortName, Value)> { vec![] }
 }
@@ -24,7 +24,7 @@ impl ExtInstance for Monitor {
     fn incoming_ports(&self) -> Vec<PortName> { vec!["in".to_string()] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
 
-    fn poke(&mut self, _port: PortName, value: Value) -> Vec<(PortName, Value)> {
+    fn update(&mut self, _port: PortName, value: Value) -> Vec<(PortName, Value)> {
         self.0 = Some(format!("{value:?}"));
         vec![]
     }
@@ -59,6 +59,14 @@ impl Ram {
         }
     }
 
+    pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) {
+        let data = std::fs::read(&path).unwrap();
+        let len = data.len().min(1<<16);
+        for i in 0..len {
+            self.mem[i] = data[i];
+        }
+    }
+
     fn read(&self) -> Value {
         Value::Word(16,self.mem[self.read_addr as usize] as u64)
     }
@@ -75,7 +83,7 @@ impl ExtInstance for Ram {
     }
     fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
 
-    fn poke(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
+    fn update(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
         if port == "read_addr" {
             if let Value::Word(_width, addr) = value {
                 self.read_addr = addr as u16;
@@ -106,15 +114,18 @@ impl ExtInstance for Ram {
     }
 
     fn reset(&mut self) -> Vec<(PortName, Value)> {
+        /*
         for (i, ch) in "Hello, World!\0".bytes().enumerate() {
             self.mem[i] = ch;
         }
 
         vec![("read_data".to_string(), self.read())]
+        */
+        vec![]
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-        //println!("Ram was clocked: {}");
+//        println!("Ram was clocked: {}", self.render());
         if self.write_enable {
             self.mem[self.write_addr as usize] =  self.write_data;
             let read_data = Value::Word(8, self.mem[self.read_addr as usize].into());
@@ -143,6 +154,7 @@ pub struct Video {
     signal: u8,
     hsync: bool,
     vsync: bool,
+    frame_buffer: String,
 }
 
 impl Video {
@@ -151,6 +163,7 @@ impl Video {
             signal: 0,
             hsync: false,
             vsync: false,
+            frame_buffer: String::new(),
         }
     }
 }
@@ -158,7 +171,7 @@ impl Video {
 impl ExtInstance for Video {
     fn incoming_ports(&self) -> Vec<PortName> { vec!["signal".to_string(), "hsync".to_string(), "vsync".to_string()] }
 
-    fn poke(&mut self, portname: PortName, value: value::Value) -> Vec<(String, value::Value)> {
+    fn update(&mut self, portname: PortName, value: value::Value) -> Vec<(String, value::Value)> {
         if value.is_x() {
             return vec![];
         }
@@ -173,19 +186,24 @@ impl ExtInstance for Video {
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-        use std::io::Write;
+        use std::fmt::Write;
         let c: char = " ░▒▓".chars().collect::<Vec<char>>()[self.signal as usize];
 
-        print!("{c}{c}");
+        write!(self.frame_buffer, "{c}{c}").unwrap();
         if self.hsync {
-            println!();
-        } else {
-            std::io::stdout().flush().unwrap();
+            writeln!(self.frame_buffer).unwrap();
         }
+
         if self.vsync {
-//            std::thread::sleep(std::time::Duration::from_millis(100));
-            print!("\x1B[H"); // move cursor to the upper left corner
-            std::io::stdout().flush().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(30));
+
+            // clear screen
+            print!("\x1B[2J");
+            // move cursor to the upper left corner
+            print!("\x1B[H");
+
+            println!("{}", self.frame_buffer);
+            self.frame_buffer.clear();
         }
 
         vec![]

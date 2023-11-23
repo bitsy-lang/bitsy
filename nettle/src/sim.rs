@@ -16,6 +16,7 @@ pub struct Sim {
     net_values: BTreeMap<NetId, Value>,
     clock_ticks: u64,
     start_time: SystemTime,
+    clock_freq_cap: Option<f64>,
 }
 
 impl Sim {
@@ -31,9 +32,15 @@ impl Sim {
             indent: 0,
             start_time: SystemTime::now(),
             clock_ticks: 0,
+            clock_freq_cap: None,
         };
         nettle.broadcast_update_constants();
         nettle
+    }
+
+    pub fn cap_clock_freq(mut self, freq: f64) -> Self {
+        self.clock_freq_cap = Some(freq);
+        self
     }
 
     pub fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
@@ -184,7 +191,18 @@ impl Sim {
             let ext = self.exts.get_mut(&ext_path).unwrap();
             let port_name: PortName = terminal[ext_path.len() + 1..].into();
             if ext.incoming_ports().contains(&port_name) {
-                let updates = ext.poke(port_name.to_string(), value);
+                if DEBUG {
+                    let padding = " ".repeat(self.indent * 4);
+                    eprintln!("{padding}ext port affected: {ext_path}.{port_name}");
+                }
+                let updates = ext.update(port_name.to_string(), value);
+                if DEBUG {
+                    let padding = " ".repeat(self.indent * 4);
+                    eprintln!("{padding}    updates:");
+                    for (portname, value) in &updates {
+                        eprintln!("{padding}        {portname} => {value:?}");
+                    }
+                }
                 let poke_values: Vec<(Path, Value)> = updates
                     .into_iter()
                     .map(|(port_name, value)| {
@@ -194,8 +212,7 @@ impl Sim {
                     .collect();
 
                 for (path, value) in poke_values {
-                    let net_id = self.net_id_for(path.clone());
-                    self.poke_net(net_id, value);
+                    self.poke(path, value);
                 }
             }
         }
@@ -216,6 +233,12 @@ impl Sim {
     }
 
     pub fn clock(&mut self) {
+//        for (target_path, expr) in self.circuit.wires() {
+//            println!("{target_path} <= {expr:?}");
+//            for path in expr.paths() {
+//                println!("    {path}");
+//            }
+//        }
         if DEBUG {
             let padding = " ".repeat(self.indent * 4);
             eprintln!("{padding}clock()");
@@ -223,11 +246,15 @@ impl Sim {
         }
 
         self.clock_ticks += 1;
-        /*
-        if self.clock_ticks > 0 && self.clock_ticks % 10000 == 0 {
-            eprintln!("CPS: {}", self.clocks_per_second());
+
+        // frequency cap
+        if let Some(clock_freq_cap) = self.clock_freq_cap {
+            let mut clock_freq = self.clocks_per_second();
+            while clock_freq.is_finite() && clock_freq > clock_freq_cap {
+                clock_freq = self.clocks_per_second();
+            }
         }
-        */
+
 
         for path in self.circuit.regs() {
             let set_value = self.peek(path.set());
@@ -311,7 +338,7 @@ impl Sim {
         let end_time = SystemTime::now();
         if true { // self.start_time < end_time {
             let duration: Duration = end_time.duration_since(self.start_time).unwrap();
-            self.clock_ticks as f64 / duration.as_secs() as f64
+            1_000_000.0 * self.clock_ticks as f64 / duration.as_micros() as f64
         } else {
             0.0
         }

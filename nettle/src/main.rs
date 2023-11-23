@@ -36,11 +36,13 @@ fn main() {
 
     let top = parse_top(&text);
     let monitor = Box::new(Monitor::new());
-    let ram = Box::new(Ram::new());
     let video = Box::new(Video::new());
+    let mut ram = Box::new(Ram::new());
+    ram.load_from_file("data.bin");
 
     let mut nettle =
         Sim::new(&top)
+//            .cap_clock_freq(10_000.0)
             .ext("top.vip", monitor)
             .ext("top.ram", ram)
             .ext("top.video", video);
