@@ -132,7 +132,7 @@ pub Type: Type = {
 }
 
 pub Value: Value = {
-    "X" => Value::X,
+    "XXX" => Value::X,
     <lit:r"[0-9]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();

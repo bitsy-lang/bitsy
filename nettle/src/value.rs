@@ -31,7 +31,7 @@ impl std::fmt::Debug for Type {
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Value::X => write!(f, "X"),
+            Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
         }
     }

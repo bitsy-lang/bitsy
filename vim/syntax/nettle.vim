@@ -11,7 +11,7 @@ hi link blockComment Comment
 
 syn keyword nettleKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node
 hi link nettleKeyword Keyword
-syn keyword nettleConstant true false X io
+syn keyword nettleConstant true false XXX io
 hi link nettleConstant Number
 
 syn match nettleNumber /\<[0-9][0-9]*\>/
