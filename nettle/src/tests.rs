@@ -239,10 +239,10 @@ fn test_nets() {
         }
     ");
 
-    let nets = top.nets();
-    assert_eq!(nets.len(), 2);
+    let top_nets = nets(&top);
+    assert_eq!(top_nets.len(), 2);
 
-    let drivers: BTreeSet<Path> = nets
+    let drivers: BTreeSet<Path> = top_nets
         .iter()
         .map(|net| net.driver().into())
         .collect();
@@ -269,7 +269,7 @@ fn test_nets() {
         }
     ");
 
-    let triangle_numbers_nets = triangle_numbers_top.nets();
+    let triangle_numbers_nets = nets(&triangle_numbers_top);
     assert_eq!(triangle_numbers_nets.len(), 4);
 }
 

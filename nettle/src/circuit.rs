@@ -268,86 +268,6 @@ impl Component {
     }
 }
 
-impl Circuit {
-    pub fn nets(&self) -> Vec<Net> {
-        let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
-
-        for Wire(target, expr, wire_type) in self.wires() {
-            let target_terminal: Path = match wire_type {
-                WireType::Connect => target.clone(),
-                WireType::Latch => target.set(),
-            };
-            if let Expr::Reference(driver) = expr {
-                immediate_driver_for.insert(target_terminal.clone(), driver.clone());
-             }
-         }
-
-        let mut drivers: BTreeSet<Path> = BTreeSet::new();
-        for terminal in self.terminals() {
-            drivers.insert(driver_for(terminal, &immediate_driver_for));
-        }
-
-        let mut nets: BTreeMap<Path, Net> = BTreeMap::new();
-        for driver in &drivers {
-            nets.insert(driver.clone(), Net::from(driver.clone()));
-        }
-
-        for terminal in self.terminals() {
-            let driver = driver_for(terminal.clone(), &immediate_driver_for);
-            let net = nets.get_mut(&driver).unwrap();
-            net.add(terminal);
-        }
-
-        let nets: Vec<Net> = nets.values().into_iter().cloned().collect();
-        nets
-    }
-}
-
-fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Path {
-    let mut driver: &Path = &terminal;
-    while let Some(immediate_driver) = &immediate_driver_for.get(driver) {
-        driver = immediate_driver;
-    }
-    driver.clone()
-}
-
-impl Net {
-    fn from(terminal: Path) -> Net {
-        Net(terminal, vec![])
-    }
-
-    pub fn add(&mut self, terminal: Path) {
-        if self.0 != terminal {
-            self.1.push(terminal);
-            self.1.sort();
-            self.1.dedup();
-        }
-    }
-
-    pub fn driver(&self) -> Path {
-        self.0.clone()
-    }
-
-    pub fn drivees(&self) -> &[Path] {
-        &self.1
-    }
-
-    pub fn terminals(&self) -> Vec<Path> {
-        let mut results = vec![self.0.clone()];
-        for terminal in &self.1 {
-            results.push(terminal.clone());
-        }
-        results
-    }
-
-    pub fn contains(&self, terminal: Path) -> bool {
-        if terminal == self.0 {
-            true
-        } else {
-            self.1.contains(&terminal)
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum PathType {
@@ -356,9 +276,6 @@ pub enum PathType {
     Outgoing(Type),
     Reg(Type, Value),
 }
-
-#[derive(Debug, Clone)]
-pub struct Net(Path, Vec<Path>);
 
 #[derive(Debug, Clone, Copy)]
 pub enum PortDirection {
