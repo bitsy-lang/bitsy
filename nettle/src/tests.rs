@@ -354,4 +354,17 @@ fn test_check() {
     ");
 
     top.check().unwrap();
+
+    /*
+    let top2 = parse_top("
+        top {
+            outgoing out of Word<8>;
+            incoming in of Word<8>;
+            node n of Word<1>;
+            in := n;
+        }
+    ");
+
+    dbg!(top2.check());
+    */
 }

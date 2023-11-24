@@ -35,6 +35,13 @@ fn main() {
     let text = std::fs::read_to_string(filename).unwrap();
 
     let top = parse_top(&text);
+    if let Err(errors) = top.check() {
+        for (path, error) in &errors {
+            eprintln!("{path}: {error:?}");
+        }
+        eprintln!("Circuit has {} errors.", errors.len());
+        std::process::exit(1);
+    }
 
     let mut nettle = Sim::new(&top);
 //            .cap_clock_freq(10_000.0)

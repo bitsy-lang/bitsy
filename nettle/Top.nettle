@@ -4,13 +4,13 @@ top {
 
         reg counter of Word<4> reset 1w4;
 
-        counter.set <= cat(counter[3..0], counter[3]);
-        out <= counter[3];
+        counter <= cat(counter[3..0], counter[3]);
+        out := counter[3];
     }
 
     ext vip {
         incoming in of Word<1>;
     }
 
-    vip.in <= foo.out;
+    vip.in := foo.out;
 }
