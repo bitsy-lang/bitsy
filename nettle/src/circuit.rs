@@ -43,41 +43,6 @@ impl std::ops::Deref for Circuit {
     }
 }
 
-#[test]
-fn parse_component() {
-    let top = parse_top("
-        top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
-            mod foo {
-                incoming a of Word<1>;
-                outgoing z of Word<1>;
-                reg r of Word<1>;
-
-                r <= r + 1w1;
-                mod bar {
-                }
-                mod baz {
-                    reg c of Word<1>;
-                    c <= 0w1;
-                }
-            }
-
-            mod quux {
-            }
-        }
-    ");
-
-//    dbg!(&top);
-//    dbg!(top.modules());
-//    dbg!(top.find("top.foo.baz".into()));
-//    dbg!(top.visible_terminals());
-//    let baz = top.find("top.foo.baz".into());
-//    dbg!(baz.wires());
-//    dbg!(baz.wires().into_iter().map(|w| w.rebase("top.foo.baz".into())).collect::<Vec<_>>());
-    dbg!(top.0.wires_rec("top".into()));
-}
-
 impl Circuit {
     pub fn new(component: Component) -> Circuit {
         Circuit(Arc::new(component))
@@ -94,7 +59,7 @@ impl Circuit {
         results
     }
 
-    fn find(&self, path: Path) -> Option<&Component> {
+    pub fn find(&self, path: Path) -> Option<&Component> {
         if path == "top".into() {
             return Some(&self.0);
         }
@@ -153,7 +118,7 @@ impl Component {
         }
     }
 
-    pub fn find(&self, path: Path) -> Option<&Component> {
+    fn find(&self, path: Path) -> Option<&Component> {
         let mut result: &Component = &self;
         for part in path.split(".") {
             result = result.child(part)?;
