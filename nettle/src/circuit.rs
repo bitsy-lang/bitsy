@@ -66,7 +66,7 @@ impl Circuit {
         assert!(path.starts_with("top."));
         // strip "top." from the front
         let path: Path = path[4..].into();
-        self.0.find(path)
+        self.0.component(path)
     }
 
     pub fn wires(&self) -> Vec<Wire> {
@@ -98,6 +98,21 @@ impl Circuit {
             None
         }
     }
+
+    pub fn check(&self) -> Result<(), Vec<anyhow::Error>> {
+        let mut errors = vec![];
+        for (path, component) in self.walk() {
+            if let Err(component_errors) = component.check() {
+                errors.extend(component_errors.into_iter().map(|e| e.context(format!("Error in {path}"))));
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
 }
 
 impl Component {
@@ -113,7 +128,7 @@ impl Component {
         }
     }
 
-    fn find(&self, path: Path) -> Option<&Component> {
+    fn component(&self, path: Path) -> Option<&Component> {
         let mut result: &Component = &self;
         for part in path.split(".") {
             result = result.child(part)?;
@@ -128,6 +143,119 @@ impl Component {
             }
         }
         None
+    }
+
+    fn check(&self) -> Result<(), Vec<anyhow::Error>> {
+        let mut errors = vec![];
+
+        match self {
+            Component::Top(_children, _wires) => {
+                errors.extend(self.check_children_duplicate_names());
+                errors.extend(self.check_wires_duplicate_targets());
+                errors.extend(self.check_missing_drivers());
+                errors.extend(self.check_wires_wiretype());
+            },
+            Component::Mod(_name, _children, _wires) => {
+                errors.extend(self.check_children_duplicate_names());
+                errors.extend(self.check_wires_duplicate_targets());
+                errors.extend(self.check_missing_drivers());
+                errors.extend(self.check_wires_wiretype());
+            },
+            Component::Ext(_name, children) => {
+                for component in children {
+                    if !component.is_port() {
+                        errors.push(anyhow::anyhow!("Ext has non-port component: {}", component.name()));
+                    }
+                }
+            },
+            _ => (),
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    fn check_children_duplicate_names(&self) -> Vec<anyhow::Error> {
+        let mut errors = vec![];
+        let mut seen = BTreeSet::new();
+        for child in self.children() {
+            if !seen.contains(child.name()) {
+                seen.insert(child.name());
+            } else {
+                errors.push(anyhow::anyhow!("Duplicate component: {}", child.name()));
+            }
+        }
+        errors
+
+    }
+
+    fn check_wires_duplicate_targets(&self) -> Vec<anyhow::Error> {
+        let mut errors = vec![];
+        let mut seen = BTreeSet::new();
+        for Wire(target, _expr, _typ) in &self.wires() {
+            if !seen.contains(target) {
+                seen.insert(target);
+            } else {
+                errors.push(anyhow::anyhow!("Component has two drivers: {target}"));
+            }
+        }
+        errors
+    }
+
+    fn check_wires_wiretype(&self) -> Vec<anyhow::Error> {
+        let mut errors = vec![];
+
+        for Wire(target, _expr, wiretype) in &self.wires() {
+            if let Some(component) = self.component(target.clone()) {
+                match (component, wiretype) {
+                    (Component::Reg(name, _typ, _reset), WireType::Connect) =>
+                        errors.push(anyhow::anyhow!("Incorrect wire type for {name}: use <= for registers.")),
+                    (Component::Node(name, _typ), WireType::Latch) =>
+                        errors.push(anyhow::anyhow!("Incorrect wire type for {name}: use := for nodes.")),
+                    (Component::Incoming(name, _typ), WireType::Latch) =>
+                        errors.push(anyhow::anyhow!("Incorrect wire type for {name}: use := for incoming ports.")),
+                    (Component::Outgoing(name, _typ), WireType::Latch) =>
+                        errors.push(anyhow::anyhow!("Incorrect wire type for {name}: use := for outgoing ports.")),
+                    (_, _) => (),
+                }
+            } else {
+                panic!("I don't know how this happened.")
+            }
+        }
+        errors
+    }
+
+    fn check_missing_drivers(&self) -> Vec<anyhow::Error> {
+        let mut errors = vec![];
+        let mut terminals_remaining: BTreeSet<Path> = self.visible_terminals().into_iter().collect();
+
+        for Wire(target, _expr, _typ) in &self.wires() {
+            terminals_remaining.remove(target);
+        }
+
+        for terminal in terminals_remaining.into_iter() {
+            let is_incoming_port = if let Some(Component::Incoming(_name, _typ)) = &self.component(terminal.clone()) {
+                true
+            } else {
+                false
+            };
+
+            if !is_incoming_port {
+                errors.push(anyhow::anyhow!("Component has no driver: {terminal}"));
+            }
+        }
+        errors
+    }
+
+    pub fn is_port(&self) -> bool {
+        match self {
+            Component::Incoming(_name, _typ) => true,
+            Component::Outgoing(_name, _typ) => true,
+            _ => false,
+        }
     }
 
     pub fn children(&self) -> Vec<&Component> {

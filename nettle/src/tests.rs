@@ -341,3 +341,17 @@ fn test_circuit() {
     assert_eq!(baz.wires().len(), 1);
     assert_eq!(baz.wires()[0].2, WireType::Latch);
 }
+
+#[test]
+fn test_check() {
+    let top = parse_top("
+        top {
+            outgoing out of Word<8>;
+            incoming in of Word<8>;
+
+            out := in;
+        }
+    ");
+
+    top.check().unwrap();
+}

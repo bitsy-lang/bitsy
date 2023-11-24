@@ -61,22 +61,33 @@ pub Mod: Component = {
     },
 }
 
+pub Ext: Component = {
+    "ext" <id:Id> "{"
+        <decls:ModDecl*>
+    "}" => {
+        let mut children = vec![];
+        // let mut wires = vec![]; // TODO
+
+        for decl in decls {
+            match decl {
+                ModDecl::Component(c) => children.push(c),
+                ModDecl::Wire(w) => panic!("Exts can't have wires {id}"),
+            }
+        }
+
+        Component::Ext(id, children)
+    }
+}
+
 pub ModDecl: ModDecl  = {
     "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
     "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
     "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
     "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Component(Component::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X))),
-    "ext" <id:Id> "{"
-        <ports:ExtDecl*>
-    "}" => ModDecl::Component(Component::Ext(id, ports)),
     <m:Mod> => ModDecl::Component(m),
+    <m:Ext> => ModDecl::Component(m),
     <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Connect)),
     <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Latch)),
-}
-
-pub ExtDecl: Component = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => Component::Incoming(id, typ),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => Component::Outgoing(id, typ),
 }
 
 pub Expr: Box<Expr> = {
