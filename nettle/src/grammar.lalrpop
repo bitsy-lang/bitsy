@@ -26,34 +26,57 @@ pub TestbenchCommand: TestbenchCommand = {
     "assert" <e:Expr> => TestbenchCommand::Assert(*e),
 }
 
-pub Top: Mod = {
+pub Top: Component = {
     "top" "{"
         <decls:ModDecl*>
-    "}" => Mod("top".to_string(), decls),
+    "}" => {
+        let mut children = vec![];
+        let mut wires = vec![];
+
+        for decl in decls {
+            match decl {
+                ModDecl::Component(c) => children.push(c),
+                ModDecl::Wire(target, expr) => wires.push((target, expr)),
+            }
+        }
+        Component::Top(children, wires)
+    },
 }
 
-pub Mod: Mod = {
+pub Mod: Component = {
     "mod" <id:Id> "{"
         <decls:ModDecl*>
-    "}" => Mod(id, decls),
+    "}" => {
+        let mut children = vec![];
+        let mut wires = vec![];
+
+        for decl in decls {
+            match decl {
+                ModDecl::Component(c) => children.push(c),
+                ModDecl::Wire(target, expr) => wires.push((target, expr)),
+            }
+        }
+
+        Component::Mod(id, children, wires)
+    },
 }
 
 pub ModDecl: ModDecl  = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Incoming(id, typ),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Outgoing(id, typ),
-    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Node(id, typ),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X)),
+    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
+    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
+    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
+    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Component(Component::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X))),
     "ext" <id:Id> "{"
         <ports:ExtDecl*>
-    "}" => ModDecl::Ext(Ext(id, ports)),
-    <m:Mod> => ModDecl::Mod(m),
+    "}" => ModDecl::Component(Component::Ext(id, ports)),
+    <m:Mod> => ModDecl::Component(m),
     <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
     <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference.set(), *e),
 }
 
-pub ExtDecl: ExtDecl = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => ExtDecl(id, PortDirection::Incoming, typ),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => ExtDecl(id, PortDirection::Outgoing, typ),
+pub ExtDecl: Component = {
+    "incoming" <id:Id> "of" <typ:Type> ";" => Component::Incoming(id, typ),
+    "outgoing" <id:Id> "of" <typ:Type> ";" => Component::Outgoing(id, typ),
 }
 
 pub Expr: Box<Expr> = {

@@ -9,13 +9,8 @@ pub struct Mod(String, Vec<ModDecl>);
 
 #[derive(Debug)]
 pub enum ModDecl {
-    Node(String, Type),
-    Incoming(String, Type),
-    Outgoing(String, Type),
-    Reg(String, Type, Value),
-    Mod(Mod),
+    Component(Component),
     Wire(Path, Expr),
-    Ext(Ext),
 }
 
 #[derive(Debug)]
@@ -24,7 +19,8 @@ pub(crate) struct Ext(String, Vec<ExtDecl>);
 #[derive(Debug)]
 pub struct ExtDecl(String, PortDirection, Type);
 
-fn mod_to_circuit(m: Mod) -> CircuitNode {
+fn mod_to_circuit(m: Mod) -> impl Clone {
+    /*
     let Mod(name, decls) = m;
     let mut module = Circuit::new(&name);
 
@@ -50,11 +46,16 @@ fn mod_to_circuit(m: Mod) -> CircuitNode {
         }
     }
     module
+    */
+    todo!()
 }
 
 pub fn parse_top(circuit: &str) -> Circuit {
+    /*
     let m: Mod = grammar::TopParser::new().parse(circuit).unwrap();
     mod_to_circuit(m).build()
+    */
+    todo!()
 }
 
 impl From<&str> for Expr {

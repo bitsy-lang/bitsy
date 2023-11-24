@@ -1,100 +1,87 @@
 use super::*;
 
+pub type Name = String;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Component {
-    Incoming(Type),
-    Outgoing(Type),
-    Node(Type),
-    Reg(Type, Value),
-    Mod,
-    Ext,
+    Top(Vec<Component>, Vec<(Path, Expr)>),
+    Mod(Name, Vec<Component>, Vec<(Path, Expr)>),
+    Ext(Name, Vec<Component>),
+    Incoming(Name, Type),
+    Outgoing(Name, Type),
+    Node(Name, Type),
+    Reg(Name, Type, Value),
 }
 
-#[derive(Debug, Clone)]
-pub struct Circuit(Arc<CircuitNode>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Circuit(Arc<Component>);
 
-#[derive(Debug)]
-pub(crate) struct CircuitNode {
-    components: BTreeMap<Path, Component>,
-    wires: BTreeMap<Path, Expr>,
-    path: Vec<String>,
+impl std::ops::Deref for Circuit {
+    type Target = Component;
+    fn deref(&self) -> &Component {
+        &self.0
+    }
 }
 
 impl Circuit {
-    pub fn new(name: &str) -> CircuitNode {
-        let components = vec![("top".into(), Component::Mod)].into_iter().collect();
-        CircuitNode {
-            components,
-            wires: BTreeMap::new(),
-            path: vec![name.to_string()],
-        }
+    pub fn modules(&self) -> Vec<Path> {
+        let mut results = vec!["top".into()];
+        results.extend(self.modules_rec("top".into()));
+        results
     }
 
-    pub fn components(&self) -> &BTreeMap<Path, Component> {
-        &self.0.components
-    }
-
-    pub fn component(&self, path: Path) -> Option<&Component> {
-        if let Some(component) = &self.0.components.get(&path) {
-            Some(&component)
-        } else {
-            None
-        }
-    }
-
-    pub fn wires(&self) -> &BTreeMap<Path, Expr> {
-        &self.0.wires
-    }
-
-    pub fn exts(&self) -> Vec<Path> {
-        let mut result = vec![];
-        for (path, typ) in &self.0.components {
-            if let Component::Ext = typ {
-                result.push(path.clone());
+    fn modules_rec(&self, current_path: Path) -> Vec<Path> {
+        let mut results = vec![];
+        for child in self.children() {
+            if let Component::Mod(name, _children, _wires) = child {
+                results.push(name.clone().into());
+                self.modules_rec(current_path.join(name.clone().into()));
             }
         }
-        result
+        results
     }
 
-    pub fn regs(&self) -> Vec<Path> {
-        let mut result = vec![];
-        for (path, typ) in &self.0.components {
-            if let Component::Reg(_typ, _reset) = typ {
-                result.push(path.clone());
-            }
+    pub fn new(&self) -> Self { todo!() }
+    pub fn wire(&self) -> Vec<(Path, Expr)> { todo!() }
+    pub fn wires(&self) -> Vec<(Path, Expr)> { todo!() }
+    pub fn ext(&self, path: Path) -> Option<Component> { todo!() }
+    pub fn component(&self, path: Path) -> Option<Component> { todo!() }
+    pub fn components(&self) { todo!() }
+    pub fn nets(&self) -> Vec<Net> { todo!() }
+    pub fn reset_for_reg(&self, path: Path) -> Option<Value> { todo!() }
+    pub fn regs(&self) -> Vec<Path> { todo!() }
+}
+
+impl Component {
+    pub fn name(&self) -> &str {
+        match self {
+            Component::Top(_children, _wires) => "top",
+            Component::Mod(name, _children, _wires) => name.as_str(),
+            Component::Ext(name, _children) => name.as_str(),
+            Component::Incoming(name, _typ) => name.as_str(),
+            Component::Outgoing(name, _typ) => name.as_str(),
+            Component::Node(name, _typ) => name.as_str(),
+            Component::Reg(name, _typ, Value) => name.as_str(),
         }
-        result
     }
 
-    pub fn reset_for_reg(&self, path: Path) -> Option<Value> {
-        let component = self.component(path);
-        if let Some(Component::Reg(_typ, reset)) = component {
-            Some(reset.clone())
-        } else {
-            None
+    pub fn children(&self) -> Vec<&Component> {
+        match self {
+            Component::Top(children, _wires) => children.iter().collect(),
+            Component::Mod(_name, children, _wires) => children.iter().collect(),
+            Component::Ext(_name, children) => children.iter().collect(),
+            Component::Incoming(_name, _typ) => vec![],
+            Component::Outgoing(_name, _typ) => vec![],
+            Component::Node(_name, _typ) => vec![],
+            Component::Reg(_name, _typ, Value) => vec![],
         }
     }
+}
 
-    pub fn terminals(&self) -> Vec<Path> {
-        let mut terminals = vec![];
-        for (path, component) in &self.0.components {
-            match component {
-                Component::Incoming(_typ) => terminals.push(path.clone()),
-                Component::Outgoing(_typ) => terminals.push(path.clone()),
-                Component::Node(_typ) => {
-                    terminals.push(path.clone());
-                },
-                Component::Reg(_typ, _reset) => {
-                    terminals.push(path.clone());
-                    terminals.push(path.set());
-                },
-                Component::Mod => (),
-                Component::Ext => (),
-            }
-        }
-        terminals
-    }
 
+
+
+/*
     pub fn nets(&self) -> Vec<Net> {
         let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
         for (target, expr) in self.wires() {
@@ -181,7 +168,6 @@ impl CircuitNode {
     pub fn instantiate(mut self, name: &str, circuit: &CircuitNode) -> Self {
         let mod_path = self.current_path();
         self = self.push(name);
-        self.components.insert(self.current_path(), Component::Mod);
 
         for (path, component) in &circuit.components {
             if path != &"top".into() {
@@ -190,11 +176,14 @@ impl CircuitNode {
             }
         }
 
+        let mut wires = vec![];
         for (path, expr) in &circuit.wires {
             let target = mod_path.join(path.clone());
             let expr = expr.clone().to_absolute(&mod_path);
             self.wires.insert(target, expr);
         }
+
+        self.components.insert(self.current_path(), Component::Mod);
         self = self.pop();
         self
     }
@@ -224,6 +213,7 @@ impl CircuitNode {
         Circuit(Arc::new(self))
     }
 }
+*/
 
 impl Net {
     fn from(terminal: Path) -> Net {

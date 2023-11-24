@@ -130,9 +130,9 @@ impl Sim {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
-        if let Some(Component::Reg(_typ, _reset)) = self.circuit.component(path.parent()) {
+        if let Some(Component::Reg(_name, _typ, _reset)) = self.circuit.component(path.parent()) {
             true
-        } else if let Some(Component::Reg(_typ, _reset)) = self.circuit.component(path.clone()) {
+        } else if let Some(Component::Reg(_name, _typ, _reset)) = self.circuit.component(path.clone()) {
             true
         } else if let Some(_) = self.circuit.component(path.clone()) {
             false
