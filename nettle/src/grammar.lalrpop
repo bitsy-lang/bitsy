@@ -36,7 +36,7 @@ pub Top: Component = {
         for decl in decls {
             match decl {
                 ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(target, expr) => wires.push((target, expr)),
+                ModDecl::Wire(w) => wires.push(w),
             }
         }
         Component::Top(children, wires)
@@ -53,7 +53,7 @@ pub Mod: Component = {
         for decl in decls {
             match decl {
                 ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(target, expr) => wires.push((target, expr)),
+                ModDecl::Wire(w) => wires.push(w),
             }
         }
 
@@ -70,8 +70,8 @@ pub ModDecl: ModDecl  = {
         <ports:ExtDecl*>
     "}" => ModDecl::Component(Component::Ext(id, ports)),
     <m:Mod> => ModDecl::Component(m),
-    <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(reference, *e),
-    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(reference.set(), *e),
+    <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Connect)),
+    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Latch)),
 }
 
 pub ExtDecl: Component = {

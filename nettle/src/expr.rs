@@ -129,17 +129,17 @@ impl Expr {
         self.paths().contains(&path)
     }
 
-    pub fn to_absolute(self, current_path: &Path) -> Expr {
+    pub fn rebase(self, current_path: Path) -> Expr {
         match self {
             Expr::Reference(path) => Expr::Reference(current_path.join(path)),
             Expr::Lit(_value) => self,
-            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.to_absolute(current_path))),
-            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.to_absolute(current_path)), Box::new(e2.to_absolute(current_path))),
-            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.to_absolute(current_path)), Box::new(e1.to_absolute(current_path)), Box::new(e2.to_absolute(current_path))),
-            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.to_absolute(current_path)).collect()),
-            Expr::Idx(e, i) => Expr::Idx(Box::new(e.to_absolute(current_path)), i),
-            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.to_absolute(current_path)), j, i),
-            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.to_absolute(current_path)), Box::new(i.to_absolute(current_path))),
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.rebase(current_path))),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.rebase(current_path.clone())), Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.rebase(current_path.clone())).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.rebase(current_path)), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.rebase(current_path)), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.rebase(current_path.clone())), Box::new(i.rebase(current_path))),
             Expr::Hole(name) => Expr::Hole(name),
         }
     }

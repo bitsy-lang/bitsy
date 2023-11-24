@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
+#[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(Arc<String>);
 
 impl Path {
@@ -34,6 +34,12 @@ impl std::ops::Deref for Path {
 impl std::fmt::Display for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         write!(f, "{}", &self.0)
+    }
+}
+
+impl std::fmt::Debug for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "Path(\"{}\")", &self.0)
     }
 }
 

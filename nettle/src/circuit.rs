@@ -3,9 +3,29 @@ use super::*;
 pub type Name = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WireType {
+    Connect,
+    Latch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Wire(Path, Expr, WireType);
+
+impl Wire {
+    pub fn new(target: Path, expr: Expr, typ: WireType) -> Wire {
+        Wire(target, expr, typ)
+    }
+
+    pub fn rebase(self, base: Path) -> Wire {
+        let Wire(target, expr, typ) = self;
+        Wire(base.join(target), expr.rebase(base), typ)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Component {
-    Top(Vec<Component>, Vec<(Path, Expr)>),
-    Mod(Name, Vec<Component>, Vec<(Path, Expr)>),
+    Top(Vec<Component>, Vec<Wire>),
+    Mod(Name, Vec<Component>, Vec<Wire>),
     Ext(Name, Vec<Component>),
     Incoming(Name, Type),
     Outgoing(Name, Type),
@@ -23,32 +43,68 @@ impl std::ops::Deref for Circuit {
     }
 }
 
+#[test]
+fn parse_component() {
+    let top = parse_top("
+        top {
+            outgoing out of Word<8>;
+            incoming in of Word<8>;
+            mod foo {
+                incoming a of Word<1>;
+                outgoing z of Word<1>;
+                reg r of Word<1>;
+                mod bar {
+                }
+                mod baz {
+                    reg c of Word<1>;
+                    c <= 0w1;
+                }
+            }
+
+            mod quux {
+            }
+        }
+    ");
+
+    dbg!(&top);
+    dbg!(top.modules());
+    dbg!(top.find("top.foo.baz".into()));
+    dbg!(top.visible_terminals());
+    let baz = top.find("top.foo.baz".into());
+    dbg!(baz.wires());
+    dbg!(baz.wires().into_iter().map(|w| w.rebase("top.foo.baz".into())).collect::<Vec<_>>());
+}
+
 impl Circuit {
-    pub fn modules(&self) -> Vec<Path> {
-        let mut results = vec!["top".into()];
-        results.extend(self.modules_rec("top".into()));
-        results
+    pub fn new(component: Component) -> Circuit {
+        Circuit(Arc::new(component))
     }
 
-    fn modules_rec(&self, current_path: Path) -> Vec<Path> {
-        let mut results = vec![];
+    pub fn modules(&self) -> Vec<Path> {
+        let path: Path = "top".into();
+        let mut results = vec![path.clone()];
         for child in self.children() {
             if let Component::Mod(name, _children, _wires) = child {
-                results.push(name.clone().into());
-                self.modules_rec(current_path.join(name.clone().into()));
+                results.extend(child.modules_rec(path.join(name.clone().into())));
             }
         }
         results
     }
 
-    pub fn new(&self) -> Self { todo!() }
+    fn find(&self, path: Path) -> &Component {
+        assert!(path.starts_with("top."));
+        // strip "top." from the front
+        let path: Path = path[4..].into();
+        self.0.find(path)
+    }
+
     pub fn wire(&self) -> Vec<(Path, Expr)> { todo!() }
     pub fn wires(&self) -> Vec<(Path, Expr)> { todo!() }
-    pub fn ext(&self, path: Path) -> Option<Component> { todo!() }
-    pub fn component(&self, path: Path) -> Option<Component> { todo!() }
+    pub fn ext(&self, _path: Path) -> Option<Component> { todo!() }
+    pub fn component(&self, _path: Path) -> Option<Component> { todo!() }
     pub fn components(&self) { todo!() }
     pub fn nets(&self) -> Vec<Net> { todo!() }
-    pub fn reset_for_reg(&self, path: Path) -> Option<Value> { todo!() }
+    pub fn reset_for_reg(&self, _path: Path) -> Option<Value> { todo!() }
     pub fn regs(&self) -> Vec<Path> { todo!() }
 }
 
@@ -61,8 +117,25 @@ impl Component {
             Component::Incoming(name, _typ) => name.as_str(),
             Component::Outgoing(name, _typ) => name.as_str(),
             Component::Node(name, _typ) => name.as_str(),
-            Component::Reg(name, _typ, Value) => name.as_str(),
+            Component::Reg(name, _typ, _value) => name.as_str(),
         }
+    }
+
+    pub fn find(&self, path: Path) -> &Component {
+        let mut result: &Component = &self;
+        for part in path.split(".") {
+            result = result.child(part);
+        }
+        result
+    }
+
+    fn child(&self, name: &str) -> &Component {
+        for child in self.children() {
+            if child.name() == name {
+                return child;
+            }
+        }
+        panic!("No such child: {name}")
     }
 
     pub fn children(&self) -> Vec<&Component> {
@@ -73,12 +146,65 @@ impl Component {
             Component::Incoming(_name, _typ) => vec![],
             Component::Outgoing(_name, _typ) => vec![],
             Component::Node(_name, _typ) => vec![],
-            Component::Reg(_name, _typ, Value) => vec![],
+            Component::Reg(_name, _typ, _value) => vec![],
         }
     }
+
+    fn modules_rec(&self, current_path: Path) -> Vec<Path> {
+        let mut results = vec![current_path.clone()];
+        for child in self.children() {
+            if let Component::Mod(name, _children, _wires) = child {
+                results.extend(child.modules_rec(current_path.join(name.clone().into())));
+            }
+        }
+        results
+    }
+
+    pub fn wires(&self) -> Vec<Wire> {
+        match self {
+            Component::Top(_children, wires) => wires.clone(),
+            Component::Mod(_name, _children, wires) => wires.clone(),
+            _ => vec![],
+        }
+    }
+
+    fn wires_rec(&self) -> Vec<Wire> {
+        let mut results = self.wires();
+        results
+    }
+
+    fn port_paths(&self) -> Vec<Path> {
+        let mut results = vec![];
+        for child in self.children() {
+            match child {
+                Component::Incoming(name, _typ) => results.push(name.to_string().into()),
+                Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
+                _ => (),
+            }
+        }
+        results
+    }
+
+    fn visible_terminals(&self) -> Vec<Path> {
+        let mut results = vec![];
+        for child in self.children() {
+            match child {
+                Component::Top(_children, _wires) => panic!("No component should contain a Top."),
+                Component::Node(name, _typ) => results.push(name.to_string().into()),
+                Component::Incoming(name, _typ) => results.push(name.to_string().into()),
+                Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
+                Component::Mod(name, _children, _wires) => {
+                    let mod_path: Path = name.to_string().into();
+                    for path in child.port_paths() {
+                        results.push(mod_path.join(path));
+                    }
+                },
+                _ => (),
+            }
+        }
+        results
+    }
 }
-
-
 
 
 /*
