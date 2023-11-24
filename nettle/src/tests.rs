@@ -325,7 +325,7 @@ fn test_circuit() {
         ],
     );
 
-    assert_eq!(top.find("top.foo.baz".into()).unwrap().name(), "baz");
+    assert_eq!(top.component("top.foo.baz".into()).unwrap().name(), "baz");
 
 //    assert_eq!(
 //        top.visible_terminals(),
@@ -337,7 +337,7 @@ fn test_circuit() {
 //        ],
 //    );
 
-    let baz = top.find("top.foo.baz".into()).unwrap();
+    let baz = top.component("top.foo.baz".into()).unwrap();
     assert_eq!(baz.wires().len(), 1);
     assert_eq!(baz.wires()[0].2, WireType::Latch);
 }

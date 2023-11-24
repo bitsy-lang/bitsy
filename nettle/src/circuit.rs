@@ -59,7 +59,7 @@ impl Circuit {
         results
     }
 
-    pub fn find(&self, path: Path) -> Option<&Component> {
+    pub fn component(&self, path: Path) -> Option<&Component> {
         if path == "top".into() {
             return Some(&self.0);
         }
@@ -92,16 +92,11 @@ impl Circuit {
     }
 
     pub fn reset_for_reg(&self, path: Path) -> Option<Value> {
-        if let Some(Component::Reg(_name, _typ, reset)) = self.find(path) {
+        if let Some(Component::Reg(_name, _typ, reset)) = self.component(path) {
             Some(*reset)
         } else {
             None
         }
-    }
-
-    pub fn component(&self, path: Path) -> Option<Component> {
-        // TODO
-        self.find(path).cloned()
     }
 }
 
