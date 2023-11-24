@@ -21,24 +21,6 @@ fn path_depends() {
     }
 }
 
-/*
-#[test]
-fn expand_regs() {
-    let m = Circuit::new("top")
-        .reg("r", Type::Word(1), Value::X)
-        .node("n", Type::Word(1))
-        .node("m", Type::Word(1))
-        .wire("r.set", &Expr::Reference("n".into()))
-        .wire("m", &Expr::Reference("r".into()))
-        .build();
-
-    assert!(m.wires().contains_key(&"top.r.set".into()));
-    assert!(!m.wires().contains_key(&"top.r".into()));
-    assert!(m.wires().contains_key(&"top.m".into()));
-    assert_eq!(m.wires()[&"top.m".into()], Expr::Reference("top.r".into()));
-}
-*/
-
 #[test]
 fn buffer() {
     let buffer = parse_top("
@@ -62,7 +44,6 @@ fn buffer() {
     assert_eq!(nettle.peek("top.r"), true.into());
     assert_eq!(nettle.peek("top.out"), true.into());
 }
-/*
 
 #[test]
 fn counter() {
@@ -291,70 +272,6 @@ fn test_nets() {
     let triangle_numbers_nets = triangle_numbers_top.nets();
     assert_eq!(triangle_numbers_nets.len(), 4);
 }
-*/
-
-/*
-#[test]
-fn circuit_component_parents() {
-    let top = parse_top("
-        top {
-            node result of Word<32>;
-            reg sum of Word<32> reset 0w32;
-            mod counter {
-                outgoing out of Word<32>;
-                reg c of Word<32> reset 1w32;
-                c <= c + 1w4;
-                out := c;
-            }
-            result := sum;
-            sum <= sum + counter.out;
-        }
-    ");
-    let component_paths: Vec<Path> = top.components().keys().cloned().collect();
-    for path in &component_paths {
-        if path != &"top".into() {
-            assert!(
-                component_paths.contains(&path.parent()),
-                "The circuit contains a component {} but not its expected parent {}",
-                path,
-                path.parent(),
-            );
-        }
-    }
-}
-*/
-
-/*
-#[test]
-fn circuit_components() {
-    let top = parse_top("
-        top {
-            node result of Word<32>;
-            reg sum of Word<32> reset 0w32;
-            mod counter {
-                outgoing out of Word<32>;
-                reg c of Word<32> reset 1w32;
-                c <= c + 1w4;
-                out := c;
-            }
-            result := sum;
-            sum <= sum + counter.out;
-        }
-    ");
-
-    assert_eq!(
-        top.components(),
-        &vec![
-               ("top".into(), Component::Mod),
-               ("top.result".into(), Component::Node(Type::Word(32))),
-               ("top.sum".into(), Component::Reg(Type::Word(32), Value::Word(32, 0))),
-               ("top.counter".into(), Component::Mod),
-               ("top.counter.out".into(), Component::Outgoing(Type::Word(32))),
-               ("top.counter.c".into(), Component::Reg(Type::Word(32), Value::Word(32, 1))),
-        ].into_iter().collect::<BTreeMap<Path, Component>>(),
-    );
-}
-*/
 
 #[test]
 fn test_node() {

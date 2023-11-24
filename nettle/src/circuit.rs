@@ -138,10 +138,6 @@ impl Circuit {
         // TODO
         self.find(path).cloned()
     }
-
-    pub fn wire(&self) -> Vec<(Path, Expr)> { todo!() }
-    pub fn ext(&self, _path: Path) -> Option<Component> { todo!() }
-    pub fn components(&self) { todo!() }
 }
 
 impl Component {
@@ -275,11 +271,16 @@ impl Component {
 impl Circuit {
     pub fn nets(&self) -> Vec<Net> {
         let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
-        for Wire(target, expr, _wire_type) in self.wires() {
+
+        for Wire(target, expr, wire_type) in self.wires() {
+            let target_terminal: Path = match wire_type {
+                WireType::Connect => target.clone(),
+                WireType::Latch => target.set(),
+            };
             if let Expr::Reference(driver) = expr {
-                immediate_driver_for.insert(target.clone(), driver.clone());
-            }
-        }
+                immediate_driver_for.insert(target_terminal.clone(), driver.clone());
+             }
+         }
 
         let mut drivers: BTreeSet<Path> = BTreeSet::new();
         for terminal in self.terminals() {
