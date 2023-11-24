@@ -90,7 +90,11 @@ impl Sim {
 
     fn broadcast_update_constants(&mut self) {
         let wires = self.circuit.wires().clone();
-        for (target_terminal, expr) in &wires {
+        for Wire(target, expr, wire_type) in &wires {
+            let target_terminal: Path = match wire_type {
+                WireType::Connect => target.clone(),
+                WireType::Latch => target.set(),
+            };
             if expr.is_constant() {
                 let value = expr.eval(&self);
                 self.poke(target_terminal.clone(), value);
@@ -100,7 +104,11 @@ impl Sim {
 
     fn broadcast_update(&mut self, terminal: Path) {
         let wires = self.circuit.wires().clone();
-        for (target_terminal, expr) in &wires {
+        for Wire(target, expr, wire_type) in &wires {
+            let target_terminal: Path = match wire_type {
+                WireType::Connect => target.clone(),
+                WireType::Latch => target.set(),
+            };
             if expr.depends_on(terminal.clone()) {
                 let value = expr.eval(&self);
                 self.poke(target_terminal.clone(), value);

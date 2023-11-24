@@ -1,5 +1,4 @@
 use super::*;
-/*
 
 #[test]
 fn path_depends() {
@@ -22,6 +21,7 @@ fn path_depends() {
     }
 }
 
+/*
 #[test]
 fn expand_regs() {
     let m = Circuit::new("top")
@@ -37,6 +37,7 @@ fn expand_regs() {
     assert!(m.wires().contains_key(&"top.m".into()));
     assert_eq!(m.wires()[&"top.m".into()], Expr::Reference("top.r".into()));
 }
+*/
 
 #[test]
 fn buffer() {
@@ -53,6 +54,7 @@ fn buffer() {
     let mut nettle = Sim::new(&buffer);
 
     nettle.poke("top.in", true.into());
+    dbg!(&nettle.peek("top.r"));
     assert_eq!(nettle.peek("top.r"), Value::X);
     assert_eq!(nettle.peek("top.out"), Value::X);
 
@@ -60,6 +62,7 @@ fn buffer() {
     assert_eq!(nettle.peek("top.r"), true.into());
     assert_eq!(nettle.peek("top.out"), true.into());
 }
+/*
 
 #[test]
 fn counter() {
@@ -288,7 +291,9 @@ fn test_nets() {
     let triangle_numbers_nets = triangle_numbers_top.nets();
     assert_eq!(triangle_numbers_nets.len(), 4);
 }
+*/
 
+/*
 #[test]
 fn circuit_component_parents() {
     let top = parse_top("
@@ -317,7 +322,9 @@ fn circuit_component_parents() {
         }
     }
 }
+*/
 
+/*
 #[test]
 fn circuit_components() {
     let top = parse_top("
@@ -347,6 +354,7 @@ fn circuit_components() {
         ].into_iter().collect::<BTreeMap<Path, Component>>(),
     );
 }
+*/
 
 #[test]
 fn test_node() {
@@ -361,4 +369,3 @@ fn test_node() {
     let nettle = Sim::new(&top);
     assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
 }
-*/
