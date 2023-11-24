@@ -10,12 +10,6 @@ pub enum ModDecl {
     Wire(Wire),
 }
 
-#[derive(Debug)]
-pub(crate) struct Ext(String, Vec<ExtDecl>);
-
-#[derive(Debug)]
-pub struct ExtDecl(String, PortDirection, Type);
-
 pub fn parse_top(circuit: &str) -> Circuit {
     let component: Component = grammar::TopParser::new().parse(circuit).unwrap();
     Circuit::new(component)

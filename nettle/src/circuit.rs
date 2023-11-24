@@ -267,18 +267,3 @@ impl Component {
         results
     }
 }
-
-
-#[derive(Debug, Clone)]
-pub enum PathType {
-    Node(Type),
-    Incoming(Type),
-    Outgoing(Type),
-    Reg(Type, Value),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum PortDirection {
-    Incoming,
-    Outgoing,
-}
