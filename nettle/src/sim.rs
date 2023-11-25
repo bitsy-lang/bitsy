@@ -6,10 +6,12 @@ use std::time::SystemTime;
 pub type NetId = usize;
 
 pub struct Sim {
-    circuit: Circuit,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     nets: Vec<Net>,
     net_values: Vec<Value>,
+    wires: BTreeMap<Path, (Expr, WireType)>,
+    regs: BTreeSet<Path>,
+    reg_resets: BTreeMap<Path, Value>,
     clock_ticks: u64,
     start_time: SystemTime,
     clock_freq_cap: Option<f64>,
@@ -19,18 +21,39 @@ impl Sim {
     pub fn new(circuit: &Circuit) -> Sim {
         let nets = nets(circuit);
         let net_values = nets.iter().map(|_net| Value::X).collect();
+        let regs: BTreeSet<Path> =
+            circuit
+                .regs()
+                .iter()
+                .cloned()
+                .collect();
+        let reg_resets: BTreeMap<Path, Value> =
+            regs
+                .iter()
+                .cloned()
+                .map(|path| (path.clone(), circuit.reset_for_reg(path).unwrap()))
+                .collect();
+        let wires: BTreeMap<Path, (Expr, WireType)> =
+            circuit
+                .wires()
+                .iter()
+                .cloned()
+                .map(|Wire(target, expr, wiretype)| (target, (expr, wiretype)))
+                .collect();
 
-        let mut nettle = Sim {
-            circuit: circuit.clone(),
+        let mut sim = Sim {
             exts: BTreeMap::new(),
             nets,
             net_values,
+            wires,
+            regs,
+            reg_resets,
             start_time: SystemTime::now(),
             clock_ticks: 0,
             clock_freq_cap: None,
         };
-        nettle.broadcast_update_constants();
-        nettle
+        sim.broadcast_update_constants();
+        sim
     }
 
     pub fn cap_clock_freq(mut self, freq: f64) -> Self {
@@ -91,8 +114,8 @@ impl Sim {
     }
 
     fn broadcast_update_constants(&mut self) {
-        let wires = self.circuit.wires().clone();
-        for Wire(target, expr, wire_type) in &wires {
+        let wires = self.wires.clone();
+        for (target, (expr, wire_type)) in wires {
             let target_terminal: Path = match wire_type {
                 WireType::Connect => target.clone(),
                 WireType::Latch => target.set(),
@@ -105,8 +128,8 @@ impl Sim {
     }
 
     fn broadcast_update(&mut self, terminal: Path) {
-        let wires = self.circuit.wires().clone();
-        for Wire(target, expr, wire_type) in &wires {
+        let wires = self.wires.clone();
+        for (target, (expr, wire_type)) in &wires {
             let target_terminal: Path = match wire_type {
                 WireType::Connect => target.clone(),
                 WireType::Latch => target.set(),
@@ -140,15 +163,7 @@ impl Sim {
     }
 
     fn is_reg(&self, path: &Path) -> bool {
-        if let Some(Component::Reg(_name, _typ, _reset)) = self.circuit.component(path.parent()) {
-            true
-        } else if let Some(Component::Reg(_name, _typ, _reset)) = self.circuit.component(path.clone()) {
-            true
-        } else if let Some(_) = self.circuit.component(path.clone()) {
-            false
-        } else {
-            panic!("is_reg({path}) failed")
-        }
+        self.regs.contains(&path.parent()) || self.regs.contains(&path)
     }
 
     pub fn clock(&mut self) {
@@ -162,9 +177,10 @@ impl Sim {
             }
         }
 
-        for path in self.circuit.regs() {
+        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
+        for path in reg_paths {
             let set_value = self.peek(path.set());
-            self.poke(path, set_value);
+            self.poke(path.clone(), set_value);
         }
 
         let mut poke_values: Vec<(Path, Value)> = vec![];
@@ -182,14 +198,16 @@ impl Sim {
             self.poke(path, value);
         }
 
-        for path in self.circuit.regs() {
+        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
+        for path in reg_paths {
             self.broadcast_update(path);
         }
     }
 
     pub fn reset(&mut self) {
-        for path in self.circuit.regs() {
-            let reset = self.circuit.reset_for_reg(path.clone()).unwrap();
+        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
+        for path in reg_paths {
+            let reset = self.reg_resets[&path];
             self.poke(path, reset);
         }
 
@@ -197,7 +215,8 @@ impl Sim {
             ext.reset();
         }
 
-        for path in self.circuit.regs() {
+        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
+        for path in reg_paths {
             self.broadcast_update(path);
         }
     }
