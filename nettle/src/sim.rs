@@ -34,15 +34,7 @@ impl Sim {
                 .cloned()
                 .map(|path| (path.clone(), circuit.reset_for_reg(path).unwrap()))
                 .collect();
-        let wires: Box<BTreeMap<Path, (Expr, WireType)>> = Box::new(
-            circuit
-                .wires()
-                .iter()
-                .cloned()
-                .map(|Wire(target, expr, wiretype)| (target, (expr, wiretype)))
-                .collect());
-
-        let netid_by_path: BTreeMap<Path, NetId> =
+        let net_id_by_path: BTreeMap<Path, NetId> =
             circuit
                 .terminals()
                 .iter()
@@ -55,11 +47,31 @@ impl Sim {
                     unreachable!()
                 })
                 .collect();
+        let wires: Box<BTreeMap<Path, (Expr, WireType)>> = Box::new(
+            circuit
+                .wires()
+                .iter()
+                .filter(|Wire(_target, expr, wiretype)| {
+                    if let Expr::Reference(_) = expr {
+                        if *wiretype == WireType::Connect {
+                            //false
+                            true
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    }
+                })
+                .cloned()
+                //.map(|Wire(target, expr, wiretype)| (target, (expr.references_to_nets(&net_id_by_path), wiretype)))
+                .map(|Wire(target, expr, wiretype)| (target, (expr, wiretype)))
+                .collect());
 
         let mut sim = Sim {
             nets,
             net_values,
-            net_id_by_path: netid_by_path,
+            net_id_by_path,
             wires,
             regs,
             reg_resets,
@@ -141,6 +153,8 @@ impl Sim {
                 WireType::Connect => target.clone(),
                 WireType::Latch => target.set(),
             };
+//            let net_id = self.net_id_by_path[&terminal];
+//            if expr.depends_on_net(net_id) {
             if expr.depends_on(terminal.clone()) {
                 let value = expr.eval(&self);
                 self.poke(target_terminal.clone(), value);

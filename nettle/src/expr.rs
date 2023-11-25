@@ -125,11 +125,39 @@ impl Expr {
     }
 
     pub fn is_constant(&self) -> bool {
-        self.paths().is_empty()
+        match self {
+            Expr::Reference(_path) => false,
+            Expr::Net(_netid) => false,
+            Expr::Lit(_value) => true,
+            Expr::UnOp(_op, e) => e.is_constant(),
+            Expr::BinOp(_op, e1, e2) => e1.is_constant() && e2.is_constant(),
+            Expr::If(cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
+            Expr::Cat(es) => es.iter().all(|e| e.is_constant()),
+            Expr::Idx(e, _i) => e.is_constant(),
+            Expr::IdxRange(e, _j, _i) => e.is_constant(),
+            Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
+            Expr::Hole(_name) => false,
+        }
     }
 
     pub fn depends_on(&self, path: Path) -> bool {
         self.paths().contains(&path)
+    }
+
+    pub fn depends_on_net(&self, net_id: NetId) -> bool {
+        match self {
+            Expr::Reference(_path) => panic!("rebase() only works on net expressions."),
+            Expr::Net(other_netid) => net_id == *other_netid,
+            Expr::Lit(_value) => false,
+            Expr::UnOp(_op, e) => e.depends_on_net(net_id),
+            Expr::BinOp(_op, e1, e2) => e1.depends_on_net(net_id) && e2.depends_on_net(net_id),
+            Expr::If(cond, e1, e2) => cond.depends_on_net(net_id) && e1.depends_on_net(net_id) && e2.depends_on_net(net_id),
+            Expr::Cat(es) => es.iter().all(|e| e.depends_on_net(net_id)),
+            Expr::Idx(e, _i) => e.depends_on_net(net_id),
+            Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
+            Expr::IdxDyn(e, i) => e.depends_on_net(net_id) && i.depends_on_net(net_id),
+            Expr::Hole(_name) => false,
+        }
     }
 
     pub fn rebase(self, current_path: Path) -> Expr {
@@ -257,6 +285,22 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
+        }
+    }
+
+    pub fn references_to_nets(self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
+        match self {
+            Expr::Reference(path) => Expr::Net(net_id_by_path[&path]),
+            Expr::Net(_netid) => panic!("references_to_nets() only works on symbolic expressions."),
+            Expr::Lit(_value) => self,
+            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.references_to_nets(net_id_by_path))),
+            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
+            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.references_to_nets(net_id_by_path)), Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
+            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.references_to_nets(net_id_by_path)).collect()),
+            Expr::Idx(e, i) => Expr::Idx(Box::new(e.references_to_nets(net_id_by_path)), i),
+            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.references_to_nets(net_id_by_path)), j, i),
+            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.references_to_nets(net_id_by_path)), Box::new(i.references_to_nets(net_id_by_path))),
+            Expr::Hole(name) => Expr::Hole(name),
         }
     }
 }
