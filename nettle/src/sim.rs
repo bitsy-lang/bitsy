@@ -3,14 +3,13 @@ use super::*;
 use std::time::Duration;
 use std::time::SystemTime;
 
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
-pub struct NetId(usize);
+pub type NetId = usize;
 
 pub struct Sim {
     circuit: Circuit,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     nets: Vec<Net>,
-    net_values: BTreeMap<NetId, Value>,
+    net_values: Vec<Value>,
     clock_ticks: u64,
     start_time: SystemTime,
     clock_freq_cap: Option<f64>,
@@ -19,7 +18,7 @@ pub struct Sim {
 impl Sim {
     pub fn new(circuit: &Circuit) -> Sim {
         let nets = nets(circuit);
-        let net_values = nets.iter().enumerate().map(|(net_id, _net)| (NetId(net_id), Value::X)).collect();
+        let net_values = nets.iter().map(|_net| Value::X).collect();
 
         let mut nettle = Sim {
             circuit: circuit.clone(),
@@ -48,23 +47,18 @@ impl Sim {
     fn net_id_for(&self, terminal: Path) -> NetId {
         for (net_id, net) in self.nets.iter().enumerate() {
             if net.contains(terminal.clone()) {
-                return NetId(net_id);
+                return net_id;
             }
         }
         panic!("No net found for terminal: {terminal:?}")
     }
 
-    fn net_for(&mut self, terminal: Path) -> &mut Net {
-        let NetId(net_id) = self.net_id_for(terminal);
-        &mut self.nets[net_id]
-    }
-
     pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
-        self.net_values.insert(net_id, value);
+        self.net_values[net_id] = value;
     }
 
     pub(crate) fn peek_net(&self, net_id: NetId) -> Value {
-        self.net_values[&net_id]
+        self.net_values[net_id]
     }
 
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
@@ -72,7 +66,7 @@ impl Sim {
 
         let terminal_path = path.clone();
         let net_id = self.net_id_for(terminal_path);
-        let value = self.net_values[&net_id];
+        let value = self.net_values[net_id];
 
         value
     }
@@ -81,7 +75,7 @@ impl Sim {
         let path: Path = path.into();
 
         let net_id = self.net_id_for(path.clone());
-        self.net_values.insert(net_id, value);
+        self.net_values[net_id] = value;
 
         if !self.is_reg(&path) {
             self.broadcast_update(path);
@@ -92,7 +86,7 @@ impl Sim {
         let path: Path = path.into();
 
         let net_id = self.net_id_for(path.clone());
-        self.net_values.insert(net_id, value);
+        self.net_values[net_id] = value;
         self.broadcast_update(path);
     }
 
@@ -217,8 +211,8 @@ impl Sim {
 
 impl std::fmt::Debug for Sim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        for (NetId(net_id), value) in &self.net_values {
-            let net = &self.nets[*net_id];
+        for (net_id, value) in self.net_values.iter().enumerate() {
+            let net = &self.nets[net_id];
             write!(f, "    {:>5}   ", format!("{value:?}"))?;
             writeln!(f, "{}", net.terminals().iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" "))?;
         }
