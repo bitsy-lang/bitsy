@@ -3,6 +3,7 @@ use super::*;
 #[derive(Eq, PartialEq, Clone)]
 pub enum Expr {
     Reference(Path),
+    Net(NetId),
     Lit(Value),
     UnOp(UnOp, Box<Expr>),
     BinOp(BinOp, Box<Expr>, Box<Expr>),
@@ -17,6 +18,7 @@ pub enum Expr {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
+            Expr::Net(netid) => write!(f, "#{netid:?}"),
             Expr::Reference(path) => write!(f, "{path}"),
             Expr::Lit(val) => write!(f, "{val:?}"),
             Expr::UnOp(op, e) => {
@@ -77,6 +79,7 @@ impl Expr {
     pub fn paths(&self) -> Vec<Path> {
         match self {
             Expr::Reference(path) => vec![path.clone()],
+            Expr::Net(_netid) => panic!("paths() only works on symbolic expressions."),
             Expr::Lit(_value) => vec![],
             Expr::UnOp(_op, e) => {
                 let mut result = e.paths();
@@ -132,6 +135,7 @@ impl Expr {
     pub fn rebase(self, current_path: Path) -> Expr {
         match self {
             Expr::Reference(path) => Expr::Reference(current_path.join(path)),
+            Expr::Net(_netid) => panic!("rebase() only works on symbolic expressions."),
             Expr::Lit(_value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.rebase(current_path))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
@@ -144,13 +148,10 @@ impl Expr {
         }
     }
 
-    pub fn is_absolute(self) -> bool {
-        self.paths().iter().all(|path| path.is_absolute())
-    }
-
     pub fn eval(&self, nettle: &Sim) -> Value {
         match self {
             Expr::Reference(path) => nettle.peek(path.clone()),
+            Expr::Net(netid) => nettle.peek_net(*netid),
             Expr::Lit(value) => *value,
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {

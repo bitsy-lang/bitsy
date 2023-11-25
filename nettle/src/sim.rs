@@ -3,11 +3,11 @@ use super::*;
 use std::time::Duration;
 use std::time::SystemTime;
 
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
 pub struct NetId(usize);
 
 pub struct Sim {
-    pub circuit: Circuit,
+    circuit: Circuit,
     exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     nets: Vec<Net>,
     net_values: BTreeMap<NetId, Value>,
@@ -57,6 +57,14 @@ impl Sim {
     fn net_for(&mut self, terminal: Path) -> &mut Net {
         let NetId(net_id) = self.net_id_for(terminal);
         &mut self.nets[net_id]
+    }
+
+    pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
+        self.net_values.insert(net_id, value);
+    }
+
+    pub(crate) fn peek_net(&self, net_id: NetId) -> Value {
+        self.net_values[&net_id]
     }
 
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
