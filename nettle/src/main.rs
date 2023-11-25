@@ -58,8 +58,10 @@ fn main() {
                 },
                 "Ram" => {
                     let mut e = Box::new(Ram::new());
-                    let data_filename = &params.into_iter().collect::<BTreeMap<_, _>>()[&"file".to_string()];
-                    e.load_from_file(data_filename).expect(&format!("Couldn't load {data_filename}"));
+                    let params_map: BTreeMap<String, String> = params.into_iter().collect::<BTreeMap<_, _>>();
+                    if let Some(data_filename) = params_map.get(&"file".to_string()) {
+                        e.load_from_file(data_filename).expect(&format!("Couldn't load {data_filename}"));
+                    }
                     e
                 },
                 "Video" => {
