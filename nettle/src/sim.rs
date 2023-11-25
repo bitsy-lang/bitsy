@@ -205,26 +205,26 @@ impl Sim {
             self.poke(path, value);
         }
 
-        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
-        for path in reg_paths {
-            self.broadcast_update(path);
+        let regs = self.regs.clone();
+        for path in regs.iter() {
+            self.broadcast_update(path.clone());
         }
     }
 
     pub fn reset(&mut self) {
-        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
-        for path in reg_paths {
+        let regs = self.regs.clone();
+        for path in regs.iter() {
             let reset = self.reg_resets[&path];
-            self.poke(path, reset);
+            self.poke(path.clone(), reset);
         }
 
         for (_path, ext) in &mut self.exts {
             ext.reset();
         }
 
-        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
-        for path in reg_paths {
-            self.broadcast_update(path);
+        let regs = self.regs.clone();
+        for path in regs.iter() {
+            self.broadcast_update(path.clone());
         }
     }
 
