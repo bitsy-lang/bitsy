@@ -8,6 +8,7 @@ pub type NetId = usize;
 pub struct Sim {
     nets: Vec<Net>,
     net_values: Vec<Value>,
+    net_id_by_path: BTreeMap<Path, NetId>,
     wires: Box<BTreeMap<Path, (Expr, WireType)>>,
     regs: Box<BTreeSet<Path>>,
     reg_resets: BTreeMap<Path, Value>,
@@ -41,9 +42,24 @@ impl Sim {
                 .map(|Wire(target, expr, wiretype)| (target, (expr, wiretype)))
                 .collect());
 
+        let netid_by_path: BTreeMap<Path, NetId> =
+            circuit
+                .terminals()
+                .iter()
+                .map(|path| {
+                    for (net_id, net) in nets.iter().enumerate() {
+                        if net.contains(path.clone()) {
+                            return (path.clone(), net_id);
+                        }
+                    }
+                    unreachable!()
+                })
+                .collect();
+
         let mut sim = Sim {
             nets,
             net_values,
+            net_id_by_path: netid_by_path,
             wires,
             regs,
             reg_resets,
@@ -67,15 +83,6 @@ impl Sim {
         self
     }
 
-    fn net_id_for(&self, terminal: Path) -> NetId {
-        for (net_id, net) in self.nets.iter().enumerate() {
-            if net.contains(terminal.clone()) {
-                return net_id;
-            }
-        }
-        panic!("No net found for terminal: {terminal:?}")
-    }
-
     pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
         self.net_values[net_id] = value;
     }
@@ -88,7 +95,7 @@ impl Sim {
         let path: Path = path.into();
 
         let terminal_path = path.clone();
-        let net_id = self.net_id_for(terminal_path);
+        let net_id = self.net_id_by_path[&terminal_path];
         let value = self.net_values[net_id];
 
         value
@@ -97,7 +104,7 @@ impl Sim {
     pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
         let path: Path = path.into();
 
-        let net_id = self.net_id_for(path.clone());
+        let net_id = self.net_id_by_path[&path];
         self.net_values[net_id] = value;
 
         if !self.is_reg(&path) {
@@ -108,7 +115,7 @@ impl Sim {
     pub fn set<P: Into<Path>>(&mut self, path: P, value: Value) {
         let path: Path = path.into();
 
-        let net_id = self.net_id_for(path.clone());
+        let net_id = self.net_id_by_path[&path];
         self.net_values[net_id] = value;
         self.broadcast_update(path);
     }
