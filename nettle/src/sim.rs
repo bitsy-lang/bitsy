@@ -6,12 +6,12 @@ use std::time::SystemTime;
 pub type NetId = usize;
 
 pub struct Sim {
-    exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     nets: Vec<Net>,
     net_values: Vec<Value>,
-    wires: BTreeMap<Path, (Expr, WireType)>,
-    regs: BTreeSet<Path>,
+    wires: Box<BTreeMap<Path, (Expr, WireType)>>,
+    regs: Box<BTreeSet<Path>>,
     reg_resets: BTreeMap<Path, Value>,
+    exts: BTreeMap<Path, Box<dyn ExtInstance>>,
     clock_ticks: u64,
     start_time: SystemTime,
     clock_freq_cap: Option<f64>,
@@ -21,33 +21,33 @@ impl Sim {
     pub fn new(circuit: &Circuit) -> Sim {
         let nets = nets(circuit);
         let net_values = nets.iter().map(|_net| Value::X).collect();
-        let regs: BTreeSet<Path> =
+        let regs: Box<BTreeSet<Path>> = Box::new(
             circuit
                 .regs()
                 .iter()
                 .cloned()
-                .collect();
+                .collect());
         let reg_resets: BTreeMap<Path, Value> =
             regs
                 .iter()
                 .cloned()
                 .map(|path| (path.clone(), circuit.reset_for_reg(path).unwrap()))
                 .collect();
-        let wires: BTreeMap<Path, (Expr, WireType)> =
+        let wires: Box<BTreeMap<Path, (Expr, WireType)>> = Box::new(
             circuit
                 .wires()
                 .iter()
                 .cloned()
                 .map(|Wire(target, expr, wiretype)| (target, (expr, wiretype)))
-                .collect();
+                .collect());
 
         let mut sim = Sim {
-            exts: BTreeMap::new(),
             nets,
             net_values,
             wires,
             regs,
             reg_resets,
+            exts: BTreeMap::new(),
             start_time: SystemTime::now(),
             clock_ticks: 0,
             clock_freq_cap: None,
@@ -115,7 +115,7 @@ impl Sim {
 
     fn broadcast_update_constants(&mut self) {
         let wires = self.wires.clone();
-        for (target, (expr, wire_type)) in wires {
+        for (target, (expr, wire_type)) in wires.iter() {
             let target_terminal: Path = match wire_type {
                 WireType::Connect => target.clone(),
                 WireType::Latch => target.set(),
@@ -129,7 +129,7 @@ impl Sim {
 
     fn broadcast_update(&mut self, terminal: Path) {
         let wires = self.wires.clone();
-        for (target, (expr, wire_type)) in &wires {
+        for (target, (expr, wire_type)) in wires.iter() {
             let target_terminal: Path = match wire_type {
                 WireType::Connect => target.clone(),
                 WireType::Latch => target.set(),
@@ -177,8 +177,8 @@ impl Sim {
             }
         }
 
-        let reg_paths: Vec<Path> = self.regs.iter().cloned().collect();
-        for path in reg_paths {
+        let regs = self.regs.clone();
+        for path in regs.iter() {
             let set_value = self.peek(path.set());
             self.poke(path.clone(), set_value);
         }
