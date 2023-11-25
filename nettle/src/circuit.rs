@@ -254,8 +254,6 @@ impl Component {
                         _ => (),
                     }
                 }
-            } else {
-                unreachable!()
             }
         }
         errors
