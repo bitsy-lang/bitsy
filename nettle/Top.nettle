@@ -1,5 +1,18 @@
 top {
-    reg r of Word<1>;
-    outgoing out of Word<1>;
-    out := r;
+    outgoing out of Word<32>;
+    reg sum of Word<32> reset 0w32;
+    mod counter {
+        outgoing out of Word<32>;
+        reg counter of Word<32> reset 1w32;
+        out := counter;
+        counter <= counter + 1w32;
+    }
+    out := sum;
+    sum <= sum + counter.out;
+
+    monitor.in := out;
+
+    ext monitor {
+        incoming in of Word<1>;
+    }
 }

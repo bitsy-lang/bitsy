@@ -114,10 +114,10 @@ fn vip() {
     ");
 
     let monitor = Box::new(Monitor::new());
+    let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
+    exts.insert("top.vip".into(), monitor);
 
-    let mut nettle =
-        Sim::new(&top)
-            .ext("top.vip", monitor);
+    let mut nettle = Sim::new_with_exts(&top, exts);
 
     nettle.reset();
     nettle.clock();

@@ -1,12 +1,13 @@
 use super::*;
 
+pub type PortId = usize;
 pub type PortName = String;
 
 #[allow(unused_variables)]
 pub trait ExtInstance: std::fmt::Debug {
     fn incoming_ports(&self) -> Vec<PortName> { vec![] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
-    fn update(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>;
+    fn update(&mut self, port: &PortName, value: Value) -> Vec<(PortName, Value)>;
     fn clock(&mut self) -> Vec<(PortName, Value)> { vec![] }
     fn reset(&mut self) -> Vec<(PortName, Value)> { vec![] }
 }
@@ -24,7 +25,7 @@ impl ExtInstance for Monitor {
     fn incoming_ports(&self) -> Vec<PortName> { vec!["in".to_string()] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
 
-    fn update(&mut self, _port: PortName, value: Value) -> Vec<(PortName, Value)> {
+    fn update(&mut self, _port: &PortName, value: Value) -> Vec<(PortName, Value)> {
         self.0 = Some(format!("{value:?}"));
         vec![]
     }
@@ -84,7 +85,7 @@ impl ExtInstance for Ram {
     }
     fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
 
-    fn update(&mut self, port: PortName, value: Value) -> Vec<(PortName, Value)>  {
+    fn update(&mut self, port: &PortName, value: Value) -> Vec<(PortName, Value)>  {
         if value.is_x() {
             return vec![("read_data".to_string(), self.read())];
         }
@@ -175,7 +176,7 @@ impl Video {
 impl ExtInstance for Video {
     fn incoming_ports(&self) -> Vec<PortName> { vec!["signal".to_string(), "hsync".to_string(), "vsync".to_string()] }
 
-    fn update(&mut self, portname: PortName, value: value::Value) -> Vec<(String, value::Value)> {
+    fn update(&mut self, portname: &PortName, value: value::Value) -> Vec<(PortName, value::Value)> {
         if value.is_x() {
             return vec![];
         }

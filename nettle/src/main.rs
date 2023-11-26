@@ -43,12 +43,11 @@ fn main() {
         std::process::exit(1);
     }
 
-    let mut nettle = Sim::new(&top);
-//            .cap_clock_freq(10_000.0)
-
+    let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
         let tb = read_testbench_file(&tb_filename).unwrap();
+
 
         for TestbenchLink(path, extname, params) in tb.0 {
             let ext: Box<dyn ExtInstance> = match extname.as_str() {
@@ -71,8 +70,11 @@ fn main() {
                 _ => panic!("Unknown ext module being linked: {extname}")
             };
 
-            nettle = nettle.ext(path, ext);
+            exts.insert(path, ext);
         }
+            let mut nettle = Sim::new_with_exts(&top, exts);
+        //            .cap_clock_freq(10_000.0)
+
 
 
         for command in tb.1 {
@@ -80,6 +82,8 @@ fn main() {
         }
     } else {
         let command = TestbenchCommand::Debug;
+        let mut nettle = Sim::new_with_exts(&top, exts);
+    //            .cap_clock_freq(10_000.0)
         exec_tb_command(&mut nettle, command);
         loop {
             match parse_testbench_command(&readline()) {

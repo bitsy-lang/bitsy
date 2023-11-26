@@ -77,6 +77,16 @@ impl Circuit {
         self.0.walk_rec("top".into())
     }
 
+    pub fn exts(&self) -> Vec<Path> {
+        let mut results = vec![];
+        for (path, component) in self.walk() {
+            if let Component::Ext(_name, _children) = component {
+                results.push(path);
+            }
+        }
+        results
+    }
+
     pub fn regs(&self) -> Vec<Path> {
         let mut results = vec![];
         for (path, component) in self.walk() {
