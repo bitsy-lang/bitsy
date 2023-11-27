@@ -1,0 +1,135 @@
+mod core {
+    ext instr_mem {
+        incoming read_addr of Word<16>;
+        outgoing read_data of Word<8>;
+
+        incoming write_enable of Word<1>;
+        incoming write_addr of Word<16>;
+        incoming write_data of Word<8>;
+    }
+
+    instr_mem.write_enable := 0w1;
+    instr_mem.write_addr := 0w16;
+    instr_mem.write_data := 0w8;
+
+    mod immgen {
+        incoming instr of Word<32>;
+        outgoing imm of Word<32>;
+
+        node opcode of Word<32>;
+        opcode := instr[7..0];
+
+        node I_TYPE of Word<3>; I_TYPE := 1w3;
+        node S_TYPE of Word<3>; S_TYPE := 2w3;
+        node B_TYPE of Word<3>; B_TYPE := 3w3;
+        node U_TYPE of Word<3>; U_TYPE := 4w3;
+        node J_TYPE of Word<3>; J_TYPE := 5w3;
+
+        node typ of Word<3>;
+        typ := if opcode == 19w7 { // OP-IMM
+            I_TYPE
+        } else if opcode == 3w7 { // LOAD
+            I_TYPE
+        } else if opcode == 35w7 { // STORE
+            S_TYPE
+        } else if opcode == 111w7 { // JAL
+            J_TYPE
+        } else if opcode == 99w7 { // BRANCH
+            B_TYPE
+        } else if opcode == 55w7 { // LUI
+            U_TYPE
+        } else if opcode == 23w7 { // AUIPC
+            U_TYPE
+        } else if opcode == 103w7 { // JALR
+            I_TYPE
+        } else {
+            0w3
+        };
+
+        node top of Word<1>;
+        top := instr[31];
+
+        node sext20 of Word<20>;
+        sext20 := if top { !0w20 } else { 0w20 };
+
+        node sext19 of Word<19>;
+        sext19 := if top { !0w19 } else { 0w19 };
+
+        node sext12 of Word<12>;
+        sext12 := if top { !0w12 } else { 0w12 };
+
+        imm := if typ == I_TYPE {
+            cat(sext20, instr[32..20])
+        } else if typ == S_TYPE {
+            cat(sext20, instr[32..25], instr[12..7])
+        } else if typ == B_TYPE {
+            cat(sext19, instr[7], instr[31..25], instr[12..8], 0w1)
+        } else if typ == U_TYPE {
+            cat(instr[32..12], 0w12)
+        } else if typ == J_TYPE {
+            cat(sext12, instr[20..12], instr[20], instr[31..21], 0w1)
+        } else {
+            0w32
+        };
+    }
+
+    mod decoder {
+        incoming instr of Word<32>;
+
+        outgoing opcode of Word<7>;
+        outgoing rd  of Word<5>;
+        outgoing rs1 of Word<5>;
+        outgoing rs2 of Word<5>;
+        outgoing funct3  of Word<3>;
+        outgoing funct7  of Word<7>;
+
+        opcode := instr[7..0];
+        rd  := instr[12..7];
+        rs1 := instr[20..15];
+        rs2 := instr[25..20];
+        funct3 := instr[15..12];
+        funct7 := instr[32..27];
+    }
+
+    mod ifetch {
+        incoming branch_offset of Word<32>;
+        incoming branch_enable of Word<1>;
+
+        outgoing instr_mem_addr of Word<32>;
+        incoming instr_mem_data of Word<8>;
+
+        outgoing instr_valid of Word<1>;
+        outgoing instr of Word<32>;
+
+        reg pc of Word<32> reset 0w32;
+        instr_mem_addr := pc + tick;
+
+        pc <= if tick == 3w2 {
+            if branch_enable {
+                pc + branch_offset
+            } else {
+                pc + 4w32
+            }
+        } else {
+            pc
+        };
+
+        reg tick of Word<2> reset 0w2;
+        tick <= tick + 1w2;
+
+        reg instr_reg of Word<32> reset 0w32;
+        instr := instr_reg;
+        instr_reg <= cat(instr_mem_data, instr_reg[32..8]);
+
+        instr_valid := tick == 0w2;
+    }
+
+    ifetch.branch_offset := 0w32;
+    ifetch.branch_enable := 0w1;
+
+    instr_mem.read_addr := ifetch.instr_mem_addr[16..0];
+    ifetch.instr_mem_data := instr_mem.read_data;
+
+    decoder.instr := ifetch.instr;
+    immgen.instr := ifetch.instr;
+}

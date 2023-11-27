@@ -1,0 +1,145 @@
+mod rf {
+    incoming rs1 of Word<5>;
+    incoming rs2 of Word<5>;
+    incoming rd  of Word<5>;
+
+    incoming write_enable of Word<1>;
+    incoming write_data   of Word<32>;
+
+    outgoing rs1_val of Word<32>;
+    outgoing rs2_val of Word<32>;
+
+    reg x0 of Word<32> reset 0w32;
+    reg x1 of Word<32> reset 0w32;
+    reg x2 of Word<32> reset 0w32;
+    reg x3 of Word<32> reset 0w32;
+    reg x4 of Word<32> reset 0w32;
+    reg x5 of Word<32> reset 0w32;
+    reg x6 of Word<32> reset 0w32;
+    reg x7 of Word<32> reset 0w32;
+    reg x8 of Word<32> reset 0w32;
+    reg x9 of Word<32> reset 0w32;
+    reg x10 of Word<32> reset 0w32;
+    reg x11 of Word<32> reset 0w32;
+    reg x12 of Word<32> reset 0w32;
+    reg x13 of Word<32> reset 0w32;
+    reg x14 of Word<32> reset 0w32;
+    reg x15 of Word<32> reset 0w32;
+    reg x16 of Word<32> reset 0w32;
+    reg x17 of Word<32> reset 0w32;
+    reg x18 of Word<32> reset 0w32;
+    reg x19 of Word<32> reset 0w32;
+    reg x20 of Word<32> reset 0w32;
+    reg x21 of Word<32> reset 0w32;
+    reg x22 of Word<32> reset 0w32;
+    reg x23 of Word<32> reset 0w32;
+    reg x24 of Word<32> reset 0w32;
+    reg x25 of Word<32> reset 0w32;
+    reg x26 of Word<32> reset 0w32;
+    reg x27 of Word<32> reset 0w32;
+    reg x28 of Word<32> reset 0w32;
+    reg x29 of Word<32> reset 0w32;
+    reg x30 of Word<32> reset 0w32;
+    reg x31 of Word<32> reset 0w32;
+
+    // skip x0
+    x1 <= if write_enable && rd == 1w5 { write_data } else { x1 };
+    x2 <= if write_enable && rd == 2w5 { write_data } else { x2 };
+    x3 <= if write_enable && rd == 3w5 { write_data } else { x3 };
+    x4 <= if write_enable && rd == 4w5 { write_data } else { x4 };
+    x5 <= if write_enable && rd == 5w5 { write_data } else { x5 };
+    x6 <= if write_enable && rd == 6w5 { write_data } else { x6 };
+    x7 <= if write_enable && rd == 7w5 { write_data } else { x7 };
+    x8 <= if write_enable && rd == 8w5 { write_data } else { x8 };
+    x9 <= if write_enable && rd == 9w5 { write_data } else { x9 };
+    x10 <= if write_enable && rd == 10w5 { write_data } else { x10 };
+    x11 <= if write_enable && rd == 11w5 { write_data } else { x11 };
+    x12 <= if write_enable && rd == 12w5 { write_data } else { x12 };
+    x13 <= if write_enable && rd == 13w5 { write_data } else { x13 };
+    x14 <= if write_enable && rd == 14w5 { write_data } else { x14 };
+    x15 <= if write_enable && rd == 15w5 { write_data } else { x15 };
+    x16 <= if write_enable && rd == 16w5 { write_data } else { x16 };
+    x17 <= if write_enable && rd == 17w5 { write_data } else { x17 };
+    x18 <= if write_enable && rd == 18w5 { write_data } else { x18 };
+    x19 <= if write_enable && rd == 19w5 { write_data } else { x19 };
+    x20 <= if write_enable && rd == 20w5 { write_data } else { x20 };
+    x21 <= if write_enable && rd == 21w5 { write_data } else { x21 };
+    x22 <= if write_enable && rd == 22w5 { write_data } else { x22 };
+    x23 <= if write_enable && rd == 23w5 { write_data } else { x23 };
+    x24 <= if write_enable && rd == 24w5 { write_data } else { x24 };
+    x25 <= if write_enable && rd == 25w5 { write_data } else { x25 };
+    x26 <= if write_enable && rd == 26w5 { write_data } else { x26 };
+    x27 <= if write_enable && rd == 27w5 { write_data } else { x27 };
+    x28 <= if write_enable && rd == 28w5 { write_data } else { x28 };
+    x29 <= if write_enable && rd == 29w5 { write_data } else { x29 };
+    x30 <= if write_enable && rd == 30w5 { write_data } else { x30 };
+    x31 <= if write_enable && rd == 31w5 { write_data } else { x31 };
+
+    rs1_val :=
+             if rs1 == 1w5 { x1 }
+        else if rs1 == 2w5 { x2 }
+        else if rs1 == 3w5 { x3 }
+        else if rs1 == 4w5 { x4 }
+        else if rs1 == 5w5 { x5 }
+        else if rs1 == 6w5 { x6 }
+        else if rs1 == 7w5 { x7 }
+        else if rs1 == 8w5 { x8 }
+        else if rs1 == 9w5 { x9 }
+        else if rs1 == 10w5 { x10 }
+        else if rs1 == 11w5 { x11 }
+        else if rs1 == 12w5 { x12 }
+        else if rs1 == 13w5 { x13 }
+        else if rs1 == 14w5 { x14 }
+        else if rs1 == 15w5 { x15 }
+        else if rs1 == 16w5 { x16 }
+        else if rs1 == 17w5 { x17 }
+        else if rs1 == 18w5 { x18 }
+        else if rs1 == 19w5 { x19 }
+        else if rs1 == 20w5 { x20 }
+        else if rs1 == 21w5 { x21 }
+        else if rs1 == 22w5 { x22 }
+        else if rs1 == 23w5 { x23 }
+        else if rs1 == 24w5 { x24 }
+        else if rs1 == 25w5 { x25 }
+        else if rs1 == 26w5 { x26 }
+        else if rs1 == 27w5 { x27 }
+        else if rs1 == 28w5 { x28 }
+        else if rs1 == 29w5 { x29 }
+        else if rs1 == 30w5 { x30 }
+        else if rs1 == 31w5 { x31 }
+        else { 0w32 };
+
+    rs2_val :=
+             if rs2 == 1w5 { x1 }
+        else if rs2 == 2w5 { x2 }
+        else if rs2 == 3w5 { x3 }
+        else if rs2 == 4w5 { x4 }
+        else if rs2 == 5w5 { x5 }
+        else if rs2 == 6w5 { x6 }
+        else if rs2 == 7w5 { x7 }
+        else if rs2 == 8w5 { x8 }
+        else if rs2 == 9w5 { x9 }
+        else if rs2 == 10w5 { x10 }
+        else if rs2 == 11w5 { x11 }
+        else if rs2 == 12w5 { x12 }
+        else if rs2 == 13w5 { x13 }
+        else if rs2 == 14w5 { x14 }
+        else if rs2 == 15w5 { x15 }
+        else if rs2 == 16w5 { x16 }
+        else if rs2 == 17w5 { x17 }
+        else if rs2 == 18w5 { x18 }
+        else if rs2 == 19w5 { x19 }
+        else if rs2 == 20w5 { x20 }
+        else if rs2 == 21w5 { x21 }
+        else if rs2 == 22w5 { x22 }
+        else if rs2 == 23w5 { x23 }
+        else if rs2 == 24w5 { x24 }
+        else if rs2 == 25w5 { x25 }
+        else if rs2 == 26w5 { x26 }
+        else if rs2 == 27w5 { x27 }
+        else if rs2 == 28w5 { x28 }
+        else if rs2 == 29w5 { x29 }
+        else if rs2 == 30w5 { x30 }
+        else if rs2 == 31w5 { x31 }
+        else { 0w32 };
+}

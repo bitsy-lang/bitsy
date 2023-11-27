@@ -1,0 +1,24 @@
+mod alu {
+    incoming a of Word<32>;
+    incoming b of Word<32>;
+    incoming op of Word<4>;
+    outgoing r of Word<32>;
+
+    node AND of Word<4>; AND := 0w4;
+    node OR  of Word<4>;  OR := 1w4;
+    node ADD of Word<4>; ADD := 2w4;
+    node SUB of Word<4>; SUB := 6w4;
+
+    r := if op == AND {
+        a && b
+    } else if op == OR {
+        a || b
+    } else if op == ADD {
+        a + b
+    } else if op == SUB {
+        a - b
+    } else {
+        0w32
+    };
+
+}

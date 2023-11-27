@@ -1,0 +1,17 @@
+mod decoder {
+    incoming instr of Word<32>;
+
+    outgoing opcode of Word<7>;
+    outgoing rd  of Word<5>;
+    outgoing rs1 of Word<5>;
+    outgoing rs2 of Word<5>;
+    outgoing funct3  of Word<3>;
+    outgoing funct7  of Word<7>;
+
+    opcode := instr[7..0];
+    rd  := instr[12..7];
+    rs1 := instr[20..15];
+    rs2 := instr[25..20];
+    funct3 := instr[15..12];
+    funct7 := instr[32..27];
+}

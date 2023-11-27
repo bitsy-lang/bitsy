@@ -1,0 +1,28 @@
+mod ifetch {
+    incoming branch_offset of Word<32>;
+    incoming branch_enable of Word<1>;
+
+    outgoing instr_mem_addr of Word<32>;
+    incoming instr_mem_data of Word<8>;
+
+    outgoing instr_valid of Word<1>;
+    outgoing instr of Word<32>;
+
+    reg pc of Word<32> reset 0w32;
+    instr_mem_addr := pc + tick;
+
+    pc <= if branch_enable {
+        pc + branch_offset
+    } else {
+        pc + 4w32
+    };
+
+    reg tick of Word<2> reset 0w2;
+    tick <= tick + 1w2;
+
+    reg instr_reg of Word<32>;
+    instr := instr_reg;
+    instr_reg <= cat(instr_mem_data, instr[32..8]);
+
+    instr_valid := tick == 3w2;
+}
