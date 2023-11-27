@@ -276,7 +276,7 @@ impl Expr {
                         panic!("Index at {index} out of range (width {width})")
                     }
                 } else {
-                        panic!("Index with invalid value: {value:?}")
+                    panic!("Index with invalid value: {value:?}")
                 }
             },
             Expr::Hole(opt_name) => {
@@ -290,7 +290,13 @@ impl Expr {
 
     pub fn references_to_nets(self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
         match self {
-            Expr::Reference(path) => Expr::Net(net_id_by_path[&path]),
+            Expr::Reference(path) => {
+                if let Some(net_id) = net_id_by_path.get(&path) {
+                    Expr::Net(*net_id)
+                } else {
+                    panic!("No net for {path}")
+                }
+            },
             Expr::Net(_netid) => panic!("references_to_nets() only works on symbolic expressions."),
             Expr::Lit(_value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.references_to_nets(net_id_by_path))),

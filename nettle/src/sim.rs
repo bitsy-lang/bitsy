@@ -274,7 +274,11 @@ impl Sim {
     }
 
     fn net_id(&self, path: Path) -> NetId {
-        self.sim_circuit.net_id_by_path[&path]
+        if let Some(net_id) = self.sim_circuit.net_id_by_path.get(&path) {
+            *net_id
+        } else {
+            panic!("No net for {path}")
+        }
     }
 
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
