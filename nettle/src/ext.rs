@@ -90,7 +90,7 @@ impl ExtInstance for Ram {
             return vec![("read_data".to_string(), self.read())];
         }
         if port == "read_addr" {
-            if let Value::Word(_width, addr) = value {
+            if let Value::Word(16, addr) = value {
                 self.read_addr = addr as u16;
                 return vec![("read_data".to_string(), self.read())];
             } else {

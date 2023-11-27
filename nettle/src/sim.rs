@@ -8,12 +8,14 @@ pub type CombId = usize;
 pub type ExtId = usize;
 pub type RegId = usize;
 
+#[derive(Debug)]
 pub struct RegInfo {
     set_net_id: NetId,
     val_net_id: NetId,
     reset: Value,
 }
 
+#[derive(Debug)]
 pub struct Dependents {
     pub combs: Vec<CombId>,
     pub ext_ports: Vec<(ExtId, PortName)>,
@@ -241,10 +243,14 @@ impl Sim {
     }
 
     fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
-        let ext_id = self.sim_circuit.ext_id_by_path[&path.into()];
-        let ext = &mut self.exts[ext_id];
-        *ext = Some(ext_inst);
-        self
+        let path: Path = path.into();
+        if let Some(ext_id) = self.sim_circuit.ext_id_by_path.get(&path.clone()) {
+            let ext = &mut self.exts[*ext_id];
+            *ext = Some(ext_inst);
+            self
+        } else {
+            panic!("No such path for linkage: {path}")
+        }
     }
 
     pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
