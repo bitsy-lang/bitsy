@@ -2,6 +2,11 @@ use super::*;
 
 grammar;
 
+pub TopOrMod: Component = {
+    <t:Top> => t,
+    <m:Mod> => m,
+}
+
 pub Testbench: Testbench = {
     <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
 }

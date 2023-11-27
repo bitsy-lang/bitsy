@@ -49,7 +49,7 @@ impl Circuit {
     }
 
     pub fn modules(&self) -> Vec<Path> {
-        let path: Path = "top".into();
+        let path: Path = self.0.name().into();
         let mut results = vec![path.clone()];
         for child in self.children() {
             if let Component::Mod(name, _children, _wires) = child {
@@ -60,21 +60,26 @@ impl Circuit {
     }
 
     pub fn component(&self, path: Path) -> Option<&Component> {
-        if path == "top".into() {
+        let root: Path = self.0.name().into();
+        if path == root {
             return Some(&self.0);
         }
-        assert!(path.starts_with("top."));
-        // strip "top." from the front
-        let path: Path = path[4..].into();
+        let root_prefix = format!("{root}.");
+        if !path.starts_with(&root_prefix) {
+            dbg!(&root_prefix);
+            eprintln!("{path} does not start with {root_prefix})");
+        }
+        assert!(path.starts_with(&root_prefix));
+        let path: Path = path[root_prefix.len()..].into();
         self.0.component(path)
     }
 
     pub fn wires(&self) -> Vec<Wire> {
-        self.0.wires_rec("top".into())
+        self.0.wires_rec(self.0.name().into())
     }
 
     fn walk(&self) -> Vec<(Path, &Component)> {
-        self.0.walk_rec("top".into())
+        self.0.walk_rec(self.0.name().into())
     }
 
     pub fn exts(&self) -> Vec<Path> {
@@ -98,7 +103,7 @@ impl Circuit {
     }
 
     pub fn terminals(&self) -> Vec<Path> {
-        self.0.terminals_rec("top".into())
+        self.0.terminals_rec(self.0.name().into())
     }
 
     pub fn reset_for_reg(&self, path: Path) -> Option<Value> {

@@ -11,7 +11,7 @@ pub enum ModDecl {
 }
 
 pub fn parse_top(circuit: &str) -> Circuit {
-    let component: Component = grammar::TopParser::new().parse(circuit).unwrap();
+    let component: Component = grammar::TopOrModParser::new().parse(circuit).unwrap();
     Circuit::new(component)
 }
 

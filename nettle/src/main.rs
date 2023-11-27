@@ -30,7 +30,7 @@ use std::sync::Mutex;
 
 fn main() {
     let argv: Vec<String> = std::env::args().collect();
-    let default = "Top.nettle".to_string();
+    let default = "Top.ntl".to_string();
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap();
 
