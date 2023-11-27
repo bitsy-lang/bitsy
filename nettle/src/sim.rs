@@ -325,9 +325,13 @@ impl Sim {
 //            eprintln!("CPS: {:.2}", self.clocks_per_second());
 //        }
 
+        let mut updates = vec![];
         for reginfo in &self.sim_circuit.clone().regs {
             let value = self.peek_net(reginfo.set_net_id);
-            self.poke_net(reginfo.val_net_id, value);
+            updates.push((reginfo.val_net_id, value));
+        }
+        for (val_net_id, value) in updates {
+            self.poke_net(val_net_id, value);
         }
 
         for ext in &mut self.exts {
