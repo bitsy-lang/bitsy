@@ -161,6 +161,7 @@ pub struct Video {
     vsync: bool,
     frame_buffer: String,
     disabled: bool,
+    initialized: bool,
 }
 
 impl Video {
@@ -171,6 +172,7 @@ impl Video {
             vsync: false,
             frame_buffer: String::new(),
             disabled: false,
+            initialized: false,
         }
     }
 
@@ -224,11 +226,13 @@ impl ExtInstance for Video {
 
     fn reset(&mut self) -> Vec<(PortName, Value)>{
         if !self.disabled {
-            ctrlc::set_handler(move || {
-                // show the cursor
-                println!("\x1B[?25h");
-                std::process::exit(0);
-            }).unwrap();
+            if !self.initialized {
+                ctrlc::set_handler(move || {
+                    // show the cursor
+                    println!("\x1B[?25h");
+                    std::process::exit(0);
+                }).unwrap();
+            }
 
             // hide the cursor
             print!("\x1B[?25l");
@@ -236,6 +240,8 @@ impl ExtInstance for Video {
             // clear the screen
             print!("\x1B[2J");
         }
+
+        self.initialized = true;
 
         vec![]
     }

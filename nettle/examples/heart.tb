@@ -9,4 +9,4 @@ link top.cpu.ram = Ram {
 }
 
 reset
-debug
+run

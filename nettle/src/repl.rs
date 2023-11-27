@@ -115,7 +115,7 @@ impl Repl {
                     match parse_testbench_command(&self.readline()) {
                         Ok(command) => {
                             if let TestbenchCommand::Debug = command {
-                                () // you can't nest debug commands
+                                break;
                             } else if let TestbenchCommand::Show = command {
                                 self.show();
                             } else {
