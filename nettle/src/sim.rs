@@ -311,9 +311,9 @@ impl Sim {
             }
         }
 
-        if self.clock_ticks % 10000 == 0 {
-            eprintln!("CPS: {:.2}", self.clocks_per_second());
-        }
+//        if self.clock_ticks % 10000 == 0 {
+//            eprintln!("CPS: {:.2}", self.clocks_per_second());
+//        }
 
         for reginfo in &self.sim_circuit.clone().regs {
             let value = self.peek_net(reginfo.set_net_id);
