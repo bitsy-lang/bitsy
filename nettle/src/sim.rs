@@ -260,7 +260,6 @@ impl Sim {
         }
 
         for (ext_id, port_name) in dependents.ext_ports.iter() {
-            // TODO
             if let Some(ext) = &mut self.exts[*ext_id].as_mut() {
                 for (updated_port_name, updated_value) in ext.update(port_name, value) {
                     let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_id, updated_port_name)];
@@ -268,16 +267,6 @@ impl Sim {
                 }
             }
         }
-
-        /*
-        // TODO
-        let ext_dependencies = self.ext_dependencies[net_id].clone();
-            let mut ext: Box<dyn ExtInstance> = self.exts[ext_id].unwrap();
-            for (update_portname, update_value) in ext.update(port_name, value) {
-                todo!()
-            }
-        }
-        */
     }
 
     pub(crate) fn peek_net(&self, net_id: NetId) -> Value {
@@ -297,42 +286,6 @@ impl Sim {
         let net_id = self.net_id(path.into());
         self.poke_net(net_id, value);
     }
-
-    /*
-    fn broadcast_update(&mut self, terminal: Path) {
-        let combs = self.combs.clone();
-        let terminal_net_id = self.net_id_by_path[&terminal];
-        for Comb(target, expr) in combs.iter() {
-            if expr.depends_on_net(terminal_net_id) {
-                let value = expr.eval(&self);
-                let net: &Net = &self.nets[*target];
-                self.poke(net.driver(), value);
-            }
-        }
-
-        let ext_path = terminal.parent();
-        dbg!(&ext_path);
-        if self.exts.contains_key(&ext_path) {
-            let value = self.peek(terminal.clone());
-            let ext = self.exts.get_mut(&ext_path).unwrap();
-            let port_name: PortName = terminal[ext_path.len() + 1..].into();
-            if ext.incoming_ports().contains(&port_name) {
-                let updates = ext.update(port_name.to_string(), value);
-                let poke_values: Vec<(Path, Value)> = updates
-                    .into_iter()
-                    .map(|(port_name, value)| {
-                        let affected_path: Path = format!("{ext_path}.{port_name}").into();
-                        (affected_path, value)
-                    })
-                    .collect();
-
-                for (path, value) in poke_values {
-                    self.poke(path, value);
-                }
-            }
-        }
-    }
-    */
 
     pub fn set<P: Into<Path>>(&mut self, _path: P, _value: Value) {
         todo!()
