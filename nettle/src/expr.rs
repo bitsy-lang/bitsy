@@ -152,7 +152,7 @@ impl Expr {
             Expr::UnOp(_op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
-            Expr::Cat(es) => es.iter().all(|e| e.depends_on_net(net_id)),
+            Expr::Cat(es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Idx(e, _i) => e.depends_on_net(net_id),
             Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
             Expr::IdxDyn(e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
