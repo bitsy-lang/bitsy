@@ -5,8 +5,8 @@ link top.videoram = Ram {
     file = "data/heart.bin"
 }
 link top.cpu.ram = Ram {
-    file = "program.bin"
+//    file = "program.bin"
 }
 
 reset
-run
+debug

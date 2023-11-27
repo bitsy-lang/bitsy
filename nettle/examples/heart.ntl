@@ -1,4 +1,4 @@
-top {
+mod top {
     ext video {
         incoming signal of Word<2>;
         incoming hsync of Word<1>;

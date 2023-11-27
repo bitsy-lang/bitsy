@@ -48,6 +48,10 @@ impl Circuit {
         Circuit(Arc::new(component))
     }
 
+    pub fn root(&self) -> Path {
+        self.0.name().into()
+    }
+
     pub fn modules(&self) -> Vec<Path> {
         let path: Path = self.0.name().into();
         let mut results = vec![path.clone()];
