@@ -129,7 +129,13 @@ pub ExprAdd: Box<Expr> = {
 }
 
 pub ExprCall: Box<Expr> = {
-    "cat" "(" <e1:Expr> "," <e2:Expr> ")" => Box::new(Expr::Cat(vec![*e1, *e2])),
+    "cat" "(" <e1:Expr> <ess:("," Expr)+> ")" => {
+        let mut es = vec![*e1];
+        for (_, e) in ess {
+            es.push(*e);
+        }
+        Box::new(Expr::Cat(es))
+    },
     <e:ExprBase> "[" <i:Expr> "]" => Box::new(Expr::IdxDyn(e, i)),
     <e:ExprBase> "[" <i:Nat> "]" => Box::new(Expr::Idx(e, i)),
     <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" => Box::new(Expr::IdxRange(e, j, i)),
