@@ -160,6 +160,7 @@ pub struct Video {
     hsync: bool,
     vsync: bool,
     frame_buffer: String,
+    disabled: bool,
 }
 
 impl Video {
@@ -169,7 +170,12 @@ impl Video {
             hsync: false,
             vsync: false,
             frame_buffer: String::new(),
+            disabled: false,
         }
+    }
+
+    pub fn disable(&mut self) {
+        self.disabled = true;
     }
 }
 
@@ -191,42 +197,45 @@ impl ExtInstance for Video {
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-        use std::fmt::Write;
-        let c: char = " ░▒▓".chars().collect::<Vec<char>>()[self.signal as usize];
+        if !self.disabled {
+            use std::fmt::Write;
+            let c: char = " ░▒▓".chars().collect::<Vec<char>>()[self.signal as usize];
 
-        write!(self.frame_buffer, "{c}{c}").unwrap();
-        if self.hsync {
-            writeln!(self.frame_buffer).unwrap();
+            write!(self.frame_buffer, "{c}{c}").unwrap();
+            if self.hsync {
+                writeln!(self.frame_buffer).unwrap();
+            }
+
+            if self.vsync {
+                std::thread::sleep(std::time::Duration::from_millis(30));
+
+                // clear screen
+                print!("\x1B[2J");
+
+                // move cursor to the upper left corner
+                print!("\x1B[H");
+
+                println!("{}", self.frame_buffer);
+                self.frame_buffer.clear();
+            }
         }
-
-        if self.vsync {
-            std::thread::sleep(std::time::Duration::from_millis(30));
-
-            // clear screen
-            print!("\x1B[2J");
-
-            // move cursor to the upper left corner
-            print!("\x1B[H");
-
-            println!("{}", self.frame_buffer);
-            self.frame_buffer.clear();
-        }
-
         vec![]
     }
 
     fn reset(&mut self) -> Vec<(PortName, Value)>{
-        ctrlc::set_handler(move || {
-            // show the cursor
-            println!("\x1B[?25h");
-            std::process::exit(0);
-        }).unwrap();
+        if !self.disabled {
+            ctrlc::set_handler(move || {
+                // show the cursor
+                println!("\x1B[?25h");
+                std::process::exit(0);
+            }).unwrap();
 
-        // hide the cursor
-        print!("\x1B[?25l");
+            // hide the cursor
+            print!("\x1B[?25l");
 
-        // clear the screen
-        print!("\x1B[2J");
+            // clear the screen
+            print!("\x1B[2J");
+        }
 
         vec![]
     }

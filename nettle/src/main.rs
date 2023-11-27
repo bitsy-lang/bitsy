@@ -50,6 +50,7 @@ fn main() {
 
 
         for TestbenchLink(path, extname, params) in tb.0 {
+            let params_map: BTreeMap<String, String> = params.into_iter().collect::<BTreeMap<_, _>>();
             let ext: Box<dyn ExtInstance> = match extname.as_str() {
                 "Monitor" => {
                     let e = Box::new(Monitor::new());
@@ -57,14 +58,16 @@ fn main() {
                 },
                 "Ram" => {
                     let mut e = Box::new(Ram::new());
-                    let params_map: BTreeMap<String, String> = params.into_iter().collect::<BTreeMap<_, _>>();
                     if let Some(data_filename) = params_map.get(&"file".to_string()) {
                         e.load_from_file(data_filename).expect(&format!("Couldn't load {data_filename}"));
                     }
                     e
                 },
                 "Video" => {
-                    let e = Box::new(Video::new());
+                    let mut e = Box::new(Video::new());
+                    if params_map.get(&"disabled".to_string()) == Some(&"true".to_string()) {
+                        e.disable()
+                    }
                     e
                 },
                 _ => panic!("Unknown ext module being linked: {extname}")
