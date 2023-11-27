@@ -3,18 +3,20 @@ use super::*;
 pub struct Repl {
     current_path: Path,
     sim: Sim,
+    circuit: Circuit,
     testbench: Testbench,
     readline: rustyline::DefaultEditor,
 }
 
 impl Repl {
-    pub fn new(sim: Sim, testbench: Testbench) -> Repl {
+    pub fn new(sim: Sim, circuit: Circuit, testbench: Testbench) -> Repl {
         let current_path = sim.root();
         let readline = rustyline::DefaultEditor::new().unwrap();
 
         Repl {
             current_path,
             sim,
+            circuit,
             testbench,
             readline,
         }
@@ -45,6 +47,26 @@ impl Repl {
     fn exec_tb_command(&mut self, command: TestbenchCommand) {
         let verbose = true;
         match command {
+            TestbenchCommand::Cd(path) => {
+                if let Some(path) = path {
+                    if path == "..".into() { // HACK
+                        self.current_path = self.current_path.parent();
+                    } else {
+                        let new_path = self.current_path.join(path);
+                        if let Some(component) = self.circuit.component(new_path.clone()) {
+                            if component.is_mod() {
+                                self.current_path = new_path;
+                            } else {
+                                eprintln!("{new_path} is not a mod");
+                            }
+                        } else {
+                            eprintln!("No such path: {new_path}");
+                        }
+                    }
+                } else {
+                    self.current_path = self.sim.root();
+                }
+            },
             TestbenchCommand::Peek(terminal) => {
                 print!("PEEK {terminal} ");
                 let value = self.sim.peek(terminal);
@@ -85,20 +107,19 @@ impl Repl {
                 }
             },
             TestbenchCommand::Show => {
-                println!("{:#?}", self.sim);
+                self.show();
             },
             TestbenchCommand::Debug => {
-                println!("{:#?}", self.sim);
+                self.show();
                 loop {
                     match parse_testbench_command(&self.readline()) {
                         Ok(command) => {
                             if let TestbenchCommand::Debug = command {
                                 () // you can't nest debug commands
                             } else if let TestbenchCommand::Show = command {
-                                println!("{:#?}", self.sim);
+                                self.show();
                             } else {
                                 self.exec_tb_command(command);
-                                println!("{:#?}", self.sim);
                             }
                         },
                         Err(err) => eprintln!("{err:?}"),
@@ -107,7 +128,7 @@ impl Repl {
             },
             TestbenchCommand::Eval(e) => {
                 print!("EVAL {e:?}");
-                let result = e.eval(&self.sim);
+                let result = e.rebase(self.current_path.clone()).eval(&self.sim);
                 println!("=> {result:?}");
             },
             TestbenchCommand::Assert(e) => {
@@ -122,6 +143,23 @@ impl Repl {
                     panic!("");
                 }
             },
+        }
+    }
+
+    fn show(&self) {
+        for (net_id, value) in self.sim.net_values() {
+            let net = &self.sim.net(net_id);
+            let terminals = net.terminals()
+                .iter()
+                .map(|t| t.to_string())
+                .filter(|p| p.starts_with(&self.current_path.to_string()))
+                .map(|p| p[self.current_path.to_string().len() + 1..].to_string())
+                .collect::<Vec<String>>();
+
+            if !terminals.is_empty() {
+                print!("{:>4}    {:>5}   ", format!("#{net_id}"), format!("{value:?}"));
+                println!("{}", terminals.join(" "));
+            }
         }
     }
 }

@@ -52,8 +52,8 @@ fn main() -> anyhow::Result<()> {
         Testbench(vec![], vec![command])
     };
 
-    let sim: Sim = make_sim(top, &testbench);
-    let mut repl = Repl::new(sim, testbench);
+    let sim: Sim = make_sim(top.clone(), &testbench);
+    let mut repl = Repl::new(sim, top, testbench);
     repl.run();
     Ok(())
 }

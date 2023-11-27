@@ -8,6 +8,7 @@ pub(crate) struct TestbenchLink(pub(crate) Path, pub(crate) String, pub(crate) V
 
 #[derive(Debug, Clone)]
 pub(crate) enum TestbenchCommand {
+    Cd(Option<Path>),
     Peek(Path),
     Poke(Path, Value),
     Set(Path, Value),

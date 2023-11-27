@@ -244,6 +244,14 @@ impl Sim {
         sim
     }
 
+    pub fn net_values(&self) -> BTreeMap<NetId, Value> {
+        self.net_values.iter().cloned().enumerate().collect()
+    }
+
+    pub fn net(&self, net_id: NetId) -> &Net {
+        &self.sim_circuit.nets[net_id]
+    }
+
     pub fn root(&self) -> Path {
         self.sim_circuit.root()
     }

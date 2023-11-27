@@ -310,14 +310,6 @@ impl Component {
         errors
     }
 
-    pub fn is_port(&self) -> bool {
-        match self {
-            Component::Incoming(_name, _typ) => true,
-            Component::Outgoing(_name, _typ) => true,
-            _ => false,
-        }
-    }
-
     pub fn children(&self) -> Vec<&Component> {
         match self {
             Component::Top(children, _wires) => children.iter().collect(),
@@ -413,6 +405,22 @@ impl Component {
             }
         }
         results
+    }
+
+    pub fn is_mod(&self) -> bool {
+        match self {
+            Component::Top(_children, _wires) => true,
+            Component::Mod(_name, _children, _wires) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_port(&self) -> bool {
+        match self {
+            Component::Incoming(_name, _typ) => true,
+            Component::Outgoing(_name, _typ) => true,
+            _ => false
+        }
     }
 }
 
