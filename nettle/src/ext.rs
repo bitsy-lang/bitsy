@@ -70,7 +70,7 @@ impl Ram {
     }
 
     fn read(&self) -> Value {
-        Value::Word(16,self.mem[self.read_addr as usize] as u64)
+        Value::Word(8, self.mem[self.read_addr as usize] as u64)
     }
 }
 
