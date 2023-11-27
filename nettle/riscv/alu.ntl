@@ -20,5 +20,4 @@ mod alu {
     } else {
         0w32
     };
-
 }
