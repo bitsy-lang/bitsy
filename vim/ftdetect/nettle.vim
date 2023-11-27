@@ -1,1 +1,1 @@
-au BufRead,BufNewFile *.nettle set filetype=nettle
+au BufRead,BufNewFile *.ntl set filetype=nettle
