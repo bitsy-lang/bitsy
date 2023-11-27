@@ -50,7 +50,7 @@ fn main() {
 
 
         for TestbenchLink(path, extname, params) in tb.0 {
-            let params_map: BTreeMap<String, String> = params.into_iter().collect::<BTreeMap<_, _>>();
+            let mut params_map: BTreeMap<String, String> = params.into_iter().collect::<BTreeMap<_, _>>();
             let ext: Box<dyn ExtInstance> = match extname.as_str() {
                 "Monitor" => {
                     let e = Box::new(Monitor::new());
@@ -58,21 +58,21 @@ fn main() {
                 },
                 "Ram" => {
                     let mut e = Box::new(Ram::new());
-                    if let Some(data_filename) = params_map.get(&"file".to_string()) {
-                        e.load_from_file(data_filename).expect(&format!("Couldn't load {data_filename}"));
+                    if let Some(data_filename) = params_map.remove("file") {
+                        e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                     }
                     e
                 },
                 "Video" => {
                     let mut e = Box::new(Video::new());
-                    if params_map.get(&"disabled".to_string()) == Some(&"true".to_string()) {
+                    if params_map.remove("disabled") == Some("true".to_string()) {
                         e.disable()
                     }
                     e
                 },
                 _ => panic!("Unknown ext module being linked: {extname}")
             };
-
+            assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");
             exts.insert(path, ext);
         }
             let mut nettle = Sim::new_with_exts(&top, exts);
