@@ -77,18 +77,18 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {
             "Monitor" => {
-                let e = Box::new(Monitor::new());
+                let e = Box::new(ext::monitor::Monitor::new());
                 e
             },
             "Ram" => {
-                let mut e = Box::new(Ram::new());
+                let mut e = Box::new(ext::ram::Ram::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Video" => {
-                let mut e = Box::new(Video::new());
+                let mut e = Box::new(ext::video::Video::new());
                 if params_map.remove("disabled") == Some("true".to_string()) {
                     e.disable()
                 }
