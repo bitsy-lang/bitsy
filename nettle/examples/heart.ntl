@@ -1,0 +1,153 @@
+top {
+    ext video {
+        incoming signal of Word<2>;
+        incoming hsync of Word<1>;
+        incoming vsync of Word<1>;
+    }
+
+    mod positioner {
+        outgoing vsync of Word<1>;
+        outgoing hsync of Word<1>;
+        outgoing x of Word<4>;
+        outgoing y of Word<4>;
+
+        reg tick of Word<32> reset 0w32;
+        tick <= tick + 1w32;
+
+        vsync := tick[8..0] == 0w8;
+        hsync := tick[4..0] == 0w4;
+
+        x := tick[4..0];
+        y := tick[8..4];
+    }
+
+    mod pixeler {
+        incoming x of Word<8>;
+        incoming y of Word<8>;
+        incoming frame_start of Word<1>;
+        incoming frame_count of Word<32>;
+        outgoing signal of Word<4>;
+        outgoing read_addr of Word<16>;
+        incoming read_data of Word<8>;
+
+        node normal_signal of Word<2>;
+
+        normal_signal := if read_data[0] {
+            if frame_count[2..0] != 0w2 {
+                frame_count[2..0]
+            } else {
+                1w2
+            }
+        } else {
+            0w2
+        };
+
+        signal := if frame_count[3] {
+            3w4 - normal_signal
+        } else {
+            normal_signal
+        };
+
+        mod lfsr {
+            outgoing out of Word<8>;
+
+            node taps of Word<8>;
+            taps := 29w8;
+
+            reg r of Word<8> reset 255w8;
+            r <= cat(r[7..0], 0w1) ^ (if feedback { taps }  else { 0w8 });
+            out := r;
+
+            node feedback of Word<1>;
+            feedback := r[7];
+        }
+
+        mod pos_to_addr {
+            incoming x of Word<4>;
+            incoming y of Word<4>;
+            outgoing addr of Word<8>;
+
+            addr := cat(y, x);
+        }
+
+        read_addr := cat(0w8, pos_to_addr.addr);
+        pos_to_addr.x := x;
+        pos_to_addr.y := y - heart_y;
+
+        reg heart_x of Word<5> reset 0w5;
+        reg heart_y of Word<5> reset 0w5;
+        heart_x <= if frame_start {
+            if lfsr.out[0] {
+                heart_x + 2w4
+            } else {
+                heart_x - 1w4
+            }
+        } else {
+            heart_x
+        };
+        heart_y <= if frame_start {
+            if lfsr.out[1] {
+                heart_y + 1w4
+            } else {
+                heart_y - 1w4
+            }
+        } else {
+            heart_y
+        };
+    }
+
+    ext videoram {
+        incoming read_addr of Word<16>;
+        outgoing read_data of Word<8>;
+
+        incoming write_enable of Word<1>;
+        incoming write_addr of Word<16>;
+        incoming write_data of Word<8>;
+    }
+
+    videoram.write_addr := cpu.write_addr;
+    videoram.write_data := cpu.write_data;
+    videoram.write_enable := cpu.write_enable;
+
+    videoram.read_addr := pixeler.read_addr;
+    pixeler.read_data := videoram.read_data;
+
+    pixeler.x := positioner.x;
+    pixeler.y := positioner.y;
+    pixeler.frame_start := frame_start;
+    pixeler.frame_count := frame_count;
+
+    video.hsync := positioner.hsync;
+    video.vsync := positioner.vsync;
+
+    reg frame_count of Word<32> reset 0w32;
+    frame_count <= if positioner.vsync {
+        frame_count + 1w32
+    } else {
+        frame_count
+    };
+
+    node frame_start of Word<1>;
+    frame_start := positioner.vsync;
+
+    video.signal := pixeler.signal;
+
+    mod cpu {
+        outgoing write_addr of Word<16>;
+        outgoing write_data of Word<8>;
+        outgoing write_enable of Word<1>;
+
+        ext ram {
+            incoming read_addr of Word<16>;
+            outgoing read_data of Word<8>;
+
+            incoming write_enable of Word<1>;
+            incoming write_addr of Word<16>;
+            incoming write_data of Word<8>;
+        }
+
+        write_addr := 0w16;
+        write_data := 0w8;
+        write_enable := 0w1;
+    }
+}
