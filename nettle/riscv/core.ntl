@@ -261,25 +261,16 @@ mod core {
         node top of Word<1>;
         top := instr[31];
 
-        node sext20 of Word<20>;
-        sext20 := if top { !0w20 } else { 0w20 };
-
-        node sext19 of Word<19>;
-        sext19 := if top { !0w19 } else { 0w19 };
-
-        node sext12 of Word<12>;
-        sext12 := if top { !0w12 } else { 0w12 };
-
         imm := if typ == I_TYPE {
-            cat(sext20, instr[32..20])
+            sext(cat(instr[31], instr[32..20]), 32)
         } else if typ == S_TYPE {
-            cat(sext20, instr[32..25], instr[12..7])
+            sext(cat(instr[31], instr[32..25], instr[12..7]), 32)
         } else if typ == B_TYPE {
-            cat(sext19, instr[7], instr[31..25], instr[12..8], 0w1)
+            sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1), 32)
         } else if typ == U_TYPE {
-            cat(instr[32..12], 0w12)
+            sext(cat(instr[32..12], 0w12), 32)
         } else if typ == J_TYPE {
-            cat(sext12, instr[20..12], instr[20], instr[31..21], 0w1)
+            sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1), 32)
         } else {
             0w32
         };

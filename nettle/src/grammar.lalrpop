@@ -128,6 +128,7 @@ pub ExprCall: Box<Expr> = {
         }
         Box::new(Expr::Cat(es))
     },
+    "sext" "(" <e:Expr> "," <n:Nat> ")" =>  Box::new(Expr::Sext(e, n)),
     <e:ExprBase> "[" <i:Expr> "]" => Box::new(Expr::IdxDyn(e, i)),
     <e:ExprBase> "[" <i:Nat> "]" => Box::new(Expr::Idx(e, i)),
     <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" => Box::new(Expr::IdxRange(e, j, i)),

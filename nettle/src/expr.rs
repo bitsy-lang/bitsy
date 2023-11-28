@@ -9,6 +9,7 @@ pub enum Expr {
     BinOp(BinOp, Box<Expr>, Box<Expr>),
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Cat(Vec<Expr>),
+    Sext(Box<Expr>, u64),
     Idx(Box<Expr>, u64),
     IdxRange(Box<Expr>, u64, u64),
     IdxDyn(Box<Expr>, Box<Expr>),
@@ -44,6 +45,7 @@ impl std::fmt::Debug for Expr {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
             },
             Expr::Cat(es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
+            Expr::Sext(e, n) => write!(f, "sext({e:?}, {n})"),
             Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
             Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
             Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
@@ -111,6 +113,7 @@ impl Expr {
                 result.dedup();
                 result
             },
+            Expr::Sext(e, _n) => e.paths(),
             Expr::Idx(e, _i) => e.paths(),
             Expr::IdxRange(e, _j, _i) => e.paths(),
             Expr::IdxDyn(e, i) => {
@@ -133,6 +136,7 @@ impl Expr {
             Expr::BinOp(_op, e1, e2) => e1.is_constant() && e2.is_constant(),
             Expr::If(cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
             Expr::Cat(es) => es.iter().all(|e| e.is_constant()),
+            Expr::Sext(e, _n) => e.is_constant(),
             Expr::Idx(e, _i) => e.is_constant(),
             Expr::IdxRange(e, _j, _i) => e.is_constant(),
             Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
@@ -153,6 +157,7 @@ impl Expr {
             Expr::BinOp(_op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Sext(e, _n) => e.depends_on_net(net_id),
             Expr::Idx(e, _i) => e.depends_on_net(net_id),
             Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
             Expr::IdxDyn(e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
@@ -169,6 +174,7 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.rebase(current_path.clone())), Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.rebase(current_path.clone())).collect()),
+            Expr::Sext(e, _n) => e.rebase(current_path.clone()),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.rebase(current_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.rebase(current_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.rebase(current_path.clone())), Box::new(i.rebase(current_path))),
@@ -228,6 +234,27 @@ impl Expr {
                 }
                 Value::Word(cat_width, cat_val)
             },
+            Expr::Sext(e, n) => {
+                match e.eval(nettle) {
+                    Value::X => Value::X,
+                    Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
+                    Value::Word(w, x) => {
+                        if w <= *n {
+                            let is_negative = x & (1 << (w - 1)) > 0;
+                            if is_negative {
+                                let flips = ((1 << (n - w)) - 1) << w;
+                                eprintln!("{flips:016b}");
+                                eprintln!("{:016b}", flips | x);
+                                Value::Word(*n, flips | x)
+                            } else {
+                                Value::Word(*n, x)
+                            }
+                        } else {
+                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
+                        }
+                    },
+                }
+            }
             Expr::Idx(e, i) => {
                 let value = e.eval(nettle);
                 if let Value::X = value {
@@ -303,6 +330,7 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.references_to_nets(net_id_by_path)), Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.references_to_nets(net_id_by_path)).collect()),
+            Expr::Sext(e, _n) => e.references_to_nets(net_id_by_path),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.references_to_nets(net_id_by_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.references_to_nets(net_id_by_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.references_to_nets(net_id_by_path)), Box::new(i.references_to_nets(net_id_by_path))),

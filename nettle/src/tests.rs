@@ -203,6 +203,8 @@ fn test_eval() {
         ("(top.b - top.a)", Value::Word(32, 1)),
         ("(1w1 + 1w1)", Value::Word(1, 0)),
         ("cat(1w1, 1w1)", Value::Word(2, 0b11)),
+        ("sext(1w1, 4)", Value::Word(4, 0b1111)),
+        ("sext(1w2, 4)", Value::Word(4, 0b0001)),
         ("3w4[3..1]", Value::Word(2, 0b01)),
         ("3w4[4..0]", Value::Word(4, 0b0011)),
         ("7w4[4..0]", Value::Word(4, 0b0111)),
