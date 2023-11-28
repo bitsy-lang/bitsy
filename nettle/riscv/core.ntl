@@ -274,9 +274,6 @@ mod core {
             0w3
         };
 
-        node top of Word<1>;
-        top := instr[31];
-
         imm := if typ == I_TYPE {
             sext(cat(instr[31], instr[32..20]), 32)
         } else if typ == S_TYPE {
@@ -336,8 +333,8 @@ mod core {
         instr_valid := !is_first_cycle;
     }
 
-    ifetch.branch_offset := 0w32;
-    ifetch.branch_enable := 0w1;
+    ifetch.branch_offset := immgen.imm;
+    ifetch.branch_enable := control.branch;
 
     instr_mem.read_addr := ifetch.instr_mem_addr;
     ifetch.instr_mem_data := instr_mem.read_data;
