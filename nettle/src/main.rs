@@ -71,6 +71,7 @@ fn testbench_for(filename: &str) -> Option<String> {
         None
     }
 }
+
 fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     for TestbenchLink(path, extname, params) in &testbench.0 {
@@ -100,4 +101,5 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
         exts.insert(path.clone(), ext);
     }
     Sim::new_with_exts(&top, exts)
+       // .cap_clock_freq(100_000.0)
 }

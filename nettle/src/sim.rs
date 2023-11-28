@@ -340,9 +340,9 @@ impl Sim {
             }
         }
 
-//        if self.clock_ticks % 10000 == 0 {
-//            eprintln!("CPS: {:.2}", self.clocks_per_second());
-//        }
+        if self.clock_ticks % 10000 == 0 {
+            eprintln!("CPS: {:.2}", self.clocks_per_second());
+        }
 
         let mut updates = vec![];
         for reginfo in &self.sim_circuit.clone().regs {
