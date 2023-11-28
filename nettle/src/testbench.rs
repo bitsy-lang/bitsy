@@ -9,6 +9,7 @@ pub(crate) struct TestbenchLink(pub(crate) Path, pub(crate) String, pub(crate) V
 #[derive(Debug, Clone)]
 pub(crate) enum TestbenchCommand {
     Cd(Option<Path>),
+    Watch(Watch),
     Peek(Path),
     Poke(Path, Value),
     Set(Path, Value),
@@ -19,4 +20,18 @@ pub(crate) enum TestbenchCommand {
     Debug,
     Eval(Expr),
     Assert(Expr),
+}
+
+#[derive(Debug, Clone)]
+pub struct Watch {
+    pub path: Path,
+    pub format: WatchFormat,
+}
+
+#[derive(Debug, Clone)]
+pub enum WatchFormat {
+    Normal,
+    Hex,
+    Bin,
+    Bool,
 }

@@ -196,9 +196,9 @@ mod core {
         node ALUOP_SUB of Word<4>; ALUOP_SUB := 6w4;
     }
 
-    instr_mem.write_enable := 0w1;
+    instr_mem.write_enable := control.mem_write;
     instr_mem.write_addr := 0w16;
-    instr_mem.write_data := 0w8;
+    instr_mem.write_data := rf.rs2_val[8..0];
 
     mod alu {
         incoming a of Word<32>;
@@ -296,11 +296,11 @@ mod core {
         outgoing funct7  of Word<7>;
 
         opcode := instr[7..0];
-        rd  := instr[12..7];
-        rs1 := instr[20..15];
-        rs2 := instr[25..20];
+        rd     := instr[12..7];
         funct3 := instr[15..12];
-        funct7 := instr[32..27];
+        rs1    := instr[20..15];
+        rs2    := instr[25..20];
+        funct7 := instr[32..25];
     }
 
     mod ifetch {
@@ -333,7 +333,9 @@ mod core {
         instr := instr_reg;
         instr_reg <= cat(instr_mem_data, instr_reg[32..8]);
 
-        instr_valid := tick == 0w2;
+        reg is_first_cycle of Word<1> reset 1w1;
+        is_first_cycle <= 0w1;
+        instr_valid := tick == 0w2 && !is_first_cycle;
     }
 
     ifetch.branch_offset := 0w32;
@@ -345,8 +347,8 @@ mod core {
     rf.rs1 := decoder.rs1;
     rf.rs2 := decoder.rs2;
     rf.rd := decoder.rd;
-    rf.write_enable := 0w1; // TODO
-    rf.write_data := control.reg_write;
+    rf.write_enable := control.reg_write;
+    rf.write_data := alu.r;
 
     decoder.instr := ifetch.instr;
     immgen.instr := ifetch.instr;

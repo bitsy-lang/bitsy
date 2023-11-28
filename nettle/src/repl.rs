@@ -6,6 +6,7 @@ pub struct Repl {
     circuit: Circuit,
     testbench: Testbench,
     readline: rustyline::DefaultEditor,
+    watches: Vec<Watch>,
 }
 
 impl Repl {
@@ -19,6 +20,7 @@ impl Repl {
             circuit,
             testbench,
             readline,
+            watches: vec![],
         }
     }
 
@@ -47,6 +49,7 @@ impl Repl {
     fn exec_tb_command(&mut self, command: TestbenchCommand) {
         let verbose = true;
         match command {
+            TestbenchCommand::Watch(watch) => self.watches.push(watch),
             TestbenchCommand::Cd(path) => {
                 if let Some(path) = path {
                     if path == "..".into() { // HACK
@@ -91,12 +94,14 @@ impl Repl {
                     println!("CLOCK");
                 }
                 self.sim.clock();
+                self.show_watches();
             },
             TestbenchCommand::Reset => {
                 if verbose {
                     println!("RESET");
                 }
                 self.sim.reset();
+                self.show_watches();
             },
             TestbenchCommand::Run => {
                 if verbose {
@@ -104,13 +109,13 @@ impl Repl {
                 }
                 loop {
                     self.sim.clock();
+                    self.show_watches();
                 }
             },
             TestbenchCommand::Show => {
                 self.show();
             },
             TestbenchCommand::Debug => {
-                self.show();
                 loop {
                     match parse_testbench_command(&self.readline()) {
                         Ok(command) => {
@@ -159,6 +164,18 @@ impl Repl {
             if !terminals.is_empty() {
                 print!("{:>4}    {:>5}   ", format!("#{net_id}"), format!("{value:?}"));
                 println!("{}", terminals.join(" "));
+            }
+        }
+    }
+
+    fn show_watches(&self) {
+        for Watch { path, format } in &self.watches {
+            let value = self.sim.peek(&**path);
+            match format {
+                WatchFormat::Normal =>  println!("    {:>10}   {path}", format!("{value:?}")),
+                WatchFormat::Hex =>     println!("    {:>10}   {path}", format!("{value:x}")),
+                WatchFormat::Bin =>     println!("    {:>10}   {path}", format!("{value:b}")),
+                WatchFormat::Bool =>    println!("    {:>10}   {path}", value.to_bool().unwrap()),
             }
         }
     }

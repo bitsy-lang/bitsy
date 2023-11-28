@@ -1,7 +1,19 @@
 link core.instr_mem = Ram {
     file = "riscv/prog.bin"
 }
+
+watch core.control.reg_write
+watch core.control.mem_write
+watch core.ifetch.instr_valid bool
+watch core.ifetch.instr hex
+watch core.rf.x1
+watch core.decoder.rd
+watch core.alu.a
+watch core.alu.b
+watch core.alu.r
+
 reset
+debug
 assert core.ifetch.instr_mem_data == 147w8
 clock
 assert core.ifetch.instr_reg[32..24] == 147w8
@@ -13,10 +25,11 @@ assert core.ifetch.instr_mem_data == 2w8
 clock
 peek core.ifetch.instr
 assert core.ifetch.instr == 44040339w32
-debug
 
 clock
 clock
 clock
 clock
 assert core.ifetch.instr == 101720611w32
+
+debug

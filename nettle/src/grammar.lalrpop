@@ -22,10 +22,22 @@ pub TestbenchCommand: TestbenchCommand = {
     "clock" => TestbenchCommand::Clock,
     "reset" => TestbenchCommand::Reset,
     "show" => TestbenchCommand::Show,
+    "watch" <path:Path> <watch:WatchFormat?> => {
+        TestbenchCommand::Watch(Watch {
+            path: path.clone(),
+            format: watch.unwrap_or(WatchFormat::Normal),
+        })
+    },
     "debug" => TestbenchCommand::Debug,
     "run" => TestbenchCommand::Run,
     "eval" <e:Expr> => TestbenchCommand::Eval(*e),
     "assert" <e:Expr> => TestbenchCommand::Assert(*e),
+}
+
+pub WatchFormat: WatchFormat = {
+    "hex" => WatchFormat::Hex,
+    "bin" => WatchFormat::Bin,
+    "bool" => WatchFormat::Bool,
 }
 
 pub Mod: Component = {

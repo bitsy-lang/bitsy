@@ -33,6 +33,16 @@ impl Ram {
     fn read(&self) -> Value {
         Value::Word(8, self.mem[self.read_addr as usize] as u64)
     }
+
+    fn render(&self) -> String {
+        //dbg!(self);
+        let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
+            &self.mem[..index+1]
+        } else {
+            &self.mem
+        };
+        format!("RAM: {:?}", String::from_utf8_lossy(mem))
+    }
 }
 
 impl ExtInstance for Ram {
@@ -93,7 +103,8 @@ impl ExtInstance for Ram {
     fn clock(&mut self) -> Vec<(PortName, Value)> {
 //        println!("Ram was clocked: {}", self.render());
         if self.write_enable {
-            self.mem[self.write_addr as usize] =  self.write_data;
+            println!("Writing to RAM: 0x{:04x} <= {:02x}", self.write_addr, self.write_data);
+            self.mem[self.write_addr as usize] = self.write_data;
             let read_data = Value::Word(8, self.mem[self.read_addr as usize].into());
             //println!("Ram wrote {read_data:?} at address 0x{:x}", self.write_addr);
             vec![("read_data".to_string(), read_data)]
@@ -102,18 +113,3 @@ impl ExtInstance for Ram {
         }
     }
 }
-
-impl Ram {
-    fn render(&self) -> String {
-        //dbg!(self);
-        let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
-            &self.mem[..index+1]
-        } else {
-            &self.mem
-        };
-        format!("RAM: {:?}", String::from_utf8_lossy(mem))
-    }
-}
-
-
-
