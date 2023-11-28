@@ -174,7 +174,7 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.rebase(current_path.clone())), Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.rebase(current_path.clone())).collect()),
-            Expr::Sext(e, _n) => e.rebase(current_path.clone()),
+            Expr::Sext(e, n) => Expr::Sext(Box::new(e.rebase(current_path.clone())), n),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.rebase(current_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.rebase(current_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.rebase(current_path.clone())), Box::new(i.rebase(current_path))),
@@ -243,8 +243,6 @@ impl Expr {
                             let is_negative = x & (1 << (w - 1)) > 0;
                             if is_negative {
                                 let flips = ((1 << (n - w)) - 1) << w;
-                                eprintln!("{flips:016b}");
-                                eprintln!("{:016b}", flips | x);
                                 Value::Word(*n, flips | x)
                             } else {
                                 Value::Word(*n, x)
@@ -330,7 +328,7 @@ impl Expr {
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.references_to_nets(net_id_by_path)), Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.references_to_nets(net_id_by_path)).collect()),
-            Expr::Sext(e, _n) => e.references_to_nets(net_id_by_path),
+            Expr::Sext(e, n) => Expr::Sext(Box::new(e.references_to_nets(net_id_by_path)), n),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.references_to_nets(net_id_by_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.references_to_nets(net_id_by_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.references_to_nets(net_id_by_path)), Box::new(i.references_to_nets(net_id_by_path))),
