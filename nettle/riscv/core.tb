@@ -1,5 +1,11 @@
-link core.instr_mem = Ram {
+link core.riscv_decoder = RiscVDecoder {}
+
+link core.instr_mem = Mem {
     file = "riscv/prog.bin"
+}
+
+link core.mem = Mem {
+    file = "data/hello.bin"
 }
 
 watch core.control.reg_write

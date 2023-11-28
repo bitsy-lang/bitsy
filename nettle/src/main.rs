@@ -80,8 +80,19 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
                 let e = Box::new(ext::monitor::Monitor::new());
                 e
             },
+            "RiscVDecoder" => {
+                let e = Box::new(ext::riscv_decoder::RiscVDecoder::new());
+                e
+            },
             "Ram" => {
                 let mut e = Box::new(ext::ram::Ram::new());
+                if let Some(data_filename) = params_map.remove("file") {
+                    e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
+                }
+                e
+            },
+            "Mem" => {
+                let mut e = Box::new(ext::mem::Mem::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }

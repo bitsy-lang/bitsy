@@ -2,7 +2,9 @@ use super::*;
 
 pub mod monitor;
 pub mod ram;
+pub mod mem;
 pub mod video;
+pub mod riscv_decoder;
 
 pub type PortId = usize;
 pub type PortName = String;
