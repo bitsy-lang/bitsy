@@ -24,14 +24,14 @@ fn path_depends() {
 #[test]
 fn buffer() {
     let buffer = parse_top("
-        top {
+        mod top {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
             r <= in;
             out := r;
         }
-    ");
+    ").unwrap();
 
     let mut nettle = Sim::new(&buffer);
 
@@ -48,13 +48,13 @@ fn buffer() {
 #[test]
 fn counter() {
     let counter = parse_top("
-        top {
+        mod top {
             outgoing out of Word<4>;
             reg counter of Word<4> reset 0w4;
             out := counter;
             counter <= counter + 1w4;
         }
-    ");
+    ").unwrap();
 
     let mut nettle = Sim::new(&counter);
 
@@ -70,7 +70,7 @@ fn counter() {
 #[test]
 fn triangle_numbers() {
     let top = parse_top("
-        top {
+        mod top {
             outgoing out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
@@ -82,7 +82,7 @@ fn triangle_numbers() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ");
+    ").unwrap();
 
     let mut nettle = Sim::new(&top);
     nettle.reset();
@@ -97,7 +97,7 @@ fn triangle_numbers() {
 #[test]
 fn vip() {
     let top = parse_top("
-        top {
+        mod top {
             mod counter {
                 outgoing out of Word<4>;
                 reg counter of Word<4>;
@@ -111,9 +111,9 @@ fn vip() {
 
             vip.in := counter.out;
         }
-    ");
+    ").unwrap();
 
-    let monitor = Box::new(Monitor::new());
+    let monitor = Box::new(ext::monitor::Monitor::new());
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     exts.insert("top.vip".into(), monitor);
 
@@ -129,7 +129,7 @@ fn vip() {
 #[test]
 fn ifs() {
     let top = parse_top("
-        top {
+        mod top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
@@ -139,7 +139,7 @@ fn ifs() {
                 100w8
             };
         }
-    ");
+    ").unwrap();
 
     let mut nettle = Sim::new(&top);
 
@@ -175,7 +175,7 @@ fn test_parse() {
 #[test]
 fn test_eval() {
     let top = parse_top("
-        top {
+        mod top {
             node x of Word<1>;
             reg r of Word<1> reset 0w1;
             x := 1w1;
@@ -191,7 +191,7 @@ fn test_eval() {
             p := 1w1;
             q := 0w1;
         }
-    ");
+    ").unwrap();
 
     let mut nettle = Sim::new(&top);
     nettle.reset();
@@ -230,14 +230,14 @@ fn test_eval() {
 #[test]
 fn test_nets() {
     let top = parse_top("
-        top {
+        mod top {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
             r <= in;
             out := r;
         }
-    ");
+    ").unwrap();
 
     let top_nets = nets(&top);
     assert_eq!(top_nets.len(), 2);
@@ -255,7 +255,7 @@ fn test_nets() {
     assert_eq!(drivers, expected_drivers);
 
     let triangle_numbers_top = parse_top("
-        top {
+        mod top {
             node out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
@@ -267,7 +267,7 @@ fn test_nets() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ");
+    ").unwrap();
 
     let triangle_numbers_nets = nets(&triangle_numbers_top);
     assert_eq!(triangle_numbers_nets.len(), 4);
@@ -276,12 +276,12 @@ fn test_nets() {
 #[test]
 fn test_node() {
     let top = parse_top("
-        top {
+        mod top {
             outgoing out of Word<1>;
             node n of Word<1>;
             n := 1w1;
         }
-    ");
+    ").unwrap();
 
     let nettle = Sim::new(&top);
     assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
@@ -290,7 +290,7 @@ fn test_node() {
 #[test]
 fn test_circuit() {
     let top = parse_top("
-        top {
+        mod top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
             mod foo {
@@ -312,7 +312,7 @@ fn test_circuit() {
                 out := 1w1;
             }
         }
-    ");
+    ").unwrap();
 
     assert_eq!(
         top.modules(),
@@ -345,13 +345,13 @@ fn test_circuit() {
 #[test]
 fn test_check() {
     let top = parse_top("
-        top {
+        mod top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
             out := in;
         }
-    ");
+    ").unwrap();
 
     top.check().unwrap();
 
