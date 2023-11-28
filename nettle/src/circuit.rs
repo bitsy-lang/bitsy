@@ -24,7 +24,6 @@ impl Wire {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Component {
-    Top(Vec<Component>, Vec<Wire>),
     Mod(Name, Vec<Component>, Vec<Wire>),
     Ext(Name, Vec<Component>),
     Incoming(Name, Type),
@@ -139,7 +138,6 @@ impl Circuit {
 impl Component {
     pub fn name(&self) -> &str {
         match self {
-            Component::Top(_children, _wires) => "top",
             Component::Mod(name, _children, _wires) => name.as_str(),
             Component::Ext(name, _children) => name.as_str(),
             Component::Incoming(name, _typ) => name.as_str(),
@@ -170,14 +168,6 @@ impl Component {
         let mut errors = vec![];
 
         match self {
-            Component::Top(_children, _wires) => {
-                errors.extend(self.check_wires_no_such_component());
-                errors.extend(self.check_children_duplicate_names());
-                errors.extend(self.check_wires_duplicate_targets());
-                errors.extend(self.check_missing_drivers());
-                errors.extend(self.check_wires_wiretype());
-                errors.extend(self.check_incoming_port_driven());
-            },
             Component::Mod(_name, _children, _wires) => {
                 errors.extend(self.check_wires_no_such_component());
                 errors.extend(self.check_children_duplicate_names());
@@ -312,7 +302,6 @@ impl Component {
 
     pub fn children(&self) -> Vec<&Component> {
         match self {
-            Component::Top(children, _wires) => children.iter().collect(),
             Component::Mod(_name, children, _wires) => children.iter().collect(),
             Component::Ext(_name, children) => children.iter().collect(),
             Component::Incoming(_name, _typ) => vec![],
@@ -342,7 +331,6 @@ impl Component {
 
     pub fn wires(&self) -> Vec<Wire> {
         match self {
-            Component::Top(_children, wires) => wires.clone(),
             Component::Mod(_name, _children, wires) => wires.clone(),
             _ => vec![],
         }
@@ -360,7 +348,6 @@ impl Component {
         let mut results = vec![];
         for child in self.children() {
             match child {
-                Component::Top(_children, _wires) => panic!("No component should contain a Top."),
                 Component::Node(name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Reg(name, _typ, _reset) => {
                     results.push(path.join(format!("{name}.set").into()));
@@ -391,7 +378,6 @@ impl Component {
         let mut results = vec![];
         for child in self.children() {
             match child {
-                Component::Top(_children, _wires) => panic!("No component should contain a Top."),
                 Component::Node(name, _typ) => results.push(name.to_string().into()),
                 Component::Incoming(name, _typ) => results.push(name.to_string().into()),
                 Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
@@ -409,7 +395,6 @@ impl Component {
 
     pub fn is_mod(&self) -> bool {
         match self {
-            Component::Top(_children, _wires) => true,
             Component::Mod(_name, _children, _wires) => true,
             _ => false
         }

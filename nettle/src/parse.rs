@@ -11,7 +11,7 @@ pub enum ModDecl {
 }
 
 pub fn parse_top(circuit: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
-    let component: Component = grammar::TopOrModParser::new().parse(circuit)?;
+    let component: Component = grammar::ModParser::new().parse(circuit)?;
     Ok(Circuit::new(component))
 }
 

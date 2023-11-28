@@ -2,11 +2,6 @@ use super::*;
 
 grammar;
 
-pub TopOrMod: Component = {
-    <t:Top> => t,
-    <m:Mod> => m,
-}
-
 pub Testbench: Testbench = {
     <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
 }
@@ -31,23 +26,6 @@ pub TestbenchCommand: TestbenchCommand = {
     "run" => TestbenchCommand::Run,
     "eval" <e:Expr> => TestbenchCommand::Eval(*e),
     "assert" <e:Expr> => TestbenchCommand::Assert(*e),
-}
-
-pub Top: Component = {
-    "top" "{"
-        <decls:ModDecl*>
-    "}" => {
-        let mut children = vec![];
-        let mut wires = vec![];
-
-        for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => wires.push(w),
-            }
-        }
-        Component::Top(children, wires)
-    },
 }
 
 pub Mod: Component = {
@@ -220,9 +198,6 @@ pub Str: String = {
 
 pub Id: String = {
     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
-
-    // This is required for the testbench parser, since "top" is a keyword in Nettle, but not in the testbench syntax.
-    "top" => "top".to_string(),
 }
 
 match {
