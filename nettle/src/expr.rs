@@ -80,6 +80,58 @@ pub enum BinOp {
 }
 
 impl Expr {
+    pub fn with_subexprs(&self, callback: &dyn Fn(&Expr)) {
+        match self {
+            Expr::Reference(_path) => callback(self),
+            Expr::Net(_netid) => callback(self),
+            Expr::Lit(_value) => callback(self),
+            Expr::UnOp(_op, e) => {
+                e.with_subexprs(callback);
+                callback(self);
+            }
+            Expr::BinOp(_op, e1, e2) => {
+                e1.with_subexprs(callback);
+                e2.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::If(cond, e1, e2) => {
+                cond.with_subexprs(callback);
+                e1.with_subexprs(callback);
+                e2.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::Cat(es) => {
+                for e in es {
+                    e.with_subexprs(callback);
+                }
+                callback(self);
+            },
+            Expr::Sext(e, _n) => {
+                e.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::ToWord(e) => {
+                e.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::Idx(e, _i) => {
+                e.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::IdxRange(e, _j, _i) => {
+                e.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::IdxDyn(e, _i) => {
+                e.with_subexprs(callback);
+                callback(self);
+            },
+            Expr::Hole(_name) => {
+                callback(self);
+            },
+        }
+    }
+
     pub fn with_subexprs_mut(&mut self, callback: &dyn Fn(&mut Expr)) {
         match self {
             Expr::Reference(_path) => callback(self),
@@ -133,53 +185,20 @@ impl Expr {
     }
 
     pub fn paths(&self) -> Vec<Path> {
-        match self {
-            Expr::Reference(path) => vec![path.clone()],
-            Expr::Net(_netid) => panic!("paths() only works on symbolic expressions."),
-            Expr::Lit(_value) => vec![],
-            Expr::UnOp(_op, e) => {
-                let mut result = e.paths();
-                result.sort();
-                result.dedup();
-                result
+        let paths = std::cell::RefCell::new(vec![]);
+        let func = |e: &Expr| {
+            if let Expr::Reference(path) = e {
+                paths.borrow_mut().push(path.clone());
+            } else if let Expr::Net(_netid) = e {
+                panic!("paths() only works on symbolic expressions.");
             }
-            Expr::BinOp(_op, e1, e2) => {
-                let mut result = e1.paths();
-                result.extend(e2.paths());
-                result.sort();
-                result.dedup();
-                result
-            },
-            Expr::If(cond, e1, e2) => {
-                let mut result = cond.paths();
-                result.extend(e1.paths());
-                result.extend(e2.paths());
-                result.sort();
-                result.dedup();
-                result
-            },
-            Expr::Cat(es) => {
-                let mut result = vec![];
-                for e in es {
-                    result.extend(e.paths());
-                }
-                result.sort();
-                result.dedup();
-                result
-            },
-            Expr::Sext(e, _n) => e.paths(),
-            Expr::ToWord(e) => e.paths(),
-            Expr::Idx(e, _i) => e.paths(),
-            Expr::IdxRange(e, _j, _i) => e.paths(),
-            Expr::IdxDyn(e, i) => {
-                let mut result = e.paths();
-                result.extend(i.paths());
-                result.sort();
-                result.dedup();
-                result
-            },
-            Expr::Hole(_name) => vec![],
-        }
+        };
+        self.with_subexprs(&func);
+
+        let mut results = paths.into_inner();
+        results.sort();
+        results.dedup();
+        results
     }
 
     pub fn is_constant(&self) -> bool {
@@ -198,6 +217,23 @@ impl Expr {
             Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
             Expr::Hole(_name) => false,
         }
+    }
+
+    pub fn references_to_nets(mut self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
+        let func = |e: &mut Expr| {
+            match &e {
+                Expr::Reference(path) => {
+                    if let Some(net_id) = net_id_by_path.get(&path) {
+                        *e = Expr::Net(*net_id);
+                    } else {
+                        panic!("No net for {path}");
+                    }
+                },
+                _ => (),
+            }
+        };
+        self.with_subexprs_mut(&func);
+        self
     }
 
     pub fn depends_on(&self, path: Path) -> bool {
@@ -222,22 +258,16 @@ impl Expr {
         }
     }
 
-    pub fn rebase(self, current_path: Path) -> Expr {
-        match self {
-            Expr::Reference(path) => Expr::Reference(current_path.join(path)),
-            Expr::Net(_netid) => panic!("rebase() only works on symbolic expressions."),
-            Expr::Lit(ref _value) => self,
-            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.rebase(current_path))),
-            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
-            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.rebase(current_path.clone())), Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
-            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.rebase(current_path.clone())).collect()),
-            Expr::Sext(e, n) => Expr::Sext(Box::new(e.rebase(current_path.clone())), n),
-            Expr::ToWord(e) => Expr::ToWord(Box::new(e.rebase(current_path.clone()))),
-            Expr::Idx(e, i) => Expr::Idx(Box::new(e.rebase(current_path)), i),
-            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.rebase(current_path)), j, i),
-            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.rebase(current_path.clone())), Box::new(i.rebase(current_path))),
-            Expr::Hole(name) => Expr::Hole(name),
-        }
+    pub fn rebase(mut self, current_path: Path) -> Expr {
+        let func = |e: &mut Expr| {
+            match &e {
+                Expr::Reference(path) => *e = Expr::Reference(current_path.join(path.clone())),
+                Expr::Net(_netid) => panic!("rebase() only works on symbolic expressions."),
+                _ => (),
+            }
+        };
+        self.with_subexprs_mut(&func);
+        self
     }
 
     pub fn eval(&self, nettle: &Sim) -> Value {
@@ -380,30 +410,6 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
-        }
-    }
-
-    pub fn references_to_nets(self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
-        match self {
-            Expr::Reference(path) => {
-                if let Some(net_id) = net_id_by_path.get(&path) {
-                    Expr::Net(*net_id)
-                } else {
-                    panic!("No net for {path}")
-                }
-            },
-            Expr::Net(_netid) => panic!("references_to_nets() only works on symbolic expressions."),
-            Expr::Lit(ref _value) => self,
-            Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.references_to_nets(net_id_by_path))),
-            Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
-            Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.references_to_nets(net_id_by_path)), Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
-            Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.references_to_nets(net_id_by_path)).collect()),
-            Expr::Sext(e, n) => Expr::Sext(Box::new(e.references_to_nets(net_id_by_path)), n),
-            Expr::ToWord(e) => Expr::ToWord(Box::new(e.references_to_nets(net_id_by_path))),
-            Expr::Idx(e, i) => Expr::Idx(Box::new(e.references_to_nets(net_id_by_path)), i),
-            Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.references_to_nets(net_id_by_path)), j, i),
-            Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.references_to_nets(net_id_by_path)), Box::new(i.references_to_nets(net_id_by_path))),
-            Expr::Hole(name) => Expr::Hole(name),
         }
     }
 }
