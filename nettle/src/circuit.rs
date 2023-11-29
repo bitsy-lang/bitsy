@@ -51,7 +51,7 @@ pub enum Component {
     Incoming(Name, Type),
     Outgoing(Name, Type),
     Node(Name, Type),
-    Reg(Name, Type, Value),
+    Reg(Name, Type, Expr),
 }
 
 #[derive(Debug, Clone)]
@@ -158,7 +158,7 @@ impl Circuit {
         self.top().terminals_rec(self.top().name().into())
     }
 
-    pub fn reset_for_reg(&self, path: Path) -> Option<Value> {
+    pub fn reset_for_reg(&self, path: Path) -> Option<Expr> {
         if let Some(Component::Reg(_name, _typ, reset)) = self.component(path) {
             Some(reset.clone())
         } else {

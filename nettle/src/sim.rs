@@ -12,7 +12,7 @@ pub type RegId = usize;
 pub struct RegInfo {
     set_net_id: NetId,
     val_net_id: NetId,
-    reset: Value,
+    reset: Expr,
 }
 
 #[derive(Debug)]
@@ -365,7 +365,7 @@ impl Sim {
 
     pub fn reset(&mut self) {
         for reginfo in &self.sim_circuit.clone().regs {
-            self.poke_net(reginfo.val_net_id, reginfo.reset.clone());
+            self.poke_net(reginfo.val_net_id, reginfo.reset.eval(&self));
         }
 
         for ext in &mut self.exts {

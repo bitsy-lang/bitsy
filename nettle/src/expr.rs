@@ -11,6 +11,7 @@ pub enum Expr {
     Cat(Vec<Expr>),
     Sext(Box<Expr>, u64),
     ToWord(Box<Expr>),
+    Vec(Vec<Expr>),
     Idx(Box<Expr>, u64),
     IdxRange(Box<Expr>, u64, u64),
     IdxDyn(Box<Expr>, Box<Expr>),
@@ -48,6 +49,17 @@ impl std::fmt::Debug for Expr {
             Expr::Cat(es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Sext(e, n) => write!(f, "sext({e:?}, {n})"),
             Expr::ToWord(e) => write!(f, "word({e:?})"),
+            Expr::Vec(es) => {
+                write!(f, "[")?;
+                for (i, e) in es.iter().enumerate() {
+                    if i + 1 < es.len() {
+                        write!(f, "{e:?}, ")?;
+                    } else {
+                        write!(f, "{e:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
             Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
             Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
@@ -114,6 +126,12 @@ impl Expr {
                 e.with_subexprs(callback);
                 callback(self);
             },
+            Expr::Vec(es) => {
+                for e in es {
+                    e.with_subexprs(callback);
+                }
+                callback(self);
+            },
             Expr::Idx(e, _i) => {
                 e.with_subexprs(callback);
                 callback(self);
@@ -166,6 +184,12 @@ impl Expr {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
+            Expr::Vec(es) => {
+                for e in es {
+                    e.with_subexprs_mut(callback);
+                }
+                callback(self);
+            },
             Expr::Idx(e, _i) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
@@ -212,6 +236,7 @@ impl Expr {
             Expr::Cat(es) => es.iter().all(|e| e.is_constant()),
             Expr::Sext(e, _n) => e.is_constant(),
             Expr::ToWord(e) => e.is_constant(),
+            Expr::Vec(es) => es.iter().all(|e| e.is_constant()),
             Expr::Idx(e, _i) => e.is_constant(),
             Expr::IdxRange(e, _j, _i) => e.is_constant(),
             Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
@@ -251,6 +276,7 @@ impl Expr {
             Expr::Cat(es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Sext(e, _n) => e.depends_on_net(net_id),
             Expr::ToWord(e) => e.depends_on_net(net_id),
+            Expr::Vec(es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Idx(e, _i) => e.depends_on_net(net_id),
             Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
             Expr::IdxDyn(e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
@@ -313,17 +339,24 @@ impl Expr {
             Expr::Cat(es) => {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
+                let mut wss: Vec<Value> = vec![];
                 for v in es.iter().map(|e| e.eval(nettle)).rev() {
                     if let Value::X = v {
                         return Value::X;
                     } else if let Value::Word(width, val) = v {
                         cat_val |= val << cat_width;
                         cat_width += width;
+                    } else if let Value::Vec(ws) = v {
+                        wss.extend(ws.into_iter().rev());
                     } else {
                         panic!("Can't cat on a non-Word");
                     }
                 }
-                Value::Word(cat_width, cat_val)
+                if wss.len() == 0 {
+                    Value::Word(cat_width, cat_val)
+                } else {
+                    Value::Vec(wss.into_iter().rev().collect())
+                }
             },
             Expr::Sext(e, n) => {
                 match e.eval(nettle) {
@@ -342,6 +375,7 @@ impl Expr {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
                         }
                     },
+                    Value::Vec(_vs) => panic!("Can't sext a Vec"),
                     Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
                 }
             }
@@ -353,6 +387,17 @@ impl Expr {
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }
             },
+            Expr::Vec(es) => {
+                let mut vs = vec![];
+                for v in es.iter().map(|e| e.eval(nettle)) {
+                    if let Value::X = v {
+                        return Value::X;
+                    } else {
+                        vs.push(v.clone());
+                    }
+                }
+                Value::Vec(vs)
+            },
             Expr::Idx(e, i) => {
                 let value = e.eval(nettle);
                 if let Value::X = value {
@@ -362,6 +407,12 @@ impl Expr {
                         Value::Word(1, (val >> i) & 1)
                     } else {
                         panic!("Index at {i} out of range (width {width})")
+                    }
+                } else if let Value::Vec(vs) = value {
+                    if *i < vs.len().try_into().unwrap() {
+                        vs[*i as usize].clone()
+                    } else {
+                        panic!("Index at {i} out of range (length {})", vs.len())
                     }
                 } else {
                         panic!("Index with invalid value: {value:?}")
@@ -373,7 +424,7 @@ impl Expr {
                     Value::X
                 } else if let Value::Word(width, val) = value {
                     // TODO make errors better
-                    if *i < width && *j >= *i {
+                    if width > *j && *j >= *i {
                         let new_width = j - i;
                         // eg, if new_width = 3, shift over 3 to get 0b1000
                         // then subtract 1 to get 0b01111
@@ -381,6 +432,13 @@ impl Expr {
                         Value::Word(new_width, (val >> i) & mask)
                     } else {
                         panic!("Index {j}..{i} out of range (width {width})")
+                    }
+                } else if let Value::Vec(vs) = value {
+                    let width = vs.len();
+                    if j <= i && *i <= width as u64 {
+                        Value::Vec(vs[*j as usize..*i as usize].to_vec())
+                    } else {
+                        panic!("Index {j}..{i} out of range (length {width})")
                     }
                 } else {
                     panic!("Can't index into value: {value:?}")
@@ -399,6 +457,12 @@ impl Expr {
                         Value::Word(1, (val >> index) & 1)
                     } else {
                         panic!("Index at {index} out of range (width {width})")
+                    }
+                } else if let Value::Vec(vs) = value {
+                    if index < vs.len().try_into().unwrap() {
+                        vs[index as usize].clone()
+                    } else {
+                        panic!("Index at {index} out of range (length {})", vs.len())
                     }
                 } else {
                     panic!("Index with invalid value: {value:?}")

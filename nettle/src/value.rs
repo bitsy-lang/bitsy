@@ -73,6 +73,7 @@ pub enum Value {
     #[default]
     X,
     Word(Width, u64),
+    Vec(Vec<Value>),
     Enum(Ref<TypeDef>, String),
 }
 
@@ -85,7 +86,8 @@ impl Value {
         match self {
             Value::X => None,
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
-            Value::Enum(_typedef, _name) => todo!(),
+            Value::Vec(_vs) => panic!(),
+            Value::Enum(_typedef, _name) => panic!(),
         }
     }
 
@@ -127,10 +129,8 @@ impl TryFrom<Value> for bool {
     type Error = ();
     fn try_from(value: Value) -> Result<bool, Self::Error> {
         match value {
-            Value::X => Err(()),
             Value::Word(1, n) => Ok(n == 1),
-            Value::Word(_w, _n) => Err(()),
-            Value::Enum(_typedef, _name) => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -139,9 +139,8 @@ impl TryFrom<Value> for u8 {
     type Error = ();
     fn try_from(value: Value) -> Result<u8, Self::Error> {
         match value {
-            Value::X => Err(()),
             Value::Word(_w, n) => Ok(n as u8), // TODO
-            Value::Enum(_typedef, _name) => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -153,6 +152,7 @@ impl TryFrom<Value> for u64 {
             Value::X => Err(()),
             Value::Word(_w, n) => Ok(n),
             Value::Enum(_typedef, _name) => Err(()),
+            _ => Err(()),
         }
     }
 }
@@ -162,6 +162,17 @@ impl std::fmt::Debug for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
+            Value::Vec(vs) => {
+                write!(f, "[")?;
+                for (i, v) in vs.iter().enumerate() {
+                    if i + 1 < vs.len() {
+                        write!(f, "{v:?}, ")?;
+                    } else {
+                        write!(f, "{v:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
@@ -172,6 +183,17 @@ impl std::fmt::Display for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
+            Value::Vec(vs) => {
+                write!(f, "[")?;
+                for (i, v) in vs.iter().enumerate() {
+                    if i + 1 < vs.len() {
+                        write!(f, "{v:?}, ")?;
+                    } else {
+                        write!(f, "{v:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
@@ -182,6 +204,17 @@ impl std::fmt::LowerHex for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0x{:x}w{w}", self.to_usize().unwrap()),
+            Value::Vec(vs) => {
+                write!(f, "[")?;
+                for (i, v) in vs.iter().enumerate() {
+                    if i + 1 < vs.len() {
+                        write!(f, "{v:?}, ")?;
+                    } else {
+                        write!(f, "{v:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
@@ -192,6 +225,17 @@ impl std::fmt::UpperHex for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0x{:X}w{w}", self.to_usize().unwrap()),
+            Value::Vec(vs) => {
+                write!(f, "[")?;
+                for (i, v) in vs.iter().enumerate() {
+                    if i + 1 < vs.len() {
+                        write!(f, "{v:?}, ")?;
+                    } else {
+                        write!(f, "{v:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
@@ -202,6 +246,17 @@ impl std::fmt::Binary for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0b{:b}w{w}", self.to_usize().unwrap()),
+            Value::Vec(vs) => {
+                write!(f, "[")?;
+                for (i, v) in vs.iter().enumerate() {
+                    if i + 1 < vs.len() {
+                        write!(f, "{v:?}, ")?;
+                    } else {
+                        write!(f, "{v:?}")?;
+                    }
+                }
+                write!(f, "]")
+            },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
