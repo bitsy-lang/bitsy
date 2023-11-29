@@ -40,6 +40,26 @@ pub WatchFormat: WatchFormat = {
     "bool" => WatchFormat::Bool,
 }
 
+pub Package: Package = {
+    <decls:Decl*> => Package(decls),
+}
+
+pub Decl: Decl = {
+    <m:Mod> => Decl::Mod(Arc::new(m)),
+    <e:TypeDef> => Decl::TypeDef(Arc::new(e)),
+}
+
+pub TypeDef: TypeDef = {
+    "enum" <name:Id> "{"
+        <values:(Id "=" Value ";")*>
+    "}" => {
+        TypeDef {
+            name,
+            values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
+        }
+    },
+}
+
 pub Mod: Component = {
     "mod" <id:Id> "{"
         <decls:ModDecl*>
@@ -129,6 +149,7 @@ pub ExprCall: Box<Expr> = {
         Box::new(Expr::Cat(es))
     },
     "sext" "(" <e:Expr> "," <n:Nat> ")" =>  Box::new(Expr::Sext(e, n)),
+    "word" "(" <e:Expr> ")" => Box::new(Expr::ToWord(e)),
     <e:ExprBase> "[" <i:Expr> "]" => Box::new(Expr::IdxDyn(e, i)),
     <e:ExprBase> "[" <i:Nat> "]" => Box::new(Expr::Idx(e, i)),
     <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" => Box::new(Expr::IdxRange(e, j, i)),
@@ -174,9 +195,11 @@ pub ExprReference: Box<Expr> = {
 
 pub Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
+    <id:Id> => Type::TypeDef(Ref::Named(id.to_string())),
 }
 
 pub Value: Value = {
+    <typename:Id> "::" <name:Id> => Value::Enum(Ref::Named(typename), name.to_string()),
     <lit:r"[0-9]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();

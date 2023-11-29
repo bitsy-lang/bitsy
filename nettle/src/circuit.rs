@@ -2,6 +2,28 @@ use super::*;
 
 pub type Name = String;
 
+#[derive(Debug, Clone)]
+pub struct Package(pub Vec<Decl>);
+
+impl Package {
+    fn typedef(&self, name: &str) -> Option<Arc<TypeDef>> {
+        for decl in &self.0 {
+            if let Decl::TypeDef(typedef) = &decl {
+                if typedef.name == name {
+                    return Some(typedef.clone());
+                }
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Decl {
+    Mod(Arc<Component>),
+    TypeDef(Arc<TypeDef>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireType {
     Connect,
@@ -32,27 +54,43 @@ pub enum Component {
     Reg(Name, Type, Value),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Circuit(Arc<Component>);
+#[derive(Debug, Clone)]
+pub struct Circuit(Arc<Package>);
 
 impl std::ops::Deref for Circuit {
     type Target = Component;
     fn deref(&self) -> &Component {
-        &self.0
+        let Package(decls) = &*self.0;
+        for decl in decls {
+            if let Decl::Mod(m) = decl {
+                return m;
+            }
+        }
+        panic!("No top")
     }
 }
 
 impl Circuit {
-    pub fn new(component: Component) -> Circuit {
-        Circuit(Arc::new(component))
+    pub fn new(package: Package) -> Circuit {
+        Circuit(Arc::new(package))
+    }
+
+    pub fn top(&self) -> &Component {
+        let Package(decls) = &*self.0;
+        for decl in decls {
+            if let Decl::Mod(m) = decl {
+                return m;
+            }
+        }
+        panic!("No top")
     }
 
     pub fn root(&self) -> Path {
-        self.0.name().into()
+        self.top().name().into()
     }
 
     pub fn modules(&self) -> Vec<Path> {
-        let path: Path = self.0.name().into();
+        let path: Path = self.top().name().into();
         let mut results = vec![path.clone()];
         for child in self.children() {
             if let Component::Mod(name, _children, _wires) = child {
@@ -63,9 +101,9 @@ impl Circuit {
     }
 
     pub fn component(&self, path: Path) -> Option<&Component> {
-        let root: Path = self.0.name().into();
+        let root: Path = self.top().name().into();
         if path == root {
-            return Some(&self.0);
+            return Some(&self.top());
         }
         let root_prefix = format!("{root}.");
         if !path.starts_with(&root_prefix) {
@@ -74,15 +112,26 @@ impl Circuit {
         }
         assert!(path.starts_with(&root_prefix));
         let path: Path = path[root_prefix.len()..].into();
-        self.0.component(path)
+        self.top().component(path)
     }
 
     pub fn wires(&self) -> Vec<Wire> {
-        self.0.wires_rec(self.0.name().into())
+        let mut wires = self.top().wires_rec(self.top().name().into());
+        for Wire(_target, expr, _wiretype) in &mut wires {
+            let func = |e: &mut Expr| {
+                if let Expr::Lit(Value::Enum(r, _name)) = e {
+                    if let Ref::Named(typedef) = &*r {
+                        r.resolve_to(self.0.typedef(&typedef).unwrap());
+                    }
+                }
+            };
+            expr.with_subexprs_mut(&func);
+        }
+        wires
     }
 
     fn walk(&self) -> Vec<(Path, &Component)> {
-        self.0.walk_rec(self.0.name().into())
+        self.top().walk_rec(self.top().name().into())
     }
 
     pub fn exts(&self) -> Vec<Path> {
@@ -106,12 +155,12 @@ impl Circuit {
     }
 
     pub fn terminals(&self) -> Vec<Path> {
-        self.0.terminals_rec(self.0.name().into())
+        self.top().terminals_rec(self.top().name().into())
     }
 
     pub fn reset_for_reg(&self, path: Path) -> Option<Value> {
         if let Some(Component::Reg(_name, _typ, reset)) = self.component(path) {
-            Some(*reset)
+            Some(reset.clone())
         } else {
             None
         }

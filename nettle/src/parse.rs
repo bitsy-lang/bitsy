@@ -10,9 +10,9 @@ pub enum ModDecl {
     Wire(Wire),
 }
 
-pub fn parse_top(circuit: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
-    let component: Component = grammar::ModParser::new().parse(circuit)?;
-    Ok(Circuit::new(component))
+pub fn parse_top(package: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
+    let package: Package = grammar::PackageParser::new().parse(package)?;
+    Ok(Circuit::new(package))
 }
 
 impl From<&str> for Expr {

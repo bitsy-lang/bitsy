@@ -10,6 +10,7 @@ pub enum Expr {
     If(Box<Expr>, Box<Expr>, Box<Expr>),
     Cat(Vec<Expr>),
     Sext(Box<Expr>, u64),
+    ToWord(Box<Expr>),
     Idx(Box<Expr>, u64),
     IdxRange(Box<Expr>, u64, u64),
     IdxDyn(Box<Expr>, Box<Expr>),
@@ -46,6 +47,7 @@ impl std::fmt::Debug for Expr {
             },
             Expr::Cat(es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Sext(e, n) => write!(f, "sext({e:?}, {n})"),
+            Expr::ToWord(e) => write!(f, "word({e:?})"),
             Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
             Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
             Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
@@ -78,6 +80,58 @@ pub enum BinOp {
 }
 
 impl Expr {
+    pub fn with_subexprs_mut(&mut self, callback: &dyn Fn(&mut Expr)) {
+        match self {
+            Expr::Reference(_path) => callback(self),
+            Expr::Net(_netid) => callback(self),
+            Expr::Lit(_value) => callback(self),
+            Expr::UnOp(_op, e) => {
+                e.with_subexprs_mut(callback);
+                callback(&mut *self);
+            }
+            Expr::BinOp(_op, e1, e2) => {
+                e1.with_subexprs_mut(callback);
+                e2.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::If(cond, e1, e2) => {
+                cond.with_subexprs_mut(callback);
+                e1.with_subexprs_mut(callback);
+                e2.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::Cat(es) => {
+                for e in es {
+                    e.with_subexprs_mut(callback);
+                }
+                callback(self);
+            },
+            Expr::Sext(e, _n) => {
+                e.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::ToWord(e) => {
+                e.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::Idx(e, _i) => {
+                e.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::IdxRange(e, _j, _i) => {
+                e.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::IdxDyn(e, _i) => {
+                e.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::Hole(_name) => {
+                callback(self);
+            },
+        }
+    }
+
     pub fn paths(&self) -> Vec<Path> {
         match self {
             Expr::Reference(path) => vec![path.clone()],
@@ -114,6 +168,7 @@ impl Expr {
                 result
             },
             Expr::Sext(e, _n) => e.paths(),
+            Expr::ToWord(e) => e.paths(),
             Expr::Idx(e, _i) => e.paths(),
             Expr::IdxRange(e, _j, _i) => e.paths(),
             Expr::IdxDyn(e, i) => {
@@ -137,6 +192,7 @@ impl Expr {
             Expr::If(cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
             Expr::Cat(es) => es.iter().all(|e| e.is_constant()),
             Expr::Sext(e, _n) => e.is_constant(),
+            Expr::ToWord(e) => e.is_constant(),
             Expr::Idx(e, _i) => e.is_constant(),
             Expr::IdxRange(e, _j, _i) => e.is_constant(),
             Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
@@ -158,6 +214,7 @@ impl Expr {
             Expr::If(cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Sext(e, _n) => e.depends_on_net(net_id),
+            Expr::ToWord(e) => e.depends_on_net(net_id),
             Expr::Idx(e, _i) => e.depends_on_net(net_id),
             Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
             Expr::IdxDyn(e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
@@ -169,12 +226,13 @@ impl Expr {
         match self {
             Expr::Reference(path) => Expr::Reference(current_path.join(path)),
             Expr::Net(_netid) => panic!("rebase() only works on symbolic expressions."),
-            Expr::Lit(_value) => self,
+            Expr::Lit(ref _value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.rebase(current_path))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.rebase(current_path.clone())), Box::new(e1.rebase(current_path.clone())), Box::new(e2.rebase(current_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.rebase(current_path.clone())).collect()),
             Expr::Sext(e, n) => Expr::Sext(Box::new(e.rebase(current_path.clone())), n),
+            Expr::ToWord(e) => Expr::ToWord(Box::new(e.rebase(current_path.clone()))),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.rebase(current_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.rebase(current_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.rebase(current_path.clone())), Box::new(i.rebase(current_path))),
@@ -186,7 +244,7 @@ impl Expr {
         match self {
             Expr::Reference(path) => nettle.peek(path.clone()),
             Expr::Net(netid) => nettle.peek_net(*netid),
-            Expr::Lit(value) => *value,
+            Expr::Lit(value) => value.clone(),
             Expr::UnOp(op, e) => {
                 match (op, e.eval(nettle)) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
@@ -251,8 +309,17 @@ impl Expr {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
                         }
                     },
+                    Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
                 }
             }
+            Expr::ToWord(e) => {
+                let v = e.eval(nettle);
+                match v {
+                    Value::X => Value::X,
+                    Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name),
+                    _ => panic!("Can only call word() on enum values, but found {v:?}"),
+                }
+            },
             Expr::Idx(e, i) => {
                 let value = e.eval(nettle);
                 if let Value::X = value {
@@ -323,12 +390,13 @@ impl Expr {
                 }
             },
             Expr::Net(_netid) => panic!("references_to_nets() only works on symbolic expressions."),
-            Expr::Lit(_value) => self,
+            Expr::Lit(ref _value) => self,
             Expr::UnOp(op, e) => Expr::UnOp(op, Box::new(e.references_to_nets(net_id_by_path))),
             Expr::BinOp(op, e1, e2) => Expr::BinOp(op, Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::If(cond, e1, e2) => Expr::If(Box::new(cond.references_to_nets(net_id_by_path)), Box::new(e1.references_to_nets(net_id_by_path)), Box::new(e2.references_to_nets(net_id_by_path))),
             Expr::Cat(es) => Expr::Cat(es.into_iter().map(|e| e.references_to_nets(net_id_by_path)).collect()),
             Expr::Sext(e, n) => Expr::Sext(Box::new(e.references_to_nets(net_id_by_path)), n),
+            Expr::ToWord(e) => Expr::ToWord(Box::new(e.references_to_nets(net_id_by_path))),
             Expr::Idx(e, i) => Expr::Idx(Box::new(e.references_to_nets(net_id_by_path)), i),
             Expr::IdxRange(e, j, i) => Expr::IdxRange(Box::new(e.references_to_nets(net_id_by_path)), j, i),
             Expr::IdxDyn(e, i) => Expr::IdxDyn(Box::new(e.references_to_nets(net_id_by_path)), Box::new(i.references_to_nets(net_id_by_path))),

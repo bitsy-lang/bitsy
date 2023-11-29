@@ -1,15 +1,79 @@
-type Width = u64;
+use std::sync::Arc;
 
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub enum Type {
-    Word(Width),
+pub type Width = u64;
+pub type Length = u64;
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TypeDef {
+    pub name: String,
+    pub values: Vec<(String, Value)>,
 }
 
-#[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Copy, Default)]
+impl TypeDef {
+    pub fn value_of(&self, name: &str) -> Value {
+        for (other_name, value) in &self.values {
+            if name == other_name {
+                return value.clone();
+            }
+        }
+        panic!("No such name for typedef: {} has no name {name}", self.name)
+    }
+}
+
+#[derive(Eq, PartialEq, Clone)]
+pub enum Type {
+    Word(Width),
+    Vec(Box<Type>, Length),
+    TypeDef(Ref<TypeDef>),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum Ref<T> {
+    Named(String),
+    Resolved(Arc<T>),
+}
+
+impl Ref<TypeDef> {
+    pub fn name(&self) -> &str {
+        match self {
+            Ref::Named(name) => name,
+            Ref::Resolved(typedef) => &typedef.name,
+        }
+    }
+}
+
+impl<T> Ref<T> {
+    pub fn get(&self) -> Option<&T> {
+        match self {
+            Ref::Named(_name) => None,
+            Ref::Resolved(t) => Some(t),
+        }
+    }
+
+    pub fn resolve_to(&mut self, t: Arc<T>) {
+        *self = match self {
+            Ref::Named(_name) => Ref::Resolved(t),
+            Ref::Resolved(_t) => panic!("Ref is already resolved."),
+        }
+    }
+}
+
+impl Type {
+    pub fn bitwidth(&self) -> Width {
+        match self {
+            Type::Word(n) => *n,
+            Type::Vec(typ, n) => typ.bitwidth() * n,
+            Type::TypeDef(_typename) => todo!(), //...;
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Default)]
 pub enum Value {
     #[default]
     X,
     Word(Width, u64),
+    Enum(Ref<TypeDef>, String),
 }
 
 impl Value {
@@ -21,6 +85,7 @@ impl Value {
         match self {
             Value::X => None,
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
+            Value::Enum(_typedef, _name) => todo!(),
         }
     }
 
@@ -44,9 +109,10 @@ fn value_to_usize() {
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Type::Word(1) => write!(f, "Bit"),
-            Type::Word(8) => write!(f, "Byte"),
             Type::Word(n) => write!(f, "Word<{n}>"),
+            Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
+            Type::TypeDef(Ref::Named(typename)) => write!(f, "{}", typename.clone()),
+            Type::TypeDef(Ref::Resolved(typedef)) => write!(f, "{}", typedef.name),
         }
     }
 }
@@ -64,6 +130,7 @@ impl TryFrom<Value> for bool {
             Value::X => Err(()),
             Value::Word(1, n) => Ok(n == 1),
             Value::Word(_w, _n) => Err(()),
+            Value::Enum(_typedef, _name) => Err(()),
         }
     }
 }
@@ -74,6 +141,7 @@ impl TryFrom<Value> for u8 {
         match value {
             Value::X => Err(()),
             Value::Word(_w, n) => Ok(n as u8), // TODO
+            Value::Enum(_typedef, _name) => Err(()),
         }
     }
 }
@@ -84,6 +152,7 @@ impl TryFrom<Value> for u64 {
         match value {
             Value::X => Err(()),
             Value::Word(_w, n) => Ok(n),
+            Value::Enum(_typedef, _name) => Err(()),
         }
     }
 }
@@ -93,6 +162,7 @@ impl std::fmt::Debug for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
+            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }
@@ -102,6 +172,7 @@ impl std::fmt::Display for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
+            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }
@@ -111,6 +182,7 @@ impl std::fmt::LowerHex for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0x{:x}w{w}", self.to_usize().unwrap()),
+            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }
@@ -120,6 +192,7 @@ impl std::fmt::UpperHex for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0x{:X}w{w}", self.to_usize().unwrap()),
+            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }
@@ -129,6 +202,7 @@ impl std::fmt::Binary for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, _n) => write!(f, "0b{:b}w{w}", self.to_usize().unwrap()),
+            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }

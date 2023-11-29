@@ -273,7 +273,7 @@ impl Sim {
     }
 
     pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
-        self.net_values[net_id] = value;
+        self.net_values[net_id] = value.clone();
 
         // update dependent nets through all combs
         let dependents = &self.sim_circuit.clone().dependents[net_id];
@@ -286,7 +286,7 @@ impl Sim {
 
         for (ext_id, port_name) in dependents.ext_ports.iter() {
             if let Some(ext) = &mut self.exts[*ext_id].as_mut() {
-                for (updated_port_name, updated_value) in ext.update(port_name, value) {
+                for (updated_port_name, updated_value) in ext.update(port_name, value.clone()) {
                     let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_id, updated_port_name)];
                     self.poke_net(net_id, updated_value);
                 }
@@ -295,7 +295,7 @@ impl Sim {
     }
 
     pub(crate) fn peek_net(&self, net_id: NetId) -> Value {
-        self.net_values[net_id]
+        self.net_values[net_id].clone()
     }
 
     fn net_id(&self, path: Path) -> NetId {
@@ -308,7 +308,7 @@ impl Sim {
 
     pub fn peek<P: Into<Path>>(&self, path: P) -> Value {
         let net_id = self.net_id(path.into());
-        self.net_values[net_id]
+        self.net_values[net_id].clone()
     }
 
     pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
@@ -365,7 +365,7 @@ impl Sim {
 
     pub fn reset(&mut self) {
         for reginfo in &self.sim_circuit.clone().regs {
-            self.poke_net(reginfo.val_net_id, reginfo.reset);
+            self.poke_net(reginfo.val_net_id, reginfo.reset.clone());
         }
 
         for ext in &mut self.exts {
