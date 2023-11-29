@@ -14,6 +14,7 @@ pub TestbenchLink: TestbenchLink = {
 }
 
 pub TestbenchCommand: TestbenchCommand = {
+//    "setfreq" <n:Nat> => TestbenchCommand::SetFreq(n),
     "peek" <path:Path> => TestbenchCommand::Peek(path),
     "poke" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
     "setreg" <path:Path> <value:Value> => TestbenchCommand::Set(path, value),

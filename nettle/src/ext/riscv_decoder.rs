@@ -27,16 +27,16 @@ impl ExtInstance for RiscVDecoder {
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
-            println!("{s}");
+        if let Some(_s) = &self.0 {
+//            println!("{s}");
             self.0 = None;
         }
         vec![]
     }
 
     fn reset(&mut self) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
-            println!("{s}");
+        if let Some(_s) = &self.0 {
+//            println!("{s}");
             self.0 = None;
         }
         vec![]

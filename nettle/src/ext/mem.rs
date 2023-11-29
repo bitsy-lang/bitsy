@@ -30,14 +30,18 @@ impl Mem {
         Ok(())
     }
 
-    fn read(&self) -> Value {
+    fn read_at(&self, addr: u32) -> Value {
         let val: u64 =
-            (self.mem[self.read_addr as usize] as u64) |
-            ((self.mem[self.read_addr as usize + 1] as u64) << 8) |
-            ((self.mem[self.read_addr as usize + 2] as u64) << 16) |
-            ((self.mem[self.read_addr as usize + 3] as u64) << 24)
+            (self.mem[addr as usize] as u64) |
+            ((self.mem[addr as usize + 1] as u64) << 8) |
+            ((self.mem[addr as usize + 2] as u64) << 16) |
+            ((self.mem[addr as usize + 3] as u64) << 24)
         ;
         Value::Word(32, val)
+    }
+
+    fn read(&self) -> Value {
+        self.read_at(self.read_addr)
     }
 
     fn render(&self) -> String {
@@ -114,8 +118,39 @@ impl ExtInstance for Mem {
             self.mem[(self.write_addr + 1) as usize] = (self.write_data >>  8) as u8;
             self.mem[(self.write_addr + 2) as usize] = (self.write_data >> 16) as u8;
             self.mem[(self.write_addr + 3) as usize] = (self.write_data >> 24) as u8;
+        }
+
+        //println!("Mem wrote {read_data:?} at address 0x{:x}", self.write_addr);
+        //{
+            //use std::io::Write;
+            //let mut file = std::fs::File::create("memory.bin").unwrap();
+            //file.write_all(&self.mem).unwrap();
+        //}
+
+        // clear screen
+        print!("\x1B[2J");
+
+        // move cursor to the upper left corner
+        print!("\x1B[H");
+        let mut addr: u32 = 0x0;
+        for _row in 0..32 {
+            print!("{addr:08x}        ");
+            for _col in 0..8 {
+                let data = self.mem[addr as usize];
+                addr += 1;
+                print!("{data:02x} ");
+            }
+            print!(" ");
+            for _col in 0..8 {
+                let data = self.mem[addr as usize];
+                addr += 1;
+                print!("{data:02x} ");
+            }
+            println!();
+        }
+
+        if self.write_enable {
             let read_data = self.read();
-            //println!("Mem wrote {read_data:?} at address 0x{:x}", self.write_addr);
             vec![("read_data".to_string(), read_data)]
         } else {
             vec![]

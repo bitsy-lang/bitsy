@@ -91,7 +91,7 @@ impl Repl {
             },
             TestbenchCommand::Clock => {
                 if verbose {
-                    println!("CLOCK");
+//                    println!("CLOCK");
                 }
                 self.sim.clock();
                 self.show_watches();

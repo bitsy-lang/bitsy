@@ -111,4 +111,5 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
         exts.insert(path.clone(), ext);
     }
     Sim::new_with_exts(&top, exts)
+        .cap_clock_freq(40.0)
 }
