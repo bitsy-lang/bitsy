@@ -253,11 +253,14 @@ impl Expr {
             },
             Expr::BinOp(op, e1, e2) => {
                 match (op, e1.eval(nettle), e2.eval(nettle)) {
+                    (BinOp::Add, Value::X, _other) => Value::X,
+                    (BinOp::Add, _other, Value::X) => Value::X,
                     (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
                     (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % (1 << w)),
                     (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
                     (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
                     (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => (a == b).into(),
+                    (BinOp::Eq,  Value::Enum(_typedef, a), Value::Enum(_typedef2, b)) => (a == b).into(),
                     (BinOp::Lt,  Value::Word(_w, a), Value::Word(_v, b)) => (a < b).into(),
                     (BinOp::Neq, Value::Word(_w, a), Value::Word(_v, b)) => (a != b).into(),
                     (BinOp::Xor, Value::Word(n, a),  Value::Word(_m, b)) => Value::Word(n, a ^ b),

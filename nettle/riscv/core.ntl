@@ -1,3 +1,30 @@
+enum InstrType {
+    I = 1w3;
+    S = 2w3;
+    B = 3w3;
+    U = 4w3;
+    J = 5w3;
+}
+
+enum Opcode {
+    OP = 51w7;
+    OP_IMM = 19w7;
+    LOAD = 3w7;
+    STORE = 35w7;
+    JAL = 111w7;
+    BRANCH = 99w7;
+    LUI = 55w7;
+    AUIPC = 23w7;
+    JALR = 103w7;
+}
+
+enum AluOp {
+    AND = 0w4;
+    OR = 1w4;
+    ADD = 2w4;
+    SUB = 6w4;
+}
+
 mod core {
     ext riscv_decoder {
         incoming in of Word<32>;
@@ -175,37 +202,22 @@ mod core {
         outgoing mem_read of Word<1>;
         outgoing mem_write of Word<1>;
         outgoing mem_to_reg of Word<1>;
-        outgoing alu_op of Word<4>;
+        outgoing alu_op of AluOp;
         outgoing alu_source of Word<1>;
         outgoing reg_write of Word<1>;
 
-        node OP of Word<7>; OP := 51w7;
-        node OP_IMM of Word<7>; OP_IMM := 19w7;
-        node LOAD of Word<7>; LOAD := 3w7;
-        node STORE of Word<7>; STORE := 35w7;
-        node JAL of Word<7>; JAL := 111w7;
-        node BRANCH of Word<7>; BRANCH := 99w7;
-        node LUI of Word<7>; LUI := 55w7;
-        node AUIPC of Word<7>; AUIPC := 23w7;
-        node JALR of Word<7>; JALR := 103w7;
+        branch := opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JALR) || opcode == word(Opcode::JAL);
 
-        branch := opcode == BRANCH || opcode == JALR || opcode == JAL;
-
-        mem_read := opcode == LOAD;
-        mem_write := opcode == STORE;
+        mem_read := opcode == word(Opcode::LOAD);
+        mem_write := opcode == word(Opcode::STORE);
         mem_to_reg := mem_read;
         alu_op := if funct3 == 0w3 { // ADD/ADDI
-            ALUOP_ADD
+            AluOp::ADD
         } else {
-            0w4
+            AluOp::ADD
         };
-        alu_source := opcode == OP_IMM || opcode == LOAD || opcode == STORE;
-        reg_write := opcode == OP || opcode == OP_IMM || opcode == LOAD;
-
-        node ALUOP_AND of Word<4>; ALUOP_AND := 0w4;
-        node ALUOP_OR  of Word<4>; ALUOP_OR := 1w4;
-        node ALUOP_ADD of Word<4>; ALUOP_ADD := 2w4;
-        node ALUOP_SUB of Word<4>; ALUOP_SUB := 6w4;
+        alu_source := opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD) || opcode == word(Opcode::STORE);
+        reg_write := opcode == word(Opcode::OP) || opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD);
     }
 
     instr_mem.write_enable := 0w1;
@@ -219,21 +231,16 @@ mod core {
     mod alu {
         incoming a of Word<32>;
         incoming b of Word<32>;
-        incoming op of Word<4>;
+        incoming op of AluOp;
         outgoing r of Word<32>;
 
-        node AND of Word<4>; AND := 0w4;
-        node OR  of Word<4>;  OR := 1w4;
-        node ADD of Word<4>; ADD := 2w4;
-        node SUB of Word<4>; SUB := 6w4;
-
-        r := if op == AND {
+        r := if op == AluOp::AND {
             a && b
-        } else if op == OR {
+        } else if op == AluOp::OR {
             a || b
-        } else if op == ADD {
+        } else if op == AluOp::ADD {
             a + b
-        } else if op == SUB {
+        } else if op == AluOp::SUB {
             a - b
         } else {
             0w32
@@ -247,42 +254,36 @@ mod core {
         node opcode of Word<32>;
         opcode := instr[7..0];
 
-        node I_TYPE of Word<3>; I_TYPE := 1w3;
-        node S_TYPE of Word<3>; S_TYPE := 2w3;
-        node B_TYPE of Word<3>; B_TYPE := 3w3;
-        node U_TYPE of Word<3>; U_TYPE := 4w3;
-        node J_TYPE of Word<3>; J_TYPE := 5w3;
-
-        node typ of Word<3>;
-        typ := if opcode == 19w7 { // OP-IMM
-            I_TYPE
-        } else if opcode == 3w7 { // LOAD
-            I_TYPE
-        } else if opcode == 35w7 { // STORE
-            S_TYPE
-        } else if opcode == 111w7 { // JAL
-            J_TYPE
-        } else if opcode == 99w7 { // BRANCH
-            B_TYPE
-        } else if opcode == 55w7 { // LUI
-            U_TYPE
-        } else if opcode == 23w7 { // AUIPC
-            U_TYPE
-        } else if opcode == 103w7 { // JALR
-            I_TYPE
+        node typ of InstrType;
+        typ := if opcode == word(Opcode::OP_IMM) {
+            InstrType::I
+        } else if opcode == word(Opcode::LOAD) {
+            InstrType::I
+        } else if opcode == word(Opcode::STORE) {
+            InstrType::S
+        } else if opcode == word(Opcode::JAL) {
+            InstrType::J
+        } else if opcode == word(Opcode::BRANCH) {
+            InstrType::B
+        } else if opcode == word(Opcode::LUI) {
+            InstrType::U
+        } else if opcode == word(Opcode::AUIPC) {
+            InstrType::U
+        } else if opcode == word(Opcode::JALR) {
+            InstrType::I
         } else {
-            0w3
+            InstrType::I
         };
 
-        imm := if typ == I_TYPE {
+        imm := if typ == InstrType::I {
             sext(cat(instr[31], instr[32..20]), 32)
-        } else if typ == S_TYPE {
+        } else if typ == InstrType::S {
             sext(cat(instr[31], instr[32..25], instr[12..7]), 32)
-        } else if typ == B_TYPE {
+        } else if typ == InstrType::B {
             sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1), 32)
-        } else if typ == U_TYPE {
+        } else if typ == InstrType::U {
             sext(cat(instr[32..12], 0w12), 32)
-        } else if typ == J_TYPE {
+        } else if typ == InstrType::J {
             sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1), 32)
         } else {
             0w32
@@ -314,7 +315,6 @@ mod core {
         outgoing instr_mem_addr of Word<32>;
         incoming instr_mem_data of Word<32>;
 
-        outgoing instr_valid of Word<1>;
         outgoing instr of Word<32>;
 
         reg pc of Word<32> reset 0w32;
@@ -327,10 +327,6 @@ mod core {
         };
 
         instr := instr_mem_data;
-
-        reg is_first_cycle of Word<1> reset 1w1;
-        is_first_cycle <= 0w1;
-        instr_valid := !is_first_cycle;
     }
 
     ifetch.branch_offset := immgen.imm;
@@ -361,5 +357,5 @@ mod core {
         rf.rs2_val
 
     };
-    alu.op := 2w4; // ADD
+    alu.op := control.alu_op;
 }
