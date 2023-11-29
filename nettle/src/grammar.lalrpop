@@ -103,7 +103,7 @@ pub ModDecl: ModDecl  = {
     "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
     "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
     "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Component(Component::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X))),
+    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Value::X))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),
@@ -166,10 +166,21 @@ pub ExprCall: Box<Expr> = {
     },
     "sext" "(" <e:Expr> "," <n:Nat> ")" =>  Box::new(Expr::Sext(e, n)),
     "word" "(" <e:Expr> ")" => Box::new(Expr::ToWord(e)),
+    "[" <es:ExprList> "]" => Box::new(Expr::Vec(es)),
     <e:ExprBase> "[" <i:Expr> "]" => Box::new(Expr::IdxDyn(e, i)),
     <e:ExprBase> "[" <i:Nat> "]" => Box::new(Expr::Idx(e, i)),
     <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" => Box::new(Expr::IdxRange(e, j, i)),
     <e:ExprBase> => e,
+}
+
+pub ExprList: Vec<Expr> = {
+    "" => vec![],
+    <e:Expr> => vec![*e],
+    <e:Expr> "," <es:ExprList> => {
+        let mut results = vec![*e];
+        results.extend(es.into_iter());
+        results
+    },
 }
 
 pub ExprBase: Box<Expr> = {
@@ -212,6 +223,7 @@ pub ExprReference: Box<Expr> = {
 pub Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
     <id:Id> => Type::TypeDef(Ref::new(id.to_string())),
+    "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
 }
 
 pub Value: Value = {
