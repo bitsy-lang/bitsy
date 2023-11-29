@@ -58,6 +58,8 @@ mod core {
         outgoing rs1_val of Word<32>;
         outgoing rs2_val of Word<32>;
 
+        reg xs of Vec<Word<32>, 32> reset [0w32; 32];
+
         reg x0 of Word<32> reset 0w32;
         reg x1 of Word<32> reset 0w32;
         reg x2 of Word<32> reset 0w32;
