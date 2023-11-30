@@ -1,5 +1,7 @@
 use super::*;
 
+use anyhow::anyhow;
+
 pub type Name = String;
 
 #[derive(Debug, Clone)]
@@ -72,7 +74,9 @@ impl std::ops::Deref for Circuit {
 
 impl Circuit {
     pub fn new(package: Package) -> Circuit {
-        Circuit(Arc::new(package))
+        let mut circuit = Circuit(Arc::new(package));
+        circuit.resolve_references();
+        circuit
     }
 
     pub fn top(&self) -> &Component {
@@ -107,7 +111,6 @@ impl Circuit {
         }
         let root_prefix = format!("{root}.");
         if !path.starts_with(&root_prefix) {
-            dbg!(&root_prefix);
             eprintln!("{path} does not start with {root_prefix})");
         }
         assert!(path.starts_with(&root_prefix));
@@ -115,19 +118,21 @@ impl Circuit {
         self.top().component(path)
     }
 
-    pub fn wires(&self) -> Vec<Wire> {
+    fn resolve_references(&mut self) {
         let mut wires = self.top().wires_rec(self.top().name().into());
         for Wire(_target, expr, _wiretype) in &mut wires {
             let func = |e: &mut Expr| {
                 if let Expr::Lit(Value::Enum(r, _name)) = e {
-                    if let Ref::Named(typedef) = &*r {
-                        r.resolve_to(self.0.typedef(&typedef).unwrap());
-                    }
+                    let typedef = self.0.typedef(r.name()).unwrap();
+                    r.resolve_to(typedef).unwrap();
                 }
             };
             expr.with_subexprs_mut(&func);
         }
-        wires
+    }
+
+    pub fn wires(&self) -> Vec<Wire> {
+        self.top().wires_rec(self.top().name().into())
     }
 
     fn walk(&self) -> Vec<(Path, &Component)> {
@@ -213,11 +218,33 @@ impl Component {
         None
     }
 
+    pub fn context(&self) -> anyhow::Result<Context<Path, Type>> {
+        let mut ctx = vec![];
+        for path in self.visible_terminals() {
+            let component = self.component(path.clone()).unwrap();
+            let typ = component.type_of().ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", self.name()))?;
+            ctx.push((path, typ));
+        }
+        Ok(Context::from(ctx))
+    }
+
+    fn type_of(&self) -> Option<Type> {
+        match self {
+            Component::Mod(_name, _children, _wires) => None,
+            Component::Ext(_name, _children) => None,
+            Component::Node(_name, typ) => Some(typ.clone()),
+            Component::Outgoing(_name, typ) => Some(typ.clone()),
+            Component::Incoming(_name, typ) => Some(typ.clone()),
+            Component::Reg(_name, typ, _reset) => Some(typ.clone()),
+        }
+    }
+
     fn check(&self) -> Result<(), Vec<CircuitError>> {
         let mut errors = vec![];
 
         match self {
             Component::Mod(_name, _children, _wires) => {
+                errors.extend(self.check_typecheck());
                 errors.extend(self.check_wires_no_such_component());
                 errors.extend(self.check_children_duplicate_names());
                 errors.extend(self.check_wires_duplicate_targets());
@@ -265,6 +292,31 @@ impl Component {
             } else {
                 errors.push(CircuitError::MultipleDrivers(target.to_string()));
             }
+        }
+        errors
+    }
+
+    fn check_typecheck(&self) -> Vec<CircuitError> {
+        let ctx = match self.context() {
+            Ok(ctx) => ctx,
+            Err(e) => return vec![CircuitError::Unknown(format!("{e:?}"))],
+        };
+
+        let mut errors = vec![];
+
+        for Wire(target, expr, _wiretype) in &self.wires() {
+            let target_typ = if let Some(typ) = ctx.lookup(target) {
+                typ
+            } else {
+                errors.push(CircuitError::Unknown(format!("Target {target} in {} has unknown type", self.name())));
+                continue;
+            };
+
+            match expr.typecheck(&target_typ, ctx.clone()) {
+                Err(e) => errors.push(CircuitError::TypeError(format!("{e:?}"))),
+                Ok(()) => (),
+            }
+
         }
         errors
     }
@@ -430,13 +482,19 @@ impl Component {
                 Component::Node(name, _typ) => results.push(name.to_string().into()),
                 Component::Incoming(name, _typ) => results.push(name.to_string().into()),
                 Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
+                Component::Reg(name, _typ, _reset) => results.push(name.to_string().into()),
                 Component::Mod(name, _children, _wires) => {
                     let mod_path: Path = name.to_string().into();
                     for path in child.port_paths() {
                         results.push(mod_path.join(path));
                     }
                 },
-                _ => (),
+                Component::Ext(name, _children) => {
+                    let ext_path: Path = name.to_string().into();
+                    for path in child.port_paths() {
+                        results.push(ext_path.join(path));
+                    }
+                },
             }
         }
         results
@@ -467,4 +525,6 @@ pub enum CircuitError {
     WrongWireType(Name, WireType),
     IncomingPortDriven(Name),
     NoSuchComponent(Name),
+    TypeError(String),
+    Unknown(String),
 }

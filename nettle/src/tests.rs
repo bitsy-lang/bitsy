@@ -370,3 +370,102 @@ fn test_check() {
     dbg!(top2.check());
     */
 }
+
+#[test]
+fn typeinfer() {
+    let tests = vec![
+        ("1w8", Context::empty(), Some(Type::Word(8))),
+        ("7w3", Context::empty(), Some(Type::Word(3))),
+        ("?foo", Context::empty(), None),
+        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Some(Type::Word(2))),
+        ("1w4 + 1w4", Context::empty(), Some(Type::Word(4))),
+        ("!1w4", Context::empty(), Some(Type::Word(4))),
+        ("1w4[0]", Context::empty(), Some(Type::Word(1))),
+        ("0w4[0]", Context::empty(), Some(Type::Word(1))),
+        ("2w4[2..0]", Context::empty(), Some(Type::Word(2))),
+        ("2w4[4..0]", Context::empty(), Some(Type::Word(4))),
+        ("2w4[5..0]", Context::empty(), None),
+        /*
+        ("(top.a + top.b)", vec!["top.a", "top.b"]),
+        ("(top.b - top.a)", vec!["top.a", "top.b"]),
+        ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
+        ("(top.a != top.b)".into(), vec!["top.a", "top.b"]),
+        ("(!top.x)".into(), vec!["top.x"]),
+        ("if top.x { top.a } else { top.b }".into(), vec!["top.a", "top.b", "top.x"]),
+        ("if !top.x { top.a } else { top.b }".into(), ),
+        */
+    ];
+
+    for (expr_str, ctx, type_expected) in tests {
+        let expr: Expr = expr_str.into();
+        let type_actual = expr.typeinfer(ctx);
+        assert!(
+            type_actual == type_expected,
+            "typeinfer did not produced expected type for: {expr_str}. Produced {type_actual:?}"
+        );
+    }
+}
+
+#[test]
+fn typecheck() {
+    let test_err = vec![
+        ("x", Context::empty(), Type::Word(1)),
+        ("x", Context::from(vec![("x".into(), Type::Word(8))]), Type::Word(1)),
+        ("1w8", Context::empty(), Type::Word(7)),
+        ("8w3", Context::empty(), Type::Word(3)),
+        ("if 0w2 { 0w2 } else { 0w2 }", Context::empty(), Type::Word(2)),
+        ("if 0w1 { 0w3 } else { 0w2 }", Context::empty(), Type::Word(2)),
+    ];
+
+    for (expr_str, ctx, type_expected) in test_err {
+        let expr: Expr = expr_str.into();
+        assert!(expr.typecheck(&type_expected, ctx).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
+    }
+
+    let test_ok = vec![
+        ("1w8", Context::empty(), Type::Word(8)),
+        ("7w3", Context::empty(), Type::Word(3)),
+        ("?foo", Context::empty(), Type::Word(3)),
+        ("?foo", Context::empty(), Type::Word(8)),
+        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Type::Word(2)),
+        /*
+        ("(top.a + top.b)", vec!["top.a", "top.b"]),
+        ("(top.b - top.a)", vec!["top.a", "top.b"]),
+        ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
+        ("(top.a != top.b)".into(), vec!["top.a", "top.b"]),
+        ("(!top.x)".into(), vec!["top.x"]),
+        ("if top.x { top.a } else { top.b }".into(), vec!["top.a", "top.b", "top.x"]),
+        ("if !top.x { top.a } else { top.b }".into(), ),
+        */
+    ];
+
+    for (expr_str, ctx, type_expected) in test_ok {
+        let expr: Expr = expr_str.into();
+        assert!(expr.typecheck(&type_expected, ctx).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
+    }
+}
+
+#[test]
+fn component_context() {
+    let top = parse_top("
+        mod top {
+            outgoing out of Word<32>;
+            reg sum of Word<32> reset 0w32;
+            mod counter {
+                outgoing out of Word<32>;
+                reg counter of Word<32> reset 1w32;
+                out := counter;
+                counter <= counter + 1w32;
+            }
+            out := sum;
+            sum <= sum + counter.out;
+        }
+    ").unwrap();
+
+    let component: &Component = top.component("top".into()).unwrap();
+    for (name, typ) in &component.context().unwrap().into_inner() {
+
+        dbg!(name);
+        dbg!(typ);
+    }
+}

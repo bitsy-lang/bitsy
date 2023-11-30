@@ -195,11 +195,11 @@ pub ExprReference: Box<Expr> = {
 
 pub Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
-    <id:Id> => Type::TypeDef(Ref::Named(id.to_string())),
+    <id:Id> => Type::TypeDef(Ref::new(id.to_string())),
 }
 
 pub Value: Value = {
-    <typename:Id> "::" <name:Id> => Value::Enum(Ref::Named(typename), name.to_string()),
+    <typename:Id> "::" <name:Id> => Value::Enum(Ref::new(typename), name.to_string()),
     <lit:r"[0-9]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();

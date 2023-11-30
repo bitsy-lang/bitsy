@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use anyhow::anyhow;
 
 pub type Width = u64;
 pub type Length = u64;
@@ -10,13 +11,27 @@ pub struct TypeDef {
 }
 
 impl TypeDef {
-    pub fn value_of(&self, name: &str) -> Value {
+    pub fn value_of(&self, name: &str) -> Option<Value> {
         for (other_name, value) in &self.values {
             if name == other_name {
-                return value.clone();
+                return Some(value.clone());
             }
         }
-        panic!("No such name for typedef: {} has no name {name}", self.name)
+        None
+    }
+
+    pub fn width(&self) -> Width {
+        let mut max_width = 0;
+        for (_name, value) in &self.values {
+            if let Value::Word(w, _n) = value {
+                if *w > max_width {
+                    max_width = *w;
+                }
+            } else {
+                panic!("Values of typedefs must only be Words.")
+            }
+        }
+        max_width
     }
 }
 
@@ -27,33 +42,48 @@ pub enum Type {
     TypeDef(Ref<TypeDef>),
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Ref<T> {
-    Named(String),
-    Resolved(Arc<T>),
+#[derive(Debug, Clone)]
+pub struct Ref<T>(String, Arc<std::sync::Mutex<Option<Arc<T>>>>);
+
+impl<T> PartialEq for Ref<T> {
+    fn eq(&self, other: &Ref<T>) -> bool {
+        self.0 == other.0
+    }
 }
 
+impl<T> Eq for Ref<T> {}
+
 impl Ref<TypeDef> {
+    pub fn new(name: String) -> Ref<TypeDef> {
+        Ref(name, Arc::new(std::sync::Mutex::new(None)))
+    }
+
     pub fn name(&self) -> &str {
-        match self {
-            Ref::Named(name) => name,
-            Ref::Resolved(typedef) => &typedef.name,
-        }
+        &self.0
     }
 }
 
 impl<T> Ref<T> {
-    pub fn get(&self) -> Option<&T> {
-        match self {
-            Ref::Named(_name) => None,
-            Ref::Resolved(t) => Some(t),
+    pub fn get(&self) -> Option<Arc<T>> {
+        let lock = self.1.lock().unwrap();
+        match &*lock {
+            Some(t) => Some(Arc::clone(t)),
+            None => None,
         }
     }
 
-    pub fn resolve_to(&mut self, t: Arc<T>) {
-        *self = match self {
-            Ref::Named(_name) => Ref::Resolved(t),
-            Ref::Resolved(_t) => panic!("Ref is already resolved."),
+    pub fn is_resolved(&self) -> bool {
+        self.1.lock().unwrap().is_some()
+    }
+
+    pub fn resolve_to(&self, t: Arc<T>) -> anyhow::Result<()> {
+        let mut lock = self.1.lock().unwrap();
+        match &*lock {
+            Some(_t) => Err(anyhow!("Ref is already resolved.")),
+            None => {
+                *lock = Some(t);
+                Ok(())
+            },
         }
     }
 }
@@ -111,8 +141,7 @@ impl std::fmt::Debug for Type {
         match self {
             Type::Word(n) => write!(f, "Word<{n}>"),
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
-            Type::TypeDef(Ref::Named(typename)) => write!(f, "{}", typename.clone()),
-            Type::TypeDef(Ref::Resolved(typedef)) => write!(f, "{}", typedef.name),
+            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
         }
     }
 }

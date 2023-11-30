@@ -224,6 +224,7 @@ mod core {
     instr_mem.write_addr := 0w32;
     instr_mem.write_data := 0w32;
 
+    mem.read_addr := 0w32; // TODO
     mem.write_enable := control.mem_write;
     mem.write_addr := rf.rs1_val;
     mem.write_data := rf.rs2_val;
@@ -251,7 +252,7 @@ mod core {
         incoming instr of Word<32>;
         outgoing imm of Word<32>;
 
-        node opcode of Word<32>;
+        node opcode of Word<7>;
         opcode := instr[7..0];
 
         node typ of InstrType;

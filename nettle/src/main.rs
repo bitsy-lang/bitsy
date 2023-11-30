@@ -9,6 +9,7 @@ mod testbench;
 mod path;
 mod ext;
 mod repl;
+mod context;
 #[cfg(test)]
 mod tests;
 
@@ -21,6 +22,7 @@ use testbench::*;
 use path::*;
 use ext::*;
 use repl::*;
+use context::*;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
