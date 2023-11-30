@@ -8,6 +8,7 @@ lalrpop_mod!(grammar);
 pub enum ModDecl {
     Component(Component),
     Wire(Wire),
+    When(When),
 }
 
 pub fn parse_top(package: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {

@@ -79,8 +79,9 @@ impl SimCircuit {
                 .cloned()
                 .map(|Wire(target, expr, wiretype)| {
                     let target_net_id = match wiretype {
-                        WireType::Connect => net_id_by_path[&target],
+                        WireType::Direct => net_id_by_path[&target],
                         WireType::Latch => net_id_by_path[&target.set()],
+                        _ => todo!(),
                     };
                     (target_net_id, expr.references_to_nets(&net_id_by_path), wiretype)
                 })
@@ -412,8 +413,9 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
 
     for Wire(target, expr, wire_type) in circuit.wires() {
         let target_terminal: Path = match wire_type {
-            WireType::Connect => target.clone(),
+            WireType::Direct => target.clone(),
             WireType::Latch => target.set(),
+            WireType::Proc => target.set(),
         };
         if let Expr::Reference(driver) = expr {
             immediate_driver_for.insert(target_terminal.clone(), driver.clone());

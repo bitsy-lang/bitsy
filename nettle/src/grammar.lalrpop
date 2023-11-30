@@ -66,15 +66,17 @@ pub Mod: Component = {
     "}" => {
         let mut children = vec![];
         let mut wires = vec![];
+        let mut whens = vec![];
 
         for decl in decls {
             match decl {
                 ModDecl::Component(c) => children.push(c),
                 ModDecl::Wire(w) => wires.push(w),
+                ModDecl::When(w) => whens.push(w),
             }
         }
 
-        Component::Mod(id, children, wires)
+        Component::Mod(id, children, wires, whens)
     },
 }
 
@@ -89,6 +91,7 @@ pub Ext: Component = {
             match decl {
                 ModDecl::Component(c) => children.push(c),
                 ModDecl::Wire(w) => panic!("Exts can't have wires {id}"),
+                ModDecl::When(w) => panic!("Exts can't have whens {id}"),
             }
         }
 
@@ -101,11 +104,24 @@ pub ModDecl: ModDecl  = {
     "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
     "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
     "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Value)?> ";" => ModDecl::Component(Component::Reg(id, typ, reset_val.map(|opt| opt.1).unwrap_or(Value::X))),
+    <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),
-    <reference:Reference> ":=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Connect)),
-    <reference:Reference> "<=" <e:Expr> ";" => ModDecl::Wire(Wire::new(reference, *e, WireType::Latch)),
+    <wire:Wire> => ModDecl::Wire(wire),
 }
+
+pub Wire: Wire = {
+    <reference:Reference> ":=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Direct),
+    <reference:Reference> "<=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Latch),
+    <reference:Reference> "<=!" <e:Expr> ";" => Wire::new(reference, *e, WireType::Proc),
+}
+
+pub When: When = {
+    "when" <e:Expr> "{"
+        <wires:Wire*>
+    "}" => When(*e, wires),
+}
+
 
 pub Expr: Box<Expr> = {
     <e:ExprOr> => e,

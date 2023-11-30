@@ -28,12 +28,17 @@ pub enum Decl {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireType {
-    Connect,
+    Direct,
     Latch,
+    Proc,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Wire(pub Path, pub Expr, pub WireType);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct When(pub Expr, pub Vec<Wire>);
+
 
 impl Wire {
     pub fn new(target: Path, expr: Expr, typ: WireType) -> Wire {
@@ -48,7 +53,7 @@ impl Wire {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Component {
-    Mod(Name, Vec<Component>, Vec<Wire>),
+    Mod(Name, Vec<Component>, Vec<Wire>, Vec<When>),
     Ext(Name, Vec<Component>),
     Incoming(Name, Type),
     Outgoing(Name, Type),
@@ -97,7 +102,7 @@ impl Circuit {
         let path: Path = self.top().name().into();
         let mut results = vec![path.clone()];
         for child in self.children() {
-            if let Component::Mod(name, _children, _wires) = child {
+            if let Component::Mod(name, _children, _wires, _whens) = child {
                 results.extend(child.modules_rec(path.join(name.clone().into())));
             }
         }
@@ -192,7 +197,7 @@ impl Circuit {
 impl Component {
     pub fn name(&self) -> &str {
         match self {
-            Component::Mod(name, _children, _wires) => name.as_str(),
+            Component::Mod(name, _children, _wires, _whens) => name.as_str(),
             Component::Ext(name, _children) => name.as_str(),
             Component::Incoming(name, _typ) => name.as_str(),
             Component::Outgoing(name, _typ) => name.as_str(),
@@ -230,7 +235,7 @@ impl Component {
 
     fn type_of(&self) -> Option<Type> {
         match self {
-            Component::Mod(_name, _children, _wires) => None,
+            Component::Mod(_name, _children, _wires, _whens) => None,
             Component::Ext(_name, _children) => None,
             Component::Node(_name, typ) => Some(typ.clone()),
             Component::Outgoing(_name, typ) => Some(typ.clone()),
@@ -243,7 +248,7 @@ impl Component {
         let mut errors = vec![];
 
         match self {
-            Component::Mod(_name, _children, _wires) => {
+            Component::Mod(_name, _children, _wires, _whens) => {
                 errors.extend(self.check_typecheck());
                 errors.extend(self.check_wires_no_such_component());
                 errors.extend(self.check_children_duplicate_names());
@@ -338,8 +343,8 @@ impl Component {
         for Wire(target, _expr, wiretype) in &self.wires() {
             if let Some(component) = self.component(target.clone()) {
                 match (component, wiretype) {
-                    (Component::Reg(name, _typ, _reset), WireType::Connect) =>
-                        errors.push(CircuitError::WrongWireType(name.clone(), WireType::Connect)),
+                    (Component::Reg(name, _typ, _reset), WireType::Direct) =>
+                        errors.push(CircuitError::WrongWireType(name.clone(), WireType::Direct)),
                     (Component::Node(name, _typ), WireType::Latch) =>
                         errors.push(CircuitError::WrongWireType(name.clone(), WireType::Latch)),
                     (Component::Outgoing(name, _typ), WireType::Latch) =>
@@ -403,7 +408,7 @@ impl Component {
 
     pub fn children(&self) -> Vec<&Component> {
         match self {
-            Component::Mod(_name, children, _wires) => children.iter().collect(),
+            Component::Mod(_name, children, _wires, _whens) => children.iter().collect(),
             Component::Ext(_name, children) => children.iter().collect(),
             Component::Incoming(_name, _typ) => vec![],
             Component::Outgoing(_name, _typ) => vec![],
@@ -423,7 +428,7 @@ impl Component {
     fn modules_rec(&self, current_path: Path) -> Vec<Path> {
         let mut results = vec![current_path.clone()];
         for child in self.children() {
-            if let Component::Mod(name, _children, _wires) = child {
+            if let Component::Mod(name, _children, _wires, _whens) = child {
                 results.extend(child.modules_rec(current_path.join(name.clone().into())));
             }
         }
@@ -432,7 +437,7 @@ impl Component {
 
     pub fn wires(&self) -> Vec<Wire> {
         match self {
-            Component::Mod(_name, _children, wires) => wires.clone(),
+            Component::Mod(_name, _children, wires, _whens) => wires.clone(),
             _ => vec![],
         }
     }
@@ -456,7 +461,7 @@ impl Component {
                 },
                 Component::Incoming(name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Outgoing(name, _typ) => results.push(path.join(name.clone().into())),
-                Component::Mod(name, _children, _wires) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
+                Component::Mod(name, _children, _wires, _whens) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
                 Component::Ext(name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
             }
         }
@@ -483,7 +488,7 @@ impl Component {
                 Component::Incoming(name, _typ) => results.push(name.to_string().into()),
                 Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
                 Component::Reg(name, _typ, _reset) => results.push(name.to_string().into()),
-                Component::Mod(name, _children, _wires) => {
+                Component::Mod(name, _children, _wires, _whens) => {
                     let mod_path: Path = name.to_string().into();
                     for path in child.port_paths() {
                         results.push(mod_path.join(path));
@@ -502,7 +507,7 @@ impl Component {
 
     pub fn is_mod(&self) -> bool {
         match self {
-            Component::Mod(_name, _children, _wires) => true,
+            Component::Mod(_name, _children, _wires, _whens) => true,
             _ => false
         }
     }

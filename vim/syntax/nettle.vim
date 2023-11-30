@@ -9,7 +9,7 @@ syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
 hi link blockComment Comment
 
-syn keyword nettleKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node
+syn keyword nettleKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when
 hi link nettleKeyword Keyword
 syn keyword nettleConstant true false XXX io
 hi link nettleConstant Number
@@ -28,7 +28,9 @@ hi link nettleUpperIdentifier Type
 syn match nettleAt "@"
 syn match nettleColon ":"
 syn match nettleRevFatArrow "<="
+syn match nettleRevFatArrowBang "<=!"
 syn match nettleRevColonArrow ":="
+syn match nettleRevColonArrowBang ":=!"
 syn match lt "<"
 syn match gt ">"
 syn match nettleArrow "->"
@@ -47,7 +49,9 @@ hi link lt Keyword
 hi link gt Keyword
 hi link nettleArrow Keyword
 hi link nettleRevFatArrow Keyword
+hi link nettleRevFatArrowBang Keyword
 hi link nettleRevColonArrow Keyword
+hi link nettleRevColonArrowBang Keyword
 hi link nettleFatArrow Keyword
 hi link nettleEq Keyword
 hi link nettleEqOp Keyword
