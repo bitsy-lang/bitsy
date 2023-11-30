@@ -1,41 +1,10 @@
 link core.riscv_decoder = RiscVDecoder {}
 
 link core.instr_mem = Mem {
-    file = "riscv/prog.bin"
+    file = "programs/fib.bin"
 }
 
-link core.mem = Mem {
-    file = "data/hello.bin"
-}
-
-watch core.control.reg_write
-watch core.control.mem_write
-watch core.ifetch.instr_valid bool
-watch core.ifetch.instr hex
-watch core.rf.x1
-watch core.decoder.rd
-watch core.alu.a
-watch core.alu.b
-watch core.alu.r
+link core.mem = Mem {}
 
 reset
-debug
-assert core.ifetch.instr_mem_data == 147w8
-clock
-assert core.ifetch.instr_reg[32..24] == 147w8
-assert core.ifetch.instr_mem_data == 0w8
-clock
-assert core.ifetch.instr_mem_data == 160w8
-clock
-assert core.ifetch.instr_mem_data == 2w8
-clock
-peek core.ifetch.instr
-assert core.ifetch.instr == 44040339w32
-
-clock
-clock
-clock
-clock
-assert core.ifetch.instr == 101720611w32
-
-debug
+run

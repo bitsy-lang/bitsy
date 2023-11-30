@@ -6,6 +6,17 @@ enum InstrType {
     J = 5w3;
 }
 
+enum AluSource {
+    RS1 = 0w1;
+    IMM = 0w1;
+}
+
+enum PcAdvancement {
+    NEXT   = 1w2;
+    REL = 2w2;
+    ABS   = 3w2;
+}
+
 enum Opcode {
     OP = 51w7;
     OP_IMM = 19w7;
@@ -198,15 +209,21 @@ mod core {
         incoming funct3 of Word<3>;
         incoming funct7 of Word<7>;
 
-        outgoing branch of Word<1>;
+        outgoing advancement of PcAdvancement;
         outgoing mem_read of Word<1>;
         outgoing mem_write of Word<1>;
         outgoing mem_to_reg of Word<1>;
         outgoing alu_op of AluOp;
-        outgoing alu_source of Word<1>;
+        outgoing alu_source of AluSource;
         outgoing reg_write of Word<1>;
 
-        branch := opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JALR) || opcode == word(Opcode::JAL);
+        advancement := if opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JAL) {
+            PcAdvancement::REL
+        } else if opcode == word(Opcode::JALR) {
+            PcAdvancement::ABS
+        } else {
+            PcAdvancement::NEXT
+        };
 
         mem_read := opcode == word(Opcode::LOAD);
         mem_write := opcode == word(Opcode::STORE);
@@ -216,8 +233,19 @@ mod core {
         } else {
             AluOp::ADD
         };
-        alu_source := opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD) || opcode == word(Opcode::STORE);
-        reg_write := opcode == word(Opcode::OP) || opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD);
+        alu_source := if opcode == word(Opcode::OP_IMM)
+                      || opcode == word(Opcode::LOAD)
+                      || opcode == word(Opcode::STORE)
+                      || opcode == word(Opcode::LUI) {
+            AluSource::IMM
+        } else {
+            AluSource::RS1
+        };
+
+        reg_write := opcode == word(Opcode::OP)
+                  || opcode == word(Opcode::OP_IMM)
+                  || opcode == word(Opcode::LOAD)
+                  || opcode == word(Opcode::LUI);
     }
 
     instr_mem.write_enable := 0w1;
@@ -309,8 +337,9 @@ mod core {
     }
 
     mod ifetch {
-        incoming branch_offset of Word<32>;
-        incoming branch_enable of Word<1>;
+        incoming advancement of PcAdvancement;
+        incoming imm of Word<32>;
+        incoming rs1 of Word<32>;
 
         outgoing instr_mem_addr of Word<32>;
         incoming instr_mem_data of Word<32>;
@@ -320,17 +349,20 @@ mod core {
         reg pc of Word<32> reset 0w32;
         instr_mem_addr := pc;
 
-        pc <= if branch_enable {
-            pc + branch_offset
-        } else {
+        pc <= if advancement == PcAdvancement::NEXT {
             pc + 4w32
+        } else if advancement == PcAdvancement::REL {
+            pc + imm
+        } else {
+           rs1
         };
 
         instr := instr_mem_data;
     }
 
-    ifetch.branch_offset := immgen.imm;
-    ifetch.branch_enable := control.branch;
+    ifetch.imm := immgen.imm;
+    ifetch.rs1 := rf.rs1_val;
+    ifetch.advancement := control.advancement;
 
     instr_mem.read_addr := ifetch.instr_mem_addr;
     ifetch.instr_mem_data := instr_mem.read_data;
@@ -339,7 +371,13 @@ mod core {
     rf.rs2 := decoder.rs2;
     rf.rd := decoder.rd;
     rf.write_enable := control.reg_write;
-    rf.write_data := alu.r;
+    rf.write_data := if decoder.opcode == word(Opcode::LUI) {
+        immgen.imm
+    } else if decoder.opcode == word(Opcode::AUIPC) {
+        immgen.imm
+    } else {
+        alu.r
+    };
 
     decoder.instr := ifetch.instr;
     immgen.instr := ifetch.instr;
@@ -351,7 +389,7 @@ mod core {
     control.funct7 := decoder.funct7;
 
     alu.a := rf.rs1_val;
-    alu.b := if control.alu_source {
+    alu.b := if control.alu_source == AluSource::IMM {
         immgen.imm
     } else {
         rf.rs2_val
