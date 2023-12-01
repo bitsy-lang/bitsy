@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 type Pos = usize;
 
 #[derive(Clone, Debug)]
@@ -16,14 +18,14 @@ impl SourceInfo {
 
     pub fn from_file(filepath: &std::path::Path, contents: &str) -> SourceInfo {
         SourceInfo {
-            source: Source::File(filepath.to_owned()),
+            source: Source::File(Arc::new(filepath.to_owned())),
             linelens: LineLens::from(contents),
         }
     }
 
     pub fn from_string(contents: &str) -> SourceInfo {
         SourceInfo {
-            source: Source::String(contents.to_owned()),
+            source: Source::String(Arc::new(contents.to_owned())),
             linelens: LineLens::from(contents),
         }
     }
@@ -39,8 +41,8 @@ impl SourceInfo {
 
 #[derive(Clone, Debug)]
 pub enum Source {
-    File(std::path::PathBuf),
-    String(String),
+    File(Arc<std::path::PathBuf>),
+    String(Arc<String>),
     Unknown,
 }
 
@@ -64,18 +66,28 @@ impl std::fmt::Display for RowCol {
 }
 
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug)]
 pub struct Loc {
     start: Pos,
     end: Pos,
+    source_info: SourceInfo,
 }
 
 impl Loc {
-    pub(crate) fn from(start: usize, end: usize) -> Loc {
+    pub(crate) fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
         Loc {
             start,
             end,
+            source_info: source_info.clone(),
         }
+    }
+
+    pub fn start(&self) -> RowCol {
+        self.source_info.linelens.rowcol(self.start)
+    }
+
+    pub fn end(&self) -> RowCol {
+        self.source_info.linelens.rowcol(self.end)
     }
 }
 

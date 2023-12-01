@@ -1,6 +1,6 @@
 use super::*;
 
-grammar;
+grammar(source_info: &SourceInfo);
 
 pub Testbench: Testbench = {
     <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
@@ -103,7 +103,7 @@ pub ModDecl: ModDecl  = {
     "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
     "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
     "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(0, 0), Value::X))))),
+    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),
@@ -128,31 +128,31 @@ pub Expr: Box<Expr> = {
 }
 
 pub ExprOr: Box<Expr> = {
-    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Or, e1, e2)),
-    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Xor, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
     <e:ExprAnd> => e,
 }
 
 pub ExprAnd: Box<Expr> = {
-    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::And, e1, e2)),
+    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
     <e:ExprNot> => e,
 }
 
 pub ExprNot: Box<Expr> = {
-    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Loc::from(ll, rr), UnOp::Not, e)),
+    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
     <e:ExprEq> => e,
 }
 
 pub ExprEq: Box<Expr> = {
-    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Eq,  e1, e2)),
-    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Lt, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
+    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
 pub ExprAdd: Box<Expr> = {
-    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Add, e1, e2)),
-    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(ll, rr), BinOp::Sub, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
+    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
     <e:ExprCall> => e,
 }
 
@@ -162,15 +162,15 @@ pub ExprCall: Box<Expr> = {
         for (_, e) in ess {
             es.push(*e);
         }
-        Box::new(Expr::Cat(Loc::from(ll, rr), es))
+        Box::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
     },
-    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(ll, rr), e, n)),
-    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(ll, rr), e)),
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(ll, rr), vec![*e; n as usize])),
-    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Box::new(Expr::IdxDyn(Loc::from(ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(ll, rr), e, j, i)),
+    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
+    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
+    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
+    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![*e; n as usize])),
+    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Box::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
     <e:ExprBase> => e,
 }
 
@@ -193,7 +193,7 @@ pub ExprBase: Box<Expr> = {
 }
 
 pub ExprHole: Box<Expr> = {
-    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Loc::from(ll, rr), name)),
+    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
 }
 
 pub ExprIf: Box<Expr> = {
@@ -206,21 +206,21 @@ pub ExprIf: Box<Expr> = {
         let mut result = elseexpr;
 
         for (_, _, _, elseif_cond, _, elseif_body) in elseifs.into_iter().rev() {
-            result = Box::new(Expr::If(Loc::from(ll, rr), elseif_cond, elseif_body, result));
+            result = Box::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
         }
 
-        Box::new(Expr::If(Loc::from(ll, rr), cond, e1, result))
+        Box::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
     },
 }
 
 pub ExprLit: Box<Expr> = {
     <ll:@L> <v:Value> <rr:@R> => {
-        Box::new(Expr::Lit(Loc::from(ll, rr), v))
+        Box::new(Expr::Lit(Loc::from(source_info, ll, rr), v))
     },
 }
 
 pub ExprReference: Box<Expr> = {
-     <ll:@L> <path:Path> <rr:@R> => Box::new(Expr::Reference(Loc::from(ll, rr), path.into()))
+     <ll:@L> <path:Path> <rr:@R> => Box::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
 }
 
 pub Type: Type = {

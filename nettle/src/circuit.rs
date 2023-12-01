@@ -62,7 +62,7 @@ pub enum Component {
 }
 
 #[derive(Debug, Clone)]
-pub struct Circuit(Arc<Package>, SourceInfo);
+pub struct Circuit(Arc<Package>);
 
 impl std::ops::Deref for Circuit {
     type Target = Component;
@@ -78,8 +78,8 @@ impl std::ops::Deref for Circuit {
 }
 
 impl Circuit {
-    pub fn new(package: Package, source_info: SourceInfo) -> Circuit {
-        let mut circuit = Circuit(Arc::new(package), source_info);
+    pub fn new(package: Package) -> Circuit {
+        let mut circuit = Circuit(Arc::new(package));
         circuit.resolve_references();
         circuit
     }
@@ -179,7 +179,7 @@ impl Circuit {
     pub fn check(&self) -> Result<(), Vec<(Path, CircuitError)>> {
         let mut errors = vec![];
         for (path, component) in self.walk() {
-            if let Err(component_errors) = component.check(&self.1) {
+            if let Err(component_errors) = component.check() {
                 for component_error in component_errors {
                     errors.push((path.clone(), component_error));
                 }
@@ -244,12 +244,12 @@ impl Component {
         }
     }
 
-    fn check(&self, source_info: &SourceInfo) -> Result<(), Vec<CircuitError>> {
+    fn check(&self) -> Result<(), Vec<CircuitError>> {
         let mut errors = vec![];
 
         match self {
             Component::Mod(_name, _children, _wires, _whens) => {
-                errors.extend(self.check_typecheck(source_info));
+                errors.extend(self.check_typecheck());
                 errors.extend(self.check_wires_no_such_component());
                 errors.extend(self.check_children_duplicate_names());
                 errors.extend(self.check_wires_duplicate_targets());
@@ -301,7 +301,7 @@ impl Component {
         errors
     }
 
-    fn check_typecheck(&self, source_info: &SourceInfo) -> Vec<CircuitError> {
+    fn check_typecheck(&self) -> Vec<CircuitError> {
         let ctx = match self.context() {
             Ok(ctx) => ctx,
             Err(e) => return vec![CircuitError::Unknown(format!("{e:?}"))],
@@ -317,7 +317,7 @@ impl Component {
                 continue;
             };
 
-            match expr.typecheck(&target_typ, ctx.clone(), source_info) {
+            match expr.typecheck(&target_typ, ctx.clone()) {
                 Err(e) => errors.push(CircuitError::TypeError(format!("{e:?}"))),
                 Ok(()) => (),
             }

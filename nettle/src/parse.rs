@@ -13,20 +13,23 @@ pub enum ModDecl {
 
 pub fn parse_top(package: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
     let source_info = SourceInfo::from_string(package);
-    let package: Package = grammar::PackageParser::new().parse(package)?;
-    Ok(Circuit::new(package, source_info))
+    let package: Package = grammar::PackageParser::new().parse(&source_info, package)?;
+    Ok(Circuit::new(package))
 }
 
 impl From<&str> for Expr {
     fn from(expr: &str) -> Expr {
-        *grammar::ExprParser::new().parse(expr).unwrap()
+        let source_info = SourceInfo::from_string(expr);
+        *grammar::ExprParser::new().parse(&source_info, expr).unwrap()
     }
 }
 
 pub fn parse_testbench(testbench: &str) -> Result<Testbench, ParseError<usize, Token<'_>, &'static str>> {
-    Ok(grammar::TestbenchParser::new().parse(testbench)?)
+    let source_info = SourceInfo::from_string(testbench);
+    Ok(grammar::TestbenchParser::new().parse(&source_info, testbench)?)
 }
 
 pub fn parse_testbench_command(testbench_command: &str) -> Result<TestbenchCommand, ParseError<usize, Token<'_>, &'static str>> {
-    grammar::TestbenchCommandParser::new().parse(testbench_command)
+    let source_info = SourceInfo::from_string(testbench_command);
+    grammar::TestbenchCommandParser::new().parse(&source_info, testbench_command)
 }
