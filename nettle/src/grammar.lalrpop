@@ -165,6 +165,7 @@ pub ExprCall: Box<Expr> = {
         Box::new(Expr::Cat(Loc::from(ll, rr), es))
     },
     <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(ll, rr), e, n)),
+    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(ll, rr), e)),
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(ll, rr), es)),
     <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(ll, rr), vec![*e; n as usize])),
     <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Box::new(Expr::IdxDyn(Loc::from(ll, rr), e, i)),
