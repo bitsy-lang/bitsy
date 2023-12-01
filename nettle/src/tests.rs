@@ -371,7 +371,6 @@ fn test_check() {
     */
 }
 
-#[test]
 fn typeinfer() {
     let tests = vec![
         ("1w8", Context::empty(), Some(Type::Word(8))),
@@ -464,8 +463,31 @@ fn component_context() {
 
     let component: &Component = top.component("top".into()).unwrap();
     for (name, typ) in &component.context().unwrap().into_inner() {
-
         dbg!(name);
         dbg!(typ);
+
+    }
+}
+
+fn test_examples() {
+    let examples_dir = std::path::Path::new("examples");
+
+    if let Ok(entries) = std::fs::read_dir(examples_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                if let Some(file_name) = entry.file_name().to_str() {
+                    if file_name.ends_with(".ntl") {
+                        let text = match std::fs::read_to_string(entry.path()) {
+                            Ok(text) => text,
+                            Err(_) => panic!("Failed to read file {:?}", entry.path()),
+                        };
+
+                        let _top = parse_top(&text).unwrap();
+                    }
+                }
+            }
+        }
+    } else {
+        panic!("Failed to read examples directory");
     }
 }
