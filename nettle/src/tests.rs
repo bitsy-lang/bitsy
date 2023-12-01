@@ -395,9 +395,10 @@ fn typeinfer() {
         */
     ];
 
+    let source_info = SourceInfo::unknown();
     for (expr_str, ctx, type_expected) in tests {
         let expr: Expr = expr_str.into();
-        let type_actual = expr.typeinfer(ctx);
+        let type_actual = expr.typeinfer(ctx, &source_info);
         assert!(
             type_actual == type_expected,
             "typeinfer did not produced expected type for: {expr_str}. Produced {type_actual:?}"
@@ -416,9 +417,10 @@ fn typecheck() {
         ("if 0w1 { 0w3 } else { 0w2 }", Context::empty(), Type::Word(2)),
     ];
 
+    let source_info = SourceInfo::unknown();
     for (expr_str, ctx, type_expected) in test_err {
         let expr: Expr = expr_str.into();
-        assert!(expr.typecheck(&type_expected, ctx).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
+        assert!(expr.typecheck(&type_expected, ctx, &source_info).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
     }
 
     let test_ok = vec![
@@ -438,9 +440,10 @@ fn typecheck() {
         */
     ];
 
+    let source_info = SourceInfo::unknown();
     for (expr_str, ctx, type_expected) in test_ok {
         let expr: Expr = expr_str.into();
-        assert!(expr.typecheck(&type_expected, ctx).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
+        assert!(expr.typecheck(&type_expected, ctx, &source_info).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
     }
 }
 

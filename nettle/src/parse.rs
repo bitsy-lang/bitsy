@@ -12,8 +12,9 @@ pub enum ModDecl {
 }
 
 pub fn parse_top(package: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
+    let source_info = SourceInfo::from_string(package);
     let package: Package = grammar::PackageParser::new().parse(package)?;
-    Ok(Circuit::new(package))
+    Ok(Circuit::new(package, source_info))
 }
 
 impl From<&str> for Expr {

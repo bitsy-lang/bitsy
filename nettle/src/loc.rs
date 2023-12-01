@@ -7,6 +7,13 @@ pub struct SourceInfo {
 }
 
 impl SourceInfo {
+    pub fn unknown() -> SourceInfo {
+        SourceInfo {
+            source: Source::Unknown,
+            linelens: LineLens::from(""),
+        }
+    }
+
     pub fn from_file(filepath: &std::path::Path, contents: &str) -> SourceInfo {
         SourceInfo {
             source: Source::File(filepath.to_owned()),
