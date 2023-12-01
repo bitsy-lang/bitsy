@@ -30,12 +30,12 @@ impl SourceInfo {
         }
     }
 
-    pub fn start(&self, item: &dyn HasLoc) -> RowCol {
-        self.linelens.rowcol(item.loc().start)
+    pub fn start(&self, item: &dyn HasLoc) -> LineCol {
+        self.linelens.linecol(item.loc().start)
     }
 
-    pub fn end(&self, item: &dyn HasLoc) -> RowCol {
-        self.linelens.rowcol(item.loc().end)
+    pub fn end(&self, item: &dyn HasLoc) -> LineCol {
+        self.linelens.linecol(item.loc().end)
     }
 }
 
@@ -47,10 +47,10 @@ pub enum Source {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RowCol(usize, usize);
+pub struct LineCol(usize, usize);
 
-impl RowCol {
-    pub fn row(&self) -> usize {
+impl LineCol {
+    pub fn line(&self) -> usize {
         self.0 + 1
     }
 
@@ -59,9 +59,9 @@ impl RowCol {
     }
 }
 
-impl std::fmt::Display for RowCol {
+impl std::fmt::Display for LineCol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "{}:{}", self.row(), self.col())
+        write!(f, "{}:{}", self.line(), self.col())
     }
 }
 
@@ -82,12 +82,12 @@ impl Loc {
         }
     }
 
-    pub fn start(&self) -> RowCol {
-        self.source_info.linelens.rowcol(self.start)
+    pub fn start(&self) -> LineCol {
+        self.source_info.linelens.linecol(self.start)
     }
 
-    pub fn end(&self) -> RowCol {
-        self.source_info.linelens.rowcol(self.end)
+    pub fn end(&self) -> LineCol {
+        self.source_info.linelens.linecol(self.end)
     }
 }
 
@@ -107,18 +107,18 @@ impl LineLens {
         LineLens(lens)
     }
 
-    fn rowcol(&self, pos: Pos) -> RowCol {
-        let mut row = 0;
+    fn linecol(&self, pos: Pos) -> LineCol {
+        let mut line = 0;
         let mut col = pos;
         for line_len in &self.0 {
             if col >= *line_len {
                 col -= *line_len;
-                row += 1;
+                line += 1;
             } else {
                 break
             }
         }
-        RowCol(row, col)
+        LineCol(line, col)
     }
 }
 
@@ -129,12 +129,12 @@ world!
 How are you?";
 
     let linelens = LineLens::from(text);
-    assert_eq!(linelens.rowcol(0).to_string(), "1:1".to_string());
-    assert_eq!(linelens.rowcol(5).to_string(), "1:6".to_string());
-    assert_eq!(linelens.rowcol(6).to_string(), "1:7".to_string());
-    assert_eq!(linelens.rowcol(7).to_string(), "2:1".to_string());
-    assert_eq!(linelens.rowcol(7).to_string(), "2:1".to_string());
-    assert_eq!(linelens.rowcol(12).to_string(), "2:6".to_string());
-    assert_eq!(linelens.rowcol(13).to_string(), "2:7".to_string());
-    assert_eq!(linelens.rowcol(14).to_string(), "3:1".to_string());
+    assert_eq!(linelens.linecol(0).to_string(), "1:1".to_string());
+    assert_eq!(linelens.linecol(5).to_string(), "1:6".to_string());
+    assert_eq!(linelens.linecol(6).to_string(), "1:7".to_string());
+    assert_eq!(linelens.linecol(7).to_string(), "2:1".to_string());
+    assert_eq!(linelens.linecol(7).to_string(), "2:1".to_string());
+    assert_eq!(linelens.linecol(12).to_string(), "2:6".to_string());
+    assert_eq!(linelens.linecol(13).to_string(), "2:7".to_string());
+    assert_eq!(linelens.linecol(14).to_string(), "3:1".to_string());
 }
