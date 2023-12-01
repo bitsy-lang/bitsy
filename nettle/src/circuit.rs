@@ -33,10 +33,10 @@ pub enum WireType {
     Proc,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Wire(pub Path, pub Expr, pub WireType);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct When(pub Expr, pub Vec<Wire>);
 
 
@@ -51,7 +51,7 @@ impl Wire {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Component {
     Mod(Name, Vec<Component>, Vec<Wire>, Vec<When>),
     Ext(Name, Vec<Component>),
@@ -127,7 +127,7 @@ impl Circuit {
         let mut wires = self.top().wires_rec(self.top().name().into());
         for Wire(_target, expr, _wiretype) in &mut wires {
             let func = |e: &mut Expr| {
-                if let Expr::Lit(Value::Enum(r, _name)) = e {
+                if let Expr::Lit(_loc, Value::Enum(r, _name)) = e {
                     let typedef = self.0.typedef(r.name()).unwrap();
                     r.resolve_to(typedef).unwrap();
                 }

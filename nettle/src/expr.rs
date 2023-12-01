@@ -2,37 +2,58 @@ use super::*;
 
 use anyhow::anyhow;
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Clone)]
 pub enum Expr {
-    Reference(Path),
-    Net(NetId),
-    Lit(Value),
-    UnOp(UnOp, Box<Expr>),
-    BinOp(BinOp, Box<Expr>, Box<Expr>),
-    If(Box<Expr>, Box<Expr>, Box<Expr>),
-    Cat(Vec<Expr>),
-    Sext(Box<Expr>, u64),
-    ToWord(Box<Expr>),
-    Vec(Vec<Expr>),
-    Idx(Box<Expr>, u64),
-    IdxRange(Box<Expr>, u64, u64),
-    IdxDyn(Box<Expr>, Box<Expr>),
-    Hole(Option<String>),
+    Reference(Loc, Path),
+    Net(Loc, NetId),
+    Lit(Loc, Value),
+    UnOp(Loc, UnOp, Box<Expr>),
+    BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
+    If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    Cat(Loc, Vec<Expr>),
+    Sext(Loc, Box<Expr>, u64),
+    ToWord(Loc, Box<Expr>),
+    Vec(Loc, Vec<Expr>),
+    Idx(Loc, Box<Expr>, u64),
+    IdxRange(Loc, Box<Expr>, u64, u64),
+    IdxDyn(Loc, Box<Expr>, Box<Expr>),
+    Hole(Loc, Option<String>),
+}
+
+impl HasLoc for Expr {
+    fn loc(&self) -> Loc {
+        match self {
+            Expr::Net(loc, _netid) => *loc,
+            Expr::Reference(loc, _path) => *loc,
+            Expr::Lit(loc, _val) => *loc,
+            Expr::UnOp(loc, _op, _e) => *loc,
+            Expr::BinOp(loc, _op, _e1, _e2) => *loc,
+            Expr::If(loc, _cond, _e1, _e2) => *loc,
+            Expr::Cat(loc, _es) => *loc,
+            Expr::Sext(loc, _e, _n) => *loc,
+            Expr::ToWord(loc, _e) => *loc,
+            Expr::Vec(loc, _es) => *loc,
+            Expr::Idx(loc, _e, _i) => *loc,
+            Expr::IdxRange(loc, _e, _j, _i) => *loc,
+            Expr::IdxDyn(loc, _e, _i) => *loc,
+            Expr::Hole(loc, _opt_name) => *loc,
+        }
+    }
 }
 
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Expr::Net(netid) => write!(f, "#{netid:?}"),
-            Expr::Reference(path) => write!(f, "{path}"),
-            Expr::Lit(val) => write!(f, "{val:?}"),
-            Expr::UnOp(op, e) => {
+            Expr::Net(_loc, netid) => write!(f, "#{netid:?}"),
+            Expr::Reference(_loc, path) => write!(f, "{path}"),
+            Expr::Lit(_loc, val) => write!(f, "{val:?}"),
+            Expr::UnOp(_loc, op, e) => {
                 let op_symbol = match op {
                     UnOp::Not => "!",
                 };
                 write!(f, "({op_symbol}{e:?})")
             },
-            Expr::BinOp(op, e1, e2) => {
+            Expr::BinOp(_loc, op, e1, e2) => {
                 let op_symbol = match op {
                     BinOp::Add => "+",
                     BinOp::Sub => "-",
@@ -45,13 +66,13 @@ impl std::fmt::Debug for Expr {
                 };
                 write!(f, "({e1:?} {op_symbol} {e2:?})")
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
             },
-            Expr::Cat(es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
-            Expr::Sext(e, n) => write!(f, "sext({e:?}, {n})"),
-            Expr::ToWord(e) => write!(f, "word({e:?})"),
-            Expr::Vec(es) => {
+            Expr::Cat(_loc, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
+            Expr::Sext(_loc, e, n) => write!(f, "sext({e:?}, {n})"),
+            Expr::ToWord(_loc, e) => write!(f, "word({e:?})"),
+            Expr::Vec(_loc, es) => {
                 write!(f, "[")?;
                 for (i, e) in es.iter().enumerate() {
                     if i + 1 < es.len() {
@@ -62,10 +83,10 @@ impl std::fmt::Debug for Expr {
                 }
                 write!(f, "]")
             },
-            Expr::Idx(e, i) => write!(f, "{e:?}[{i}]"),
-            Expr::IdxRange(e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
-            Expr::IdxDyn(e, i) => write!(f, "{e:?}[{i:?}]"),
-            Expr::Hole(opt_name) => {
+            Expr::Idx(_loc, e, i) => write!(f, "{e:?}[{i}]"),
+            Expr::IdxRange(_loc, e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
+            Expr::IdxDyn(_loc, e, i) => write!(f, "{e:?}[{i:?}]"),
+            Expr::Hole(_loc, opt_name) => {
                 if let Some(_name) = opt_name {
                     todo!()
                 } else {
@@ -96,57 +117,57 @@ pub enum BinOp {
 impl Expr {
     pub fn with_subexprs(&self, callback: &dyn Fn(&Expr)) {
         match self {
-            Expr::Reference(_path) => callback(self),
-            Expr::Net(_netid) => callback(self),
-            Expr::Lit(_value) => callback(self),
-            Expr::UnOp(_op, e) => {
+            Expr::Reference(_loc, _path) => callback(self),
+            Expr::Net(_loc, _netid) => callback(self),
+            Expr::Lit(_loc, _value) => callback(self),
+            Expr::UnOp(_loc, _op, e) => {
                 e.with_subexprs(callback);
                 callback(self);
             }
-            Expr::BinOp(_op, e1, e2) => {
+            Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
                 callback(self);
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 cond.with_subexprs(callback);
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
                 callback(self);
             },
-            Expr::Cat(es) => {
+            Expr::Cat(_loc, es) => {
                 for e in es {
                     e.with_subexprs(callback);
                 }
                 callback(self);
             },
-            Expr::Sext(e, _n) => {
+            Expr::Sext(_loc, e, _n) => {
                 e.with_subexprs(callback);
                 callback(self);
             },
-            Expr::ToWord(e) => {
+            Expr::ToWord(_loc, e) => {
                 e.with_subexprs(callback);
                 callback(self);
             },
-            Expr::Vec(es) => {
+            Expr::Vec(_loc, es) => {
                 for e in es {
                     e.with_subexprs(callback);
                 }
                 callback(self);
             },
-            Expr::Idx(e, _i) => {
+            Expr::Idx(_loc, e, _i) => {
                 e.with_subexprs(callback);
                 callback(self);
             },
-            Expr::IdxRange(e, _j, _i) => {
+            Expr::IdxRange(_loc, e, _j, _i) => {
                 e.with_subexprs(callback);
                 callback(self);
             },
-            Expr::IdxDyn(e, _i) => {
+            Expr::IdxDyn(_loc, e, _i) => {
                 e.with_subexprs(callback);
                 callback(self);
             },
-            Expr::Hole(_name) => {
+            Expr::Hole(_loc, _name) => {
                 callback(self);
             },
         }
@@ -154,57 +175,57 @@ impl Expr {
 
     pub fn with_subexprs_mut(&mut self, callback: &dyn Fn(&mut Expr)) {
         match self {
-            Expr::Reference(_path) => callback(self),
-            Expr::Net(_netid) => callback(self),
-            Expr::Lit(_value) => callback(self),
-            Expr::UnOp(_op, e) => {
+            Expr::Reference(_loc, _path) => callback(self),
+            Expr::Net(_loc, _netid) => callback(self),
+            Expr::Lit(_loc, _value) => callback(self),
+            Expr::UnOp(_loc, _op, e) => {
                 e.with_subexprs_mut(callback);
                 callback(&mut *self);
             }
-            Expr::BinOp(_op, e1, e2) => {
+            Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.with_subexprs_mut(callback);
                 e2.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 cond.with_subexprs_mut(callback);
                 e1.with_subexprs_mut(callback);
                 e2.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::Cat(es) => {
+            Expr::Cat(_loc, es) => {
                 for e in es {
                     e.with_subexprs_mut(callback);
                 }
                 callback(self);
             },
-            Expr::Sext(e, _n) => {
+            Expr::Sext(_loc, e, _n) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::ToWord(e) => {
+            Expr::ToWord(_loc, e) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::Vec(es) => {
+            Expr::Vec(_loc, es) => {
                 for e in es {
                     e.with_subexprs_mut(callback);
                 }
                 callback(self);
             },
-            Expr::Idx(e, _i) => {
+            Expr::Idx(_loc, e, _i) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::IdxRange(e, _j, _i) => {
+            Expr::IdxRange(_loc, e, _j, _i) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::IdxDyn(e, _i) => {
+            Expr::IdxDyn(_loc, e, _i) => {
                 e.with_subexprs_mut(callback);
                 callback(self);
             },
-            Expr::Hole(_name) => {
+            Expr::Hole(_loc, _name) => {
                 callback(self);
             },
         }
@@ -213,9 +234,9 @@ impl Expr {
     pub fn paths(&self) -> Vec<Path> {
         let paths = std::cell::RefCell::new(vec![]);
         let func = |e: &Expr| {
-            if let Expr::Reference(path) = e {
+            if let Expr::Reference(_loc, path) = e {
                 paths.borrow_mut().push(path.clone());
-            } else if let Expr::Net(_netid) = e {
+            } else if let Expr::Net(_loc, _netid) = e {
                 panic!("paths() only works on symbolic expressions.");
             }
         };
@@ -229,29 +250,29 @@ impl Expr {
 
     pub fn is_constant(&self) -> bool {
         match self {
-            Expr::Reference(_path) => false,
-            Expr::Net(_netid) => false,
-            Expr::Lit(_value) => true,
-            Expr::UnOp(_op, e) => e.is_constant(),
-            Expr::BinOp(_op, e1, e2) => e1.is_constant() && e2.is_constant(),
-            Expr::If(cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
-            Expr::Cat(es) => es.iter().all(|e| e.is_constant()),
-            Expr::Sext(e, _n) => e.is_constant(),
-            Expr::ToWord(e) => e.is_constant(),
-            Expr::Vec(es) => es.iter().all(|e| e.is_constant()),
-            Expr::Idx(e, _i) => e.is_constant(),
-            Expr::IdxRange(e, _j, _i) => e.is_constant(),
-            Expr::IdxDyn(e, i) => e.is_constant() && i.is_constant(),
-            Expr::Hole(_name) => false,
+            Expr::Reference(_loc, _path) => false,
+            Expr::Net(_loc, _netid) => false,
+            Expr::Lit(_loc, _value) => true,
+            Expr::UnOp(_loc, _op, e) => e.is_constant(),
+            Expr::BinOp(_loc, _op, e1, e2) => e1.is_constant() && e2.is_constant(),
+            Expr::If(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
+            Expr::Cat(_loc, es) => es.iter().all(|e| e.is_constant()),
+            Expr::ToWord(_loc, e) => e.is_constant(),
+            Expr::Vec(_loc, es) => es.iter().all(|e| e.is_constant()),
+            Expr::Sext(_loc, e, _n) => e.is_constant(),
+            Expr::Idx(_loc, e, _i) => e.is_constant(),
+            Expr::IdxRange(_loc, e, _j, _i) => e.is_constant(),
+            Expr::IdxDyn(_loc, e, i) => e.is_constant() && i.is_constant(),
+            Expr::Hole(_loc, _name) => false,
         }
     }
 
     pub fn references_to_nets(mut self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
         let func = |e: &mut Expr| {
             match &e {
-                Expr::Reference(path) => {
+                Expr::Reference(loc, path) => {
                     if let Some(net_id) = net_id_by_path.get(&path) {
-                        *e = Expr::Net(*net_id);
+                        *e = Expr::Net(*loc, *net_id);
                     } else {
                         panic!("No net for {path}");
                     }
@@ -269,28 +290,28 @@ impl Expr {
 
     pub fn depends_on_net(&self, net_id: NetId) -> bool {
         match self {
-            Expr::Reference(_path) => panic!("rebase() only works on net expressions."),
-            Expr::Net(other_netid) => net_id == *other_netid,
-            Expr::Lit(_value) => false,
-            Expr::UnOp(_op, e) => e.depends_on_net(net_id),
-            Expr::BinOp(_op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
-            Expr::If(cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
-            Expr::Cat(es) => es.iter().any(|e| e.depends_on_net(net_id)),
-            Expr::Sext(e, _n) => e.depends_on_net(net_id),
-            Expr::ToWord(e) => e.depends_on_net(net_id),
-            Expr::Vec(es) => es.iter().any(|e| e.depends_on_net(net_id)),
-            Expr::Idx(e, _i) => e.depends_on_net(net_id),
-            Expr::IdxRange(e, _j, _i) => e.depends_on_net(net_id),
-            Expr::IdxDyn(e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
-            Expr::Hole(_name) => false,
+            Expr::Reference(_loc, _path) => panic!("depends_on_net() only works on net expressions."),
+            Expr::Net(_loc, other_netid) => net_id == *other_netid,
+            Expr::Lit(_loc, _value) => false,
+            Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
+            Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::If(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::Cat(_loc, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Sext(_loc, e, _n) => e.depends_on_net(net_id),
+            Expr::ToWord(_loc, e) => e.depends_on_net(net_id),
+            Expr::Vec(_loc, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Idx(_loc, e, _i) => e.depends_on_net(net_id),
+            Expr::IdxRange(_loc, e, _j, _i) => e.depends_on_net(net_id),
+            Expr::IdxDyn(_loc, e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
+            Expr::Hole(_loc, _name) => false,
         }
     }
 
     pub fn rebase(mut self, current_path: Path) -> Expr {
         let func = |e: &mut Expr| {
             match &e {
-                Expr::Reference(path) => *e = Expr::Reference(current_path.join(path.clone())),
-                Expr::Net(_netid) => panic!("rebase() only works on symbolic expressions."),
+                Expr::Reference(loc, path) => *e = Expr::Reference(*loc, current_path.join(path.clone())),
+                Expr::Net(_loc, _netid) => panic!("rebase() only works on symbolic expressions."),
                 _ => (),
             }
         };
@@ -300,16 +321,16 @@ impl Expr {
 
     pub fn eval(&self, nettle: &Sim) -> Value {
         match self {
-            Expr::Reference(path) => nettle.peek(path.clone()),
-            Expr::Net(netid) => nettle.peek_net(*netid),
-            Expr::Lit(value) => value.clone(),
-            Expr::UnOp(op, e) => {
+            Expr::Reference(_loc, path) => nettle.peek(path.clone()),
+            Expr::Net(_loc, netid) => nettle.peek_net(*netid),
+            Expr::Lit(_loc, value) => value.clone(),
+            Expr::UnOp(_loc, op, e) => {
                 match (op, e.eval(nettle)) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
             },
-            Expr::BinOp(op, e1, e2) => {
+            Expr::BinOp(_loc, op, e1, e2) => {
                 match (op, e1.eval(nettle), e2.eval(nettle)) {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
@@ -325,7 +346,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 let cond_v = cond.eval(nettle);
                 let v1 = e1.eval(nettle);
                 let v2 = e2.eval(nettle);
@@ -338,7 +359,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Cat(es) => {
+            Expr::Cat(_loc, es) => {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 let mut wss: Vec<Value> = vec![];
@@ -360,7 +381,7 @@ impl Expr {
                     Value::Vec(wss.into_iter().rev().collect())
                 }
             },
-            Expr::Sext(e, n) => {
+            Expr::Sext(_loc, e, n) => {
                 match e.eval(nettle) {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
@@ -381,7 +402,7 @@ impl Expr {
                     Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
                 }
             }
-            Expr::ToWord(e) => {
+            Expr::ToWord(_loc, e) => {
                 let v = e.eval(nettle);
                 match v {
                     Value::X => Value::X,
@@ -389,7 +410,7 @@ impl Expr {
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }
             },
-            Expr::Vec(es) => {
+            Expr::Vec(_loc, es) => {
                 let mut vs = vec![];
                 for v in es.iter().map(|e| e.eval(nettle)) {
                     if let Value::X = v {
@@ -400,7 +421,7 @@ impl Expr {
                 }
                 Value::Vec(vs)
             },
-            Expr::Idx(e, i) => {
+            Expr::Idx(_loc, e, i) => {
                 let value = e.eval(nettle);
                 if let Value::X = value {
                     Value::X
@@ -420,7 +441,7 @@ impl Expr {
                         panic!("Index with invalid value: {value:?}")
                 }
             },
-            Expr::IdxRange(e, j, i) => {
+            Expr::IdxRange(_loc, e, j, i) => {
                 let value = e.eval(nettle);
                 if let Value::X = value {
                     Value::X
@@ -446,7 +467,7 @@ impl Expr {
                     panic!("Can't index into value: {value:?}")
                 }
             },
-            Expr::IdxDyn(e, i) => {
+            Expr::IdxDyn(_loc, e, i) => {
                 let index = if let Value::Word(_width, val) = i.eval(nettle) {
                     val
                 } else {
@@ -470,7 +491,7 @@ impl Expr {
                     panic!("Index with invalid value: {value:?}")
                 }
             },
-            Expr::Hole(opt_name) => {
+            Expr::Hole(_loc, opt_name) => {
                 match opt_name {
                     Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
                     None => panic!("EVALUATED A HOLE"),
@@ -490,25 +511,25 @@ impl Expr {
         }
 
         match self {
-            Expr::Reference(path) => Err(anyhow!("Undefined refence: {path}")),
-            Expr::Net(netid) => panic!("Can't typecheck a net"),
-            Expr::Lit(Value::Word(w, n)) if n >> w != 0 =>
+            Expr::Reference(_loc, path) => Err(anyhow!("Undefined refence: {path}")),
+            Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
+            Expr::Lit(_loc, Value::Word(w, n)) if n >> w != 0 =>
                 Err(anyhow!("Literal {self:?} is invalid because {n} does not fit into {w} bits.")),
-            Expr::Lit(_) => unreachable!(),
-            Expr::UnOp(_op, e) => e.typecheck(type_expected, ctx.clone()),
-            Expr::BinOp(_op, e1, e2) => {
+            Expr::Lit(_loc, _) => unreachable!(),
+            Expr::UnOp(_loc, _op, e) => e.typecheck(type_expected, ctx.clone()),
+            Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.typecheck(type_expected, ctx.clone())?;
                 e2.typecheck(type_expected, ctx.clone())?;
                 Ok(())
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 cond.typecheck(&Type::Word(1), ctx.clone())?;
                 e1.typecheck(type_expected, ctx.clone())?;
                 e2.typecheck(type_expected, ctx.clone())?;
                 Ok(())
             },
-            Expr::Cat(_es) => unreachable!(),
-            Expr::Sext(e, n) => {
+            Expr::Cat(_loc, _es) => unreachable!(),
+            Expr::Sext(_loc, e, n) => {
                 if let Some(Type::Word(m)) = e.typeinfer(ctx.clone()) {
                     if *n >= m {
                         Ok(())
@@ -519,8 +540,8 @@ impl Expr {
                     Err(anyhow!("Can't infer type of {e:?}"))
                 }
             },
-            Expr::ToWord(e) => todo!(),
-            Expr::Vec(es) => {
+            Expr::ToWord(_loc, e) => todo!(),
+            Expr::Vec(_loc, es) => {
                 if let Type::Vec(typ, n) = type_expected {
                     for e in es {
                         e.typecheck(typ, ctx.clone())?;
@@ -534,7 +555,7 @@ impl Expr {
                     Err(anyhow!("Vector construct must have a vec type"))
                 }
             },
-            Expr::Idx(e, i) => {
+            Expr::Idx(_loc, e, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if *i < n => Ok(()),
                     Some(Type::Word(n)) => Err(anyhow!("Index out of bounds")),
@@ -542,7 +563,7 @@ impl Expr {
                     None => Err(anyhow!("Can't infer the type of {e:?}")),
                 }
             },
-            Expr::IdxRange(e, j, i) => {
+            Expr::IdxRange(_loc, e, j, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if n >= *j && j >= i => Ok(()),
                     Some(Type::Word(_n)) => Err(anyhow!("Index out of bounds")),
@@ -550,25 +571,25 @@ impl Expr {
                     None => Err(anyhow!("Can't infer the type of {e:?}")),
                 }
             },
-            Expr::IdxDyn(e, i) => todo!(),
-            Expr::Hole(opt_name) => Ok(()),
+            Expr::IdxDyn(_loc, e, i) => todo!(),
+            Expr::Hole(_loc, opt_name) => Ok(()),
         }
     }
 
     #[allow(unused_variables)] // TODO remove this
     pub fn typeinfer(&self, ctx: Context<Path, Type>) -> Option<Type> {
         match self {
-            Expr::Reference(path) => ctx.lookup(path),
-            Expr::Net(netid) => panic!("Can't typecheck a net"),
-            Expr::Lit(value) => match value {
+            Expr::Reference(_loc, path) => ctx.lookup(path),
+            Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
+            Expr::Lit(_loc, value) => match value {
                 Value::Word(w, n) if n >> w == 0 => Some(Type::Word(*w)),
                 Value::Word(_w, _n) => None,
                 Value::Vec(_es) => None,
                 Value::Enum(typedef, _name) => Some(Type::TypeDef(typedef.clone())),
                 Value::X => None,
             },
-            Expr::UnOp(_op, e) => e.typeinfer(ctx.clone()),
-            Expr::BinOp(op, e1, e2) => {
+            Expr::UnOp(_loc, _op, e) => e.typeinfer(ctx.clone()),
+            Expr::BinOp(_loc, op, e1, e2) => {
                 let typ1 = e1.typeinfer(ctx.clone())?;
                 let typ2 = e2.typeinfer(ctx.clone())?;
                 if typ1 == typ2 {
@@ -581,7 +602,7 @@ impl Expr {
                     None
                 }
             },
-            Expr::If(cond, e1, e2) => {
+            Expr::If(_loc, cond, e1, e2) => {
                 cond.typecheck(&Type::Word(1), ctx.clone()).ok()?;
                 let typ1 = e1.typeinfer(ctx.clone())?;
                 let typ2 = e2.typeinfer(ctx.clone())?;
@@ -591,7 +612,7 @@ impl Expr {
                     None
                 }
             },
-            Expr::Cat(es) => {
+            Expr::Cat(_loc, es) => {
                 let mut w = 0u64;
                 for e in es {
                     if let Some(Type::Word(m)) = e.typeinfer(ctx.clone()) {
@@ -602,8 +623,8 @@ impl Expr {
                 }
                 Some(Type::Word(w))
             },
-            Expr::Sext(e, n) => None,
-            Expr::ToWord(e) => {
+            Expr::Sext(_loc, e, n) => None,
+            Expr::ToWord(_loc, e) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::TypeDef(typedef)) => {
                         if let Some(typedef) = typedef.get() {
@@ -615,14 +636,14 @@ impl Expr {
                     _ => None,
                 }
             },
-            Expr::Vec(es) => None,
-            Expr::Idx(e, i) => {
+            Expr::Vec(_loc, es) => None,
+            Expr::Idx(_loc, e, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if *i < n => Some(Type::Word(1)),
                     _ => None,
                 }
             },
-            Expr::IdxRange(e, j, i) => {
+            Expr::IdxRange(_loc, e, j, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if n >= *j && j >= i => Some(Type::Word(j - i)),
                     Some(Type::Word(n)) => None,
@@ -630,8 +651,8 @@ impl Expr {
                     None => None,
                 }
             },
-            Expr::IdxDyn(e, i) => None,
-            Expr::Hole(opt_name) => None,
+            Expr::IdxDyn(_loc, e, i) => None,
+            Expr::Hole(_loc, opt_name) => None,
         }
     }
 }

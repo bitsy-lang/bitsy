@@ -491,3 +491,23 @@ fn test_examples() {
         panic!("Failed to read examples directory");
     }
 }
+
+#[test]
+fn test_locs() {
+    let text = "
+        mod top {
+            outgoing out of Word<8>;
+            incoming in of Word<8>;
+
+            out := in;
+        }
+    ";
+
+    let source_info = SourceInfo::from_string(text);
+    let top = parse_top(text).unwrap();
+    top.check().unwrap();
+    let wires = top.wires();
+    let Wire(_target, expr, _wiretype) = wires.first().unwrap();
+    assert_eq!(source_info.start(expr).to_string(), "6:20");
+    assert_eq!(source_info.end(expr).to_string(), "6:22");
+}

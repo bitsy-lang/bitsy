@@ -10,6 +10,7 @@ mod path;
 mod ext;
 mod repl;
 mod context;
+mod loc;
 #[cfg(test)]
 mod tests;
 
@@ -23,6 +24,7 @@ use path::*;
 use ext::*;
 use repl::*;
 use context::*;
+use loc::*;
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
