@@ -1,30 +1,11 @@
 #![allow(dead_code)]
+use nettle::*;
 
-mod circuit;
-mod parse;
-mod value;
-mod expr;
-mod sim;
-mod testbench;
-mod path;
-mod ext;
 mod repl;
-mod context;
-mod loc;
-#[cfg(test)]
-mod tests;
-
-use circuit::*;
-use parse::*;
-use value::*;
-use expr::*;
-use sim::*;
-use testbench::*;
-use path::*;
-use ext::*;
+mod testbench;
 use repl::*;
-use context::*;
-use loc::*;
+use testbench::*;
+
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -48,7 +29,7 @@ fn main() -> anyhow::Result<()> {
     let testbench = if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
         let text = std::fs::read_to_string(tb_filename).unwrap();
-        let tb: Testbench = parse::parse_testbench(&text).unwrap();
+        let tb: Testbench = parse_testbench(&text).unwrap();
         tb
     } else {
         println!("No testbench file");
@@ -81,29 +62,29 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {
             "Monitor" => {
-                let e = Box::new(ext::monitor::Monitor::new());
+                let e = Box::new(nettle::ext::monitor::Monitor::new());
                 e
             },
             "RiscVDecoder" => {
-                let e = Box::new(ext::riscv_decoder::RiscVDecoder::new());
+                let e = Box::new(nettle::ext::riscv_decoder::RiscVDecoder::new());
                 e
             },
             "Ram" => {
-                let mut e = Box::new(ext::ram::Ram::new());
+                let mut e = Box::new(nettle::ext::ram::Ram::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Mem" => {
-                let mut e = Box::new(ext::mem::Mem::new());
+                let mut e = Box::new(nettle::ext::mem::Mem::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Video" => {
-                let mut e = Box::new(ext::video::Video::new());
+                let mut e = Box::new(nettle::ext::video::Video::new());
                 if params_map.remove("disabled") == Some("true".to_string()) {
                     e.disable()
                 }

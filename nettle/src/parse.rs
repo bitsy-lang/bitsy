@@ -23,13 +23,3 @@ impl From<&str> for Expr {
         *grammar::ExprParser::new().parse(&source_info, expr).unwrap()
     }
 }
-
-pub fn parse_testbench(testbench: &str) -> Result<Testbench, ParseError<usize, Token<'_>, &'static str>> {
-    let source_info = SourceInfo::from_string(testbench);
-    Ok(grammar::TestbenchParser::new().parse(&source_info, testbench)?)
-}
-
-pub fn parse_testbench_command(testbench_command: &str) -> Result<TestbenchCommand, ParseError<usize, Token<'_>, &'static str>> {
-    let source_info = SourceInfo::from_string(testbench_command);
-    grammar::TestbenchCommandParser::new().parse(&source_info, testbench_command)
-}

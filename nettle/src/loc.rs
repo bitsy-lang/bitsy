@@ -74,7 +74,7 @@ pub struct Loc {
 }
 
 impl Loc {
-    pub(crate) fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
+    pub fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
         Loc {
             start,
             end,

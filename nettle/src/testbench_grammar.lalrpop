@@ -1,6 +1,45 @@
+use nettle::*;
 use super::*;
 
 grammar(source_info: &SourceInfo);
+
+pub Testbench: Testbench = {
+    <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
+}
+
+pub TestbenchLink: TestbenchLink = {
+    "link" <path:Path> "=" <id:Id> "{" <params:(Id "=" Str)*> "}" => {
+        let params: Vec<(String, String)> = params.iter().map(|(id, _, value)| (id.to_string(), value.to_string())).collect();
+        TestbenchLink(path, id, params)
+    },
+}
+
+pub TestbenchCommand: TestbenchCommand = {
+    "peek" <path:Path> => TestbenchCommand::Peek(path),
+    "poke" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
+    "setreg" <path:Path> <value:Value> => TestbenchCommand::Set(path, value),
+    "cd" <path:Path?> => TestbenchCommand::Cd(path),
+    "cd" ".." => TestbenchCommand::Cd(Some("..".into())),
+    "clock" => TestbenchCommand::Clock,
+    "reset" => TestbenchCommand::Reset,
+    "show" => TestbenchCommand::Show,
+    "watch" <path:Path> <watch:WatchFormat?> => {
+        TestbenchCommand::Watch(Watch {
+            path: path.clone(),
+            format: watch.unwrap_or(WatchFormat::Normal),
+        })
+    },
+    "debug" => TestbenchCommand::Debug,
+    "run" => TestbenchCommand::Run,
+    "eval" <e:Expr> => TestbenchCommand::Eval(*e),
+    "assert" <e:Expr> => TestbenchCommand::Assert(*e),
+}
+
+pub WatchFormat: WatchFormat = {
+    "hex" => WatchFormat::Hex,
+    "bin" => WatchFormat::Bin,
+    "bool" => WatchFormat::Bool,
+}
 
 pub Package: Package = {
     <decls:Decl*> => Package(decls),
@@ -236,3 +275,4 @@ match {
     r" " => {},
     _,
 }
+
