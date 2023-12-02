@@ -11,12 +11,9 @@ pub type ExtId = usize;
 pub type RegId = usize;
 
 pub struct Circuit {
-    pub terminals: Vec<Path>,
-    pub nets: Vec<Net>, // indexed by NetId
+    pub components: BTreeMap<Path, Component>,
     pub combs: Vec<Comb>, // indexed by NetId
-    pub regs: Vec<Register>, // indexed by RegId
     pub dependents: Vec<Dependents>, // indexed by NetId
-    pub net_id_by_path: BTreeMap<Path, NetId>,
 }
 
 #[derive(Clone)]
@@ -30,23 +27,30 @@ pub struct Dependents {
     pub combs: Vec<CombId>,
 }
 
+#[derive(Debug)]
+pub enum Component {
+    Terminal(Terminal),
+    Register(Register),
+}
+
 impl Circuit {
     pub fn new() -> Circuit {
         Circuit {
-            terminals: vec![],
-            nets: vec![],
+            components: BTreeMap::new(),
             combs: vec![],
-            regs: vec![],
             dependents: vec![],
-            net_id_by_path: BTreeMap::new(),
         }
     }
 
-    pub fn add_terminal(&mut self, path: &str) -> Terminal {
-        Terminal(Ref::new(path.to_string()))
+    pub fn add_terminal<P: Into<Path>>(&mut self, path: P) -> Terminal {
+        let path: Path = path.into();
+        let terminal = Terminal(Ref::new(path.to_string()));
+        self.components.insert(path, Component::Terminal(terminal.clone()));
+        terminal
     }
 
-    pub fn add_register(&mut self, path: &str) -> Register {
+    pub fn add_register<P: Into<Path>>(&mut self, path: P) -> Register {
+        let path: Path = path.into();
         let set = format!("{path}");
         let val = format!("{path}.set");
         Register {
@@ -63,13 +67,36 @@ impl Circuit {
     }
 
     pub fn latch(&mut self, register: Register, expr: Expr) -> CombId {
-        let comb_id = self.combs.len();
-        self.combs.push(Comb(register.set().clone(), expr));
-        comb_id
+        self.connect(register.set().clone(), expr)
+    }
+
+    pub fn terminals(&self) -> Vec<&Terminal> {
+        let mut results = vec![];
+        for (_path, component) in &self.components {
+            match component {
+                Component::Terminal(terminal) => results.push(terminal),
+                Component::Register(register) => {
+                    results.push(register.set());
+                    results.push(register.val());
+                },
+            }
+        }
+        results
+    }
+
+    pub fn registers(&self) -> Vec<&Register> {
+        let mut results = vec![];
+        for (_path, component) in &self.components {
+            match component {
+                Component::Register(register) => results.push(register),
+                Component::Terminal(_terminal) => (),
+            }
+        }
+        results
     }
 
     pub fn net_ids(&self) -> Vec<NetId> {
-        (0..self.nets.len()).into_iter().collect()
+        self.terminals().into_iter().map(|terminal| terminal.net_id()).collect()
     }
 }
 
