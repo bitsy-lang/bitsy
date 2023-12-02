@@ -10,9 +10,9 @@ mod value;
 pub use circuit::*;
 pub use sim::*;
 pub use expr::*;
-use context::*;
+pub use value::*;
 pub use loc::*;
+use context::*;
 use path::*;
-use value::*;
 
 use std::sync::Arc;

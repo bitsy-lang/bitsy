@@ -1,102 +1,87 @@
 use crate::circuit::*;
-use crate::path::*;
 use crate::value::*;
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct Sim {
     circuit: Arc<Circuit>,
     net_values: Vec<Value>,
 }
 
 impl Sim {
-    pub fn new() -> Sim {
-        todo!()
+    pub fn new(circuit: Circuit) -> Sim {
+        let net_values = circuit.net_ids().iter().map(|_net_id| Value::X).collect();
+        let circuit = Arc::new(circuit);
+        let mut sim = Sim {
+            circuit,
+            net_values,
+        };
+        sim.update_constants();
+        sim
     }
-
-    /*
-    pub fn net_values(&self) -> BTreeMap<NetId, Value> {
-        self.net_values.iter().cloned().enumerate().collect()
-    }
-
-    pub fn net(&self, net_id: NetId) -> &Net {
-        &self.circuit.nets[net_id]
-    }
-    */
 
     pub fn poke_net(&mut self, net_id: NetId, value: Value) {
+        eprintln!("poke_net({net_id}, {value:?})");
         self.net_values[net_id] = value.clone();
 
         // update dependent nets through all combs
-        let dependents = &self.circuit.clone().dependents[net_id];
-        for comb_id in dependents.combs.iter() {
-            let comb = &self.circuit.clone().combs[*comb_id];
-            let Comb(target, expr) = comb;
+        for Comb(target, expr) in self.combs_dependent_on(net_id) {
             let value = expr.eval(&self);
             self.poke_net(target.net_id(), value);
         }
     }
-
     pub fn peek_net(&self, net_id: NetId) -> Value {
         self.net_values[net_id].clone()
     }
 
-    /*
-    pub fn set<P: Into<Path>>(&mut self, _path: P, _value: Value) {
-        todo!()
-    }
-
-    fn broadcast_update_constants(&mut self) {
-        for Comb(target_net_id, expr) in self.circuit.clone().combs.iter() {
+    fn update_constants(&mut self) {
+        eprintln!("update_constants()");
+        for Comb(target, expr) in self.combs() {
             if expr.is_constant() {
                 let value = expr.eval(&self);
-                self.poke_net(*target_net_id, value);
+                self.poke_net(target.net_id(), value);
             }
         }
     }
 
     pub fn clock(&mut self) {
         let mut updates = vec![];
-        for reginfo in &self.circuit.clone().regs {
-            let value = self.peek_net(reginfo.set_net_id);
-            updates.push((reginfo.val_net_id, value));
+        for register in self.circuit.registers() {
+            let value = self.peek_net(register.set().net_id());
+            updates.push((register.val().net_id(), value));
         }
         for (val_net_id, value) in updates {
             self.poke_net(val_net_id, value);
         }
-
-        /*
-        for ext in &mut self.exts {
-            if let Some(ext) = ext {
-                ext.clock();
-            } else {
-                // TODO
-                panic!("Unlinked ext")
-            }
-        }
-        */
     }
 
     pub fn reset(&mut self) {
-        for reginfo in &self.circuit.clone().regs {
-            self.poke_net(reginfo.val_net_id, reginfo.reset.eval(&self));
+        for register in self.registers() {
+            self.poke_net(register.val().net_id(), register.reset.eval(&self));
         }
-
-        /*
-        for ext in &mut self.exts {
-            if let Some(ext) = ext {
-                ext.reset();
-            } else {
-                // TODO
-                panic!("Unlinked ext")
-            }
-        }
-        */
     }
-    */
-}
 
+    fn registers(&self) -> Vec<Register> {
+        self.circuit.registers().clone()
+    }
+
+    fn combs(&self) -> Vec<Comb> {
+        self.circuit.combs.clone()
+    }
+
+    fn combs_dependent_on(&self, net_id: NetId) -> Vec<Comb> {
+        self.circuit.combs_dependent_on(net_id)
+    }
+
+    pub fn state(&self) -> Vec<(Terminal, Value)> {
+        let mut results = vec![];
+        for terminal in &self.circuit.terminals() {
+            results.push((terminal.clone(), self.net_values[terminal.net_id()].clone()));
+        }
+        results
+    }
+}
 
 impl Comb {
     pub fn depends_on(&self, net_id: NetId) -> bool {
