@@ -371,6 +371,7 @@ fn test_check() {
     */
 }
 
+#[test]
 fn typeinfer() {
     let tests = vec![
         ("1w8", Context::empty(), Some(Type::Word(8))),
@@ -469,6 +470,7 @@ fn component_context() {
     }
 }
 
+#[test]
 fn test_examples() {
     let examples_dir = std::path::Path::new("examples");
 

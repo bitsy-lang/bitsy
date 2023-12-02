@@ -34,7 +34,7 @@ impl Ram {
         Value::Word(8, self.mem[self.read_addr as usize] as u64)
     }
 
-    fn render(&self) -> String {
+    pub fn render(&self) -> String {
         //dbg!(self);
         let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
             &self.mem[..index+1]

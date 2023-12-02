@@ -16,6 +16,10 @@ impl SourceInfo {
         }
     }
 
+    pub fn source(&self) -> &Source {
+        &self.source
+    }
+
     pub fn from_file(filepath: &std::path::Path, contents: &str) -> SourceInfo {
         SourceInfo {
             source: Source::File(Arc::new(filepath.to_owned())),

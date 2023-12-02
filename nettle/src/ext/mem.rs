@@ -40,7 +40,7 @@ impl Mem {
         Value::Word(32, val)
     }
 
-    fn render(&self) -> String {
+    pub fn render(&self) -> String {
         //dbg!(self);
         let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
             &self.mem[..index+1]

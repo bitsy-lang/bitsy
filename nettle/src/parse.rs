@@ -2,7 +2,7 @@ use super::*;
 
 use lalrpop_util::lalrpop_mod;
 use lalrpop_util::{lexer::Token, ParseError};
-lalrpop_mod!(grammar);
+lalrpop_mod!(pub grammar);
 
 #[derive(Debug)]
 pub enum ModDecl {
