@@ -8,5 +8,5 @@ fn test_sim() {
     let top_in = circuit.add_terminal("top.in");
     let top_out = circuit.add_terminal("top.out");
     let top_r = circuit.add_register("top.r");
-    circuit.latch(top_r, Expr::Net(Loc::unknown(), top_in.net_id()));
+    circuit.latch(top_r, Expr::Net(Loc::unknown(), top_in.into()));
 }

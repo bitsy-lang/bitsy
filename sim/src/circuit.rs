@@ -23,7 +23,7 @@ pub struct Circuit {
 pub struct Net(pub Vec<Path>);
 
 #[derive(Debug, Clone)]
-pub struct Comb(pub NetId, pub Expr);
+pub struct Comb(pub Terminal, pub Expr);
 
 #[derive(Debug)]
 pub struct Dependents {
@@ -56,12 +56,16 @@ impl Circuit {
         }
     }
 
-    pub fn connect(&mut self, terminal: Terminal, expr: Expr) {
-        todo!()
+    pub fn connect(&mut self, terminal: Terminal, expr: Expr) -> CombId {
+        let comb_id = self.combs.len();
+        self.combs.push(Comb(terminal, expr));
+        comb_id
     }
 
-    pub fn latch(&mut self, register: Register, expr: Expr) {
-        todo!()
+    pub fn latch(&mut self, register: Register, expr: Expr) -> CombId {
+        let comb_id = self.combs.len();
+        self.combs.push(Comb(register.set().clone(), expr));
+        comb_id
     }
 
     pub fn net_ids(&self) -> Vec<NetId> {
@@ -78,6 +82,12 @@ impl Terminal {
     }
 }
 
+impl From<Terminal> for Ref<NetId> {
+    fn from(t: Terminal) -> Ref<NetId> {
+        t.0
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Register {
     pub set: Terminal,
@@ -86,11 +96,11 @@ pub struct Register {
 }
 
 impl Register {
-    pub fn val_net_id(&self) -> NetId {
-        self.val.net_id()
+    pub fn val(&self) -> &Terminal {
+        &self.val
     }
 
-    pub fn set_net_id(&self) -> NetId {
-        self.set.net_id()
+    pub fn set(&self) -> &Terminal {
+        &self.set
     }
 }

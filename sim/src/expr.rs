@@ -1,10 +1,11 @@
 use super::*;
+use crate::reference::Ref;
 
 use anyhow::anyhow;
 
 #[derive(Clone)]
 pub enum Expr {
-    Net(Loc, NetId),
+    Net(Loc, Ref<NetId>),
     Lit(Loc, Value),
     UnOp(Loc, UnOp, Box<Expr>),
     BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
@@ -246,7 +247,7 @@ impl Expr {
 
     pub fn depends_on_net(&self, net_id: NetId) -> bool {
         match self {
-            Expr::Net(_loc, other_netid) => net_id == *other_netid,
+            Expr::Net(_loc, r) => net_id == *r.get().unwrap(),
             Expr::Lit(_loc, _value) => false,
             Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
@@ -264,7 +265,7 @@ impl Expr {
 
     pub fn eval(&self, nettle: &Sim) -> Value {
         match self {
-            Expr::Net(_loc, netid) => nettle.peek_net(*netid),
+            Expr::Net(_loc, r) => nettle.peek_net(*r.get().unwrap()),
             Expr::Lit(_loc, value) => value.clone(),
             Expr::UnOp(_loc, op, e) => {
                 match (op, e.eval(nettle)) {

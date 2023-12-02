@@ -32,9 +32,9 @@ impl Sim {
         let dependents = &self.circuit.clone().dependents[net_id];
         for comb_id in dependents.combs.iter() {
             let comb = &self.circuit.clone().combs[*comb_id];
-            let Comb(target_net_id, expr) = comb;
+            let Comb(target, expr) = comb;
             let value = expr.eval(&self);
-            self.poke_net(*target_net_id, value);
+            self.poke_net(target.net_id(), value);
         }
     }
 
