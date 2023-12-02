@@ -2,19 +2,12 @@ use crate::circuit::*;
 use crate::path::*;
 use crate::value::*;
 
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub struct Sim {
-    sim_circuit: Arc<Circuit>,
+    circuit: Arc<Circuit>,
     net_values: Vec<Value>,
-}
-
-impl Circuit {
-    pub fn net_ids(&self) -> Vec<NetId> {
-        (0..self.nets.len()).into_iter().collect()
-    }
 }
 
 impl Sim {
@@ -22,21 +15,23 @@ impl Sim {
         todo!()
     }
 
+    /*
     pub fn net_values(&self) -> BTreeMap<NetId, Value> {
         self.net_values.iter().cloned().enumerate().collect()
     }
 
     pub fn net(&self, net_id: NetId) -> &Net {
-        &self.sim_circuit.nets[net_id]
+        &self.circuit.nets[net_id]
     }
+    */
 
     pub fn poke_net(&mut self, net_id: NetId, value: Value) {
         self.net_values[net_id] = value.clone();
 
         // update dependent nets through all combs
-        let dependents = &self.sim_circuit.clone().dependents[net_id];
+        let dependents = &self.circuit.clone().dependents[net_id];
         for comb_id in dependents.combs.iter() {
-            let comb = &self.sim_circuit.clone().combs[*comb_id];
+            let comb = &self.circuit.clone().combs[*comb_id];
             let Comb(target_net_id, expr) = comb;
             let value = expr.eval(&self);
             self.poke_net(*target_net_id, value);
@@ -47,12 +42,13 @@ impl Sim {
         self.net_values[net_id].clone()
     }
 
+    /*
     pub fn set<P: Into<Path>>(&mut self, _path: P, _value: Value) {
         todo!()
     }
 
     fn broadcast_update_constants(&mut self) {
-        for Comb(target_net_id, expr) in self.sim_circuit.clone().combs.iter() {
+        for Comb(target_net_id, expr) in self.circuit.clone().combs.iter() {
             if expr.is_constant() {
                 let value = expr.eval(&self);
                 self.poke_net(*target_net_id, value);
@@ -62,7 +58,7 @@ impl Sim {
 
     pub fn clock(&mut self) {
         let mut updates = vec![];
-        for reginfo in &self.sim_circuit.clone().regs {
+        for reginfo in &self.circuit.clone().regs {
             let value = self.peek_net(reginfo.set_net_id);
             updates.push((reginfo.val_net_id, value));
         }
@@ -83,7 +79,7 @@ impl Sim {
     }
 
     pub fn reset(&mut self) {
-        for reginfo in &self.sim_circuit.clone().regs {
+        for reginfo in &self.circuit.clone().regs {
             self.poke_net(reginfo.val_net_id, reginfo.reset.eval(&self));
         }
 
@@ -98,6 +94,7 @@ impl Sim {
         }
         */
     }
+    */
 }
 
 
@@ -108,18 +105,7 @@ impl Comb {
     }
 }
 
-impl std::fmt::Debug for Sim {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        for (net_id, value) in self.net_values.iter().enumerate() {
-            let net = &self.sim_circuit.nets[net_id];
-            write!(f, "    {:>5}   ", format!("{value:?}"))?;
-            writeln!(f, "{}", net.terminals().iter().map(|t| t.to_string()).collect::<Vec<String>>().join(" "))?;
-        }
-
-        Ok(())
-    }
-}
-
+/*
 fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Path {
     let mut driver: &Path = &terminal;
     while let Some(immediate_driver) = &immediate_driver_for.get(driver) {
@@ -171,3 +157,4 @@ impl Net {
         }
     }
 }
+*/

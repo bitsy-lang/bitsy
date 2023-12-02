@@ -1,6 +1,7 @@
 use super::*;
 use std::sync::Arc;
 use anyhow::anyhow;
+use crate::reference::Ref;
 
 pub type Width = u64;
 pub type Length = u64;
@@ -36,57 +37,11 @@ impl TypeDef {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Type {
     Word(Width),
     Vec(Box<Type>, Length),
     TypeDef(Ref<TypeDef>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Ref<T>(String, Arc<std::sync::Mutex<Option<Arc<T>>>>);
-
-impl<T> PartialEq for Ref<T> {
-    fn eq(&self, other: &Ref<T>) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<T> Eq for Ref<T> {}
-
-impl Ref<TypeDef> {
-    pub fn new(name: String) -> Ref<TypeDef> {
-        Ref(name, Arc::new(std::sync::Mutex::new(None)))
-    }
-
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-}
-
-impl<T> Ref<T> {
-    pub fn get(&self) -> Option<Arc<T>> {
-        let lock = self.1.lock().unwrap();
-        match &*lock {
-            Some(t) => Some(Arc::clone(t)),
-            None => None,
-        }
-    }
-
-    pub fn is_resolved(&self) -> bool {
-        self.1.lock().unwrap().is_some()
-    }
-
-    pub fn resolve_to(&self, t: Arc<T>) -> anyhow::Result<()> {
-        let mut lock = self.1.lock().unwrap();
-        match &*lock {
-            Some(_t) => Err(anyhow!("Ref is already resolved.")),
-            None => {
-                *lock = Some(t);
-                Ok(())
-            },
-        }
-    }
 }
 
 impl Type {
@@ -139,16 +94,6 @@ fn value_to_usize() {
     assert_eq!(v.to_usize(), Some(3));
 }
 
-impl std::fmt::Debug for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Type::Word(n) => write!(f, "Word<{n}>"),
-            Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
-            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
-        }
-    }
-}
-
 impl From<bool> for Value {
     fn from(x: bool) -> Value {
         Value::Word(1, if x { 1 } else { 0 })
@@ -192,90 +137,6 @@ impl std::fmt::Debug for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
-            Value::Vec(vs) => {
-                write!(f, "[")?;
-                for (i, v) in vs.iter().enumerate() {
-                    if i + 1 < vs.len() {
-                        write!(f, "{v:?}, ")?;
-                    } else {
-                        write!(f, "{v:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-        }
-    }
-}
-
-impl std::fmt::Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Value::X => write!(f, "XXX"),
-            Value::Word(w, n) => write!(f, "{n}w{w}"),
-            Value::Vec(vs) => {
-                write!(f, "[")?;
-                for (i, v) in vs.iter().enumerate() {
-                    if i + 1 < vs.len() {
-                        write!(f, "{v:?}, ")?;
-                    } else {
-                        write!(f, "{v:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-        }
-    }
-}
-
-impl std::fmt::LowerHex for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0x{:x}w{w}", self.to_usize().unwrap()),
-            Value::Vec(vs) => {
-                write!(f, "[")?;
-                for (i, v) in vs.iter().enumerate() {
-                    if i + 1 < vs.len() {
-                        write!(f, "{v:?}, ")?;
-                    } else {
-                        write!(f, "{v:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-        }
-    }
-}
-
-impl std::fmt::UpperHex for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0x{:X}w{w}", self.to_usize().unwrap()),
-            Value::Vec(vs) => {
-                write!(f, "[")?;
-                for (i, v) in vs.iter().enumerate() {
-                    if i + 1 < vs.len() {
-                        write!(f, "{v:?}, ")?;
-                    } else {
-                        write!(f, "{v:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-        }
-    }
-}
-
-impl std::fmt::Binary for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0b{:b}w{w}", self.to_usize().unwrap()),
             Value::Vec(vs) => {
                 write!(f, "[")?;
                 for (i, v) in vs.iter().enumerate() {

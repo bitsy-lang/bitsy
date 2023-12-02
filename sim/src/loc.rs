@@ -74,6 +74,14 @@ pub struct Loc {
 }
 
 impl Loc {
+    pub fn unknown() -> Loc {
+        Loc {
+            start: 0,
+            end: 0,
+            source_info: SourceInfo::unknown(),
+        }
+    }
+
     pub(crate) fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
         Loc {
             start,

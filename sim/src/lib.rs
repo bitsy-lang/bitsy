@@ -1,17 +1,18 @@
 mod circuit;
 mod sim;
+mod reference;
 mod context;
-mod loc;
+pub mod loc;
 mod expr;
 mod path;
 mod value;
 
 pub use circuit::*;
 pub use sim::*;
+pub use expr::*;
 use context::*;
-use loc::*;
+pub use loc::*;
 use path::*;
 use value::*;
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
