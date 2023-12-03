@@ -1,0 +1,27 @@
+mod top {
+    outgoing min of Word<3>;
+    outgoing max of Word<3>;
+
+    mod sort {
+        incoming a of Word<3>;
+        incoming b of Word<3>;
+
+        outgoing min of Word<3>;
+        outgoing max of Word<3>;
+
+        min := if a < b { a } else { b };
+        max := if a < b { b } else { a };
+    }
+
+    reg counter_a of Word<3> reset 0w3;
+    reg counter_b of Word<3> reset 4w3;
+
+    counter_a <= counter_a + 1w3;
+    counter_b <= counter_b + 1w3;
+
+    sort.a := counter_a;
+    sort.b := counter_b;
+
+    min := sort.min;
+    max := sort.max;
+}

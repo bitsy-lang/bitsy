@@ -486,7 +486,7 @@ fn test_examples() {
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
                         };
 
-                        let _top = parse_top(&text).unwrap();
+                        let _top = parse_top(&text).expect(&format!("Testing {:?}", entry.path()));
                     }
                 }
             }

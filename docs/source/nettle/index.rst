@@ -2,107 +2,105 @@ Nettle
 ======
 Nettle is a circuit simulator intended for use with Bitsy.
 
-Example Circuit
----------------
-Here is an example circuit in Nettle:
+Hello Nettle
+------------
+Tradition dictates that the first program that is written in any programming language should be Hello, World!
+In that same spirit, let's look at the "hello world" of Nettle: `passthrough`:
 
-.. code-block:: nettle
+.. literalinclude:: ../examples/passthrough.ntl
+   :language: nettle
+   :linenos:
 
-    top {
-        reg sum of Word<32> reset 0w32;
+We see a module declaration, `mod passthrough`.
+Inside, we see two ports, one `incoming` port named `out` and one `outgoing` port named `in`.
+Both have type `Word<8>`, meaning that an 8-bit value passes across them.
+The line `out := in` connects the input port `in` to the output port `out`.
+The notation `:=` is called a wire.
 
-        mod counter {
-            outgoing out of Word<32>;
-            reg c of Word<32> reset 1w32;
-            c <= c + 1w32;
-            out := c;
-        }
+Blinky Nettle
+-------------
+A classic circuit used as the introduction to working with FPGAs is blinky:
 
-        ext monitor {
-            incoming in of Word<32>;
-        }
+.. literalinclude:: ../examples/blink.ntl
+   :language: nettle
+   :linenos:
 
-        sum <= sum + counter.out;
-        monitor.in := sum;
-    }
+Registers are the stateful components in a Nettle circuit.
+They are declared with the `reg` keyword.
 
-As you can see, the top of a Nettle circuit is labeled with `top` and contains a number of declarations.
+Here, we see that we declare a register `r`.
+We see that `r` has type `Word<1>`, which is a single bit.
+This register also given a reset value, `0w1`.
+This is the value which the register takes on when the circuit is reset.
+The notation `0w1` means "the number `0` represented with bitwidth of `1` bit.
+(The `w` stands for "width").
 
-* `outgoing`\s represent outgoing ports.
-* `incoming`\s represent input ports.
-* `node`\s represent intermediate values.
-* `reg`\s represent registers.
-* `mod`\s represent submodules.
-* `ext`\s represent an external submodule or functional model.
+The next two statements are wires.
+But if you look closely, they use two different operators
+The difference between them is whether the left hand side is updated immediately or on the next clock cycle.
 
-Paths
------
-Each one of the above constructs defines one or more **paths**.
-These are dotted expressions which let you reference pieces of the circuit.
+* `:=` is called a **direct** wire.
 
-The above example creates the following paths:
+  * Updates the left hand side immediately.
+  * Works with `incoming` and `outgoing` ports and other non-`reg` components.
 
-.. code-block:: none
+* `<=` is called a **latched** wire.
 
-  top                 // the circuit itself
-  top.sum             // the register `sum`
-  top.sum.set         // the input of the register `sum`
-  top.sum             // the output of the register `sum`
-  top.counter.out     // the output port `out` in the submodule `counter`
-  top.counter.c.set   // the input port of the register `c` in the submodule `counter`
-  top.counter.c       // the output of the register `c` in the submodule `counter`
-  top.monitor         // the external module `monitor`
-  top.monitor.in      // the input port `in` on the external module `monitor`
+  * Updates the left hand side on the next clock cycle.
+  * Only works with `reg`.
 
-Terminals
----------
-Certain paths carry values during simulation.
-These are called **terminals**.
+The right hand side of a wire may be an expression.
+In `r <= !r;`, we latch the value of the expression `!r`, the logical negation of `r`.
+This means `r`, in this example, will toggle between `0w1` (a logical false) and `1w1` (a logical true).
 
-Of the paths above, the following are **terminals**:
+Finally, the result of `r` is forwarded to the `outgoing` port `out` through the second connect statement, `out := r;`.
 
-.. code-block:: none
+Submodules
+----------
+When we want to organize our circuit, we can nest modules:
 
-  top.sum.set
-  top.sum
-  top.counter.out
-  top.counter.c.set
-  top.counter.c
-  top.monitor.in
+.. literalinclude:: ../examples/tutorial_submods.ntl
+   :language: nettle
+   :linenos:
 
-The rules for terminals are:
+In this example, lines 5 through 14 declare a submodule named `sort`.
+This submodule has two `incoming` ports and two `outgoing` ports.
 
-* Each `incoming`, `outgoing`, and `node` creates a terminal.
-* Each `reg` creates two terminals:
+The body of `sort` is simply two wires, each connecting the result of an `if` expression to one of the ports.
 
-  * The one with the same name as the register itself is the current stored value.
+Because this submodule has no `reg` keyword and doesn't use any latching connects (`<=`), we can see it is **combinational**.
+That is, its outputs update immediately when the inputs change and do not wait for the next clock cycle.
 
-  * The one which ends in `.set` is the current staged value
-    to be latched on the next clock cycle.
+The `sort` module has the effect of sorting the two incoming values `a` and `b`, placing the smaller one on `min` and the larger one on `max`.
 
-Wires
------
-In Nettle, wires connect together terminals.
 
-The left hand side is called the **target**.
-It may be one of:
+The remainder of the `top` module declares two registers, `counter_a` and `counter_b`.
+They simply increment each clock cycle.
+The standard addition operator (`+`) in Nettle always takes two values of the same size and returns a value of the same size,
+wrapping if the counter overflows.
 
-* the name of a `node`, `reg`, or `outgoing` in the same module.
-* the name of a submodule dotted with a `node` or `incoming` of that sub module.
-* the name of an external module dotted with one of its `incoming` ports.
+The wires at the bottom ensure that all of the ports on `top` and the submodule `sort` are connected.
 
-When connecting to a `node` `incoming` or `outgoing`, you use the syntax `:=`.
-When connecting to a `reg`, you use the syntax `<=`.
-This syntactic distinction allows you to equationally reason about the circuit without remembering the types.
-It helps you remeber that `reg`\s targeted in this way implicitly refer to the `set` terminal.
-The arrow head of `<=` helps remind you that the value is "on its way" to setting the register.
-See **Registers** below.
+External Modules
+----------------
+An external module is a submodule whose implementation is not giving in the design itself.
+Instead, the implementation is linked in by the simulator.
+This is especially useful for software-controlled virtual hardware.
 
-On the right hand side of the arrow, we have the **driver**.
-This is an expression that continuously drives a signal to the target.
+.. literalinclude:: ../examples/tutorial_ext.ntl
+   :language: nettle
+   :linenos:
 
-Every module in a circuit is responsible for wiring up its own terminals
-and wiring its terminals to the ports of its children.
+An external module is introduced with the `ext` keyword.
+It may only contain `incoming` and `outgoing` declarations.
+It may not contain any `reg`\s or wire statements.
+
+Here, a counter named `counter` counts up by 2 every cycle,
+and its current value is sent to the external module `monitor`.
+The exact behavior is determined by what it is linked against,
+but the intent in this example is that the monitor is logging the values that `counter` takes on over time.
+Perhaps the monitor will check to ensure that the value is never an *odd* number,
+and it will alert us to when this important invariant is violated.
 
 Expressions
 -----------
@@ -169,7 +167,7 @@ that this is a very natural way to handle slicing
 `if` statements create muxes.
 
 All `if` statements must have an `else` branch.
-If you don't care what the value is for the `else` branch, you can use `X`.
+If you don't care what the value is for the `else` branch, you can use `XXX`.
 
 **Undefined Values**
 
@@ -180,8 +178,6 @@ The undefined value is written `XXX`.
 
 Any operation involving `XXX` will result in `XXX`.
 This includes `if` statements when the condition or any branch is `XXX`.
-
-DON'T USE `XXX`.
 
 Ports
 -----
@@ -199,7 +195,9 @@ Nodes
 Nodes represent a intermediate value.
 They are useful for naming common subexpressions in a circuit.
 
-Nodes may only be referenced in the module they are declared in.
+Nodes are declared using the `node` keyword.
+They work similarly to ports, but they cannot be accessed from outside of the module they are defined in.
+Nodes must be connected to with a direct wire (`:=`).
 
 Registers
 ---------
@@ -216,29 +214,6 @@ When a `reg` appears in an expression, it implies we are connecting to its value
 
 Registers may only be referenced in the module they are declared in.
 
-Modules
--------
-A module is introduced with the `mod` keyword.
-All modules definitions are inline.
-In this way, a Nettle circuit is always fully elaborated.
-
-A module can contain `node`\s, `reg`\s, `ext`\s, and other `mod`\s.
-They also contain wire statements to connect the terminals created through those.
-
-External Modules
-----------------
-An external module is introduced with the `ext` keyword.
-It may only contain `port` declarations.
-It may not contain wire statements.
-
-When a Nettle circuit is loaded into the simulator, a suitable implementation must be linked against each external module.
-An implementation governs the behavior of:
-
-* peeking a port to read its value
-* poking a port to set its value
-* responding to a clock tick
-* responding to a reset signal
-
 Combinational Loops
 -------------------
 Nettle checks for combinational loops before simulation.
@@ -246,23 +221,3 @@ Circuits with loops are rejected.
 
 Note that if `r` is a `reg`, the wire `r <= r + 1w8` is not a combinatorial loop,
 since the `r` on the left hand side implies the `set` terminal while the `r` on the right hand side implies the current value terminal.
-
-Connectivity
-------------
-All terminals must be given a single driver in a circuit.
-
-Nets
-----
-A net is a collection of terminals, one of which is the driver.
-On any clock cycle, all of the terminals in a net have the same value.
-
-The nets of a Nettle circuit can be calculated by looking at the wire statements.
-Whenever a wire statement has on its driver (the right-hand side).
-If the driver is a reference, this indicates the two terminals are part of the same net.
-
-Because a terminal can only appear as a target (the left hand side) of a connect statement once in a circuit,
-we can create a tree of which terminals drive which terminals.
-The root of this tree is the driver of the net.
-Each net can be uniquely identified by its driver.
-
-Combinational logic and registers separate the nets from one another.
