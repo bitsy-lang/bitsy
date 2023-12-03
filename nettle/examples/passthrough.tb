@@ -1,0 +1,6 @@
+poke passthrough.in 42w8
+assert passthrough.out == 42w8
+poke passthrough.in 0w8
+assert passthrough.out == 0w8
+poke passthrough.in 127w8
+assert passthrough.out == 127w8

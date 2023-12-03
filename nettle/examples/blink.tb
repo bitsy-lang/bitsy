@@ -1,0 +1,14 @@
+reset
+assert blink.out == 0w1
+clock
+assert blink.out == 1w1
+clock
+assert blink.out == 0w1
+clock
+assert blink.out == 1w1
+clock
+assert blink.out == 0w1
+clock
+assert blink.out == 1w1
+clock
+assert blink.out == 0w1
