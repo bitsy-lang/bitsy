@@ -1,5 +1,7 @@
 use super::*;
 
+use std::collections::{BTreeSet, BTreeMap};
+
 #[test]
 fn path_depends() {
     let tests = vec![
