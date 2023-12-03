@@ -19,7 +19,3 @@ pub use path::*;
 pub use ext::*;
 pub use context::*;
 pub use loc::*;
-
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-use std::sync::Arc;

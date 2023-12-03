@@ -1,4 +1,4 @@
-use super::*;
+use std::sync::Arc;
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone)]
 pub struct Path(Arc<String>);
