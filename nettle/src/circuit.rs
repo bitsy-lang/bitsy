@@ -24,7 +24,7 @@ impl Package {
 
 #[derive(Debug, Clone)]
 pub enum Decl {
-    Mod(Arc<Component>),
+    ModDef(Arc<Component>),
     TypeDef(Arc<TypeDef>),
 }
 
@@ -71,7 +71,7 @@ impl std::ops::Deref for Circuit {
     fn deref(&self) -> &Component {
         let Package(decls) = &*self.0;
         for decl in decls {
-            if let Decl::Mod(m) = decl {
+            if let Decl::ModDef(m) = decl {
                 return m;
             }
         }
@@ -89,7 +89,7 @@ impl Circuit {
     pub fn top(&self) -> &Component {
         let Package(decls) = &*self.0;
         for decl in decls {
-            if let Decl::Mod(m) = decl {
+            if let Decl::ModDef(m) = decl {
                 return m;
             }
         }

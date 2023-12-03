@@ -46,7 +46,7 @@ pub Package: Package = {
 }
 
 pub Decl: Decl = {
-    <m:Mod> => Decl::Mod(Arc::new(m)),
+    <m:Mod> => Decl::ModDef(Arc::new(m)),
     <e:TypeDef> => Decl::TypeDef(Arc::new(e)),
 }
 
