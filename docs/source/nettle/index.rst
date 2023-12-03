@@ -113,16 +113,17 @@ The literal `42w16` is a 16-bit integer with the value 42.
 
 **References**
 
-A reference is a way to access the value of a terminal.
+You may reference ports, registers, and nodes, accessing their current value.
 
-Similar to the target of a wire, a reference may be one of:
+References must be visible to the moduel they appear in.
+That means they may be:
 
 * the name of a `node`, `reg`, or `incoming` in the same module
 * the name of a submodule dotted with a `node` or `outgoing` of that submodule.
 * the name of an external module dotted with one of its `outgoing` ports.
 
-The difference with references is that references to `reg`\s implicitly refer to the `val` terminal instead of `set`.
-See **Registers** below.
+When using a register in this way, it references the *current* value of the register,
+regardless of whatever the latching wire (`<=`) is going to do next cycle.
 
 **Operations**
 
@@ -164,10 +165,9 @@ that this is a very natural way to handle slicing
 
 **if statements**
 
-`if` statements create muxes.
+`if` expressions create muxes.
 
-All `if` statements must have an `else` branch.
-If you don't care what the value is for the `else` branch, you can use `XXX`.
+All `if` expressions must have an `else` branch.
 
 **Undefined Values**
 
@@ -177,16 +177,16 @@ invalid values are driven (eg, when `Valid` where the invalid bit is set but a p
 The undefined value is written `XXX`.
 
 Any operation involving `XXX` will result in `XXX`.
-This includes `if` statements when the condition or any branch is `XXX`.
+This includes `if` expressions when the condition or any branch is `XXX`.
 
 Ports
 -----
 Ports allow a module to communicate with its parent.
 Values for the top-level input ports must be provided by the testbench during simulation.
 
-Ports may also appear in ext modules and must match the portlist for the implementation.
+Ports may also appear in external modules and must match the portlist for the implementation.
 
-Only `outgoing` ports in current module or `incoming` ports of a submodule may be the target of a `wire` statement.
+Only `outgoing` ports in current module or `incoming` ports of a submodule may be the target of a wire statement.
 This is reversed for reference expressions: only `outgoing` ports of a submodule
 or `incoming` ports of the current module may be referenced.
 
@@ -205,12 +205,6 @@ Registers are stateful components.
 
 All `reg`\s start off with an `XXX` value.
 They may optionally have a reset value supplied using the syntax `reg r reset 0w8;`.
-
-Unlike `node`\s, `reg`\s create two terminals.
-One is named the same as the `reg` and the other is appended to with `.set`.
-
-When a `reg` appears as the target of a wire, it implies we are connecting to its `set` terminal.
-When a `reg` appears in an expression, it implies we are connecting to its value terminal.
 
 Registers may only be referenced in the module they are declared in.
 
