@@ -128,6 +128,8 @@ impl Circuit {
     }
 
     fn resolve_references(&mut self) {
+        self.resolve_references_component_types();
+
         let mut wires = self.top().wires_rec(self.top().name().into());
         for Wire(_target, expr, _wiretype) in &mut wires {
             let func = |e: &mut Expr| {
@@ -138,6 +140,38 @@ impl Circuit {
             };
             expr.with_subexprs_mut(&func);
         }
+    }
+
+    fn resolve_references_component_types(&self) {
+        for (_path, component) in self.walk() {
+            match &*component {
+                Component::Mod(_name, _children, _wires, _whens) => (),
+                Component::Ext(_name, _children) => (),
+                Component::ExtInst(_name, _defname) => (),
+                Component::Node(_name, typ) => self.resolve_references_type(typ),
+                Component::Outgoing(_name, typ) => self.resolve_references_type(typ),
+                Component::Incoming(_name, typ) => self.resolve_references_type(typ),
+                Component::Reg(_name, typ, _reset) => self.resolve_references_type(typ),
+            }
+        }
+    }
+
+    fn resolve_references_type(&self, typ: &Type) {
+        match typ {
+            Type::Word(_width) => (),
+            Type::Vec(typ, _len) => self.resolve_references_type(typ),
+            Type::TypeDef(typedef) => {
+                if let Some(resolved_typedef) = self.package().typedef(typedef.name()) {
+                    typedef.resolve_to(resolved_typedef).unwrap();
+                } else {
+                    panic!("No definition for typedef {}", typedef.name())
+                }
+            },
+        }
+    }
+
+    pub fn package(&self) -> &Package {
+        &self.0
     }
 
     pub fn wires(&self) -> Vec<Wire> {
