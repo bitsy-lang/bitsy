@@ -88,6 +88,14 @@ impl std::fmt::Debug for Loc {
 }
 
 impl Loc {
+    pub fn unknown() -> Loc {
+        Loc {
+            start: 0,
+            end: 0,
+            source_info: SourceInfo::unknown(),
+        }
+    }
+
     pub fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
         Loc {
             start,

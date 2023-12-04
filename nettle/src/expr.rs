@@ -1,8 +1,6 @@
 use super::*;
 use std::collections::BTreeMap;
 
-use anyhow::anyhow;
-
 #[derive(Clone)]
 pub enum Expr {
     Reference(Loc, Path),
@@ -502,20 +500,20 @@ impl Expr {
     }
 
     #[allow(unused_variables)] // TODO remove this
-    pub fn typecheck(&self, type_expected: &Type, ctx: Context<Path, Type>) -> anyhow::Result<()> {
+    pub fn typecheck(&self, type_expected: &Type, ctx: Context<Path, Type>) -> Result<(), TypeError> {
         if let Some(type_actual) = self.typeinfer(ctx.clone()) {
             if &type_actual == type_expected {
                 return Ok(());
             } else {
-                return Err(anyhow!(TypeError::NotExpectedType(type_expected.clone(), self.clone())));
+                return Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()));
             }
         }
 
         match self {
-            Expr::Reference(_loc, path) => Err(anyhow!(TypeError::UndefinedReference(self.clone()))),
+            Expr::Reference(_loc, path) => Err(TypeError::UndefinedReference(self.clone())),
             Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
             Expr::Lit(_loc, Value::Word(w, n)) if n >> w != 0 =>
-                Err(anyhow!(TypeError::InvalidLit(self.clone()))),
+                Err(TypeError::InvalidLit(self.clone())),
             Expr::Lit(_loc, _) => unreachable!(),
             Expr::UnOp(_loc, _op, e) => e.typecheck(type_expected, ctx.clone()),
             Expr::BinOp(_loc, _op, e1, e2) => {
@@ -535,10 +533,10 @@ impl Expr {
                     if *n >= m {
                         Ok(())
                     } else {
-                        Err(anyhow!(TypeError::Other(self.clone(), format!(" Can't sext a Word<{m}> to a a Word<{n}>"))))
+                        Err(TypeError::Other(self.clone(), format!(" Can't sext a Word<{m}> to a a Word<{n}>")))
                     }
                 } else {
-                    Err(anyhow!(TypeError::CantInferType(self.clone())))
+                    Err(TypeError::CantInferType(self.clone()))
                 }
             },
             Expr::ToWord(_loc, e) => todo!(),
@@ -548,28 +546,28 @@ impl Expr {
                         e.typecheck(typ, ctx.clone())?;
                     }
                     if es.len() != *n as usize {
-                        Err(anyhow!(TypeError::NotExpectedType(type_expected.clone(), self.clone())))
+                        Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()))
                     } else {
                         Ok(())
                     }
                 } else {
-                    Err(anyhow!(TypeError::NotExpectedType(type_expected.clone(), self.clone())))
+                    Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()))
                 }
             },
             Expr::Idx(_loc, e, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if *i < n => Ok(()),
-                    Some(Type::Word(n)) => Err(anyhow!(TypeError::Other(self.clone(), format!("Index out of bounds")))),
-                    Some(typ) => Err(anyhow!(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}")))),
-                    None => Err(anyhow!(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}")))),
+                    Some(Type::Word(n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
+                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}"))),
+                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
             Expr::IdxRange(_loc, e, j, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if n >= *j && j >= i => Ok(()),
-                    Some(Type::Word(_n)) => Err(anyhow!(TypeError::Other(self.clone(), format!("Index out of bounds")))),
-                    Some(typ) => Err(anyhow!(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}")))),
-                    None => Err(anyhow!(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}")))),
+                    Some(Type::Word(_n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
+                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}"))),
+                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
             Expr::IdxDyn(_loc, e, i) => todo!(),

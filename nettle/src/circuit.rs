@@ -423,7 +423,7 @@ impl Circuit {
             };
 
             match expr.typecheck(&target_typ, ctx.clone()) {
-                Err(e) => errors.push(CircuitError::TypeError(format!("{e:?}"))),
+                Err(e) => errors.push(CircuitError::TypeError(e)),
                 Ok(()) => (),
             }
 
@@ -672,7 +672,7 @@ impl Component {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum CircuitError {
     ExtHasNonPort(Name),
     DuplicateComponent(Name),
@@ -681,6 +681,22 @@ pub enum CircuitError {
     WrongWireType(Name, WireType),
     IncomingPortDriven(Name),
     NoSuchComponent(Name),
-    TypeError(String),
+    TypeError(TypeError),
     Unknown(String),
+}
+
+impl HasLoc for CircuitError {
+    fn loc(&self) -> Loc {
+        match self {
+            CircuitError::ExtHasNonPort(_name) => Loc::unknown(),
+            CircuitError::DuplicateComponent(_name) => Loc::unknown(),
+            CircuitError::MultipleDrivers(_name) => Loc::unknown(),
+            CircuitError::NoDrivers(_name) => Loc::unknown(),
+            CircuitError::WrongWireType(_name, WireType) => Loc::unknown(),
+            CircuitError::IncomingPortDriven(_name) => Loc::unknown(),
+            CircuitError::NoSuchComponent(_name) => Loc::unknown(),
+            CircuitError::TypeError(type_error) => type_error.loc(),
+            CircuitError::Unknown(_string) => Loc::unknown(),
+        }
+    }
 }
