@@ -1,0 +1,4 @@
+link term.terminal = Terminal {}
+
+reset
+run

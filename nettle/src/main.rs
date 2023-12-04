@@ -88,6 +88,10 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 }
                 e
             },
+            "Terminal" => {
+                let e = Box::new(nettle::ext::terminal::Terminal::new());
+                e
+            },
             _ => panic!("Unknown ext module being linked: {extname}")
         };
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");

@@ -1,3 +1,0 @@
-link top.monitor = Monitor {}
-reset
-run

@@ -1,0 +1,17 @@
+ext Terminal {
+    incoming in_data of Word<8>;
+    incoming in_valid of Word<1>;
+}
+mod term {
+    ext terminal of Terminal;
+
+    reg counter of Word<8> reset 32w8;
+    counter <= if counter < 127w8 {
+        counter + 1w8
+    } else {
+        32w8
+    };
+
+    terminal.in_valid := 1w1;
+    terminal.in_data := counter;
+}

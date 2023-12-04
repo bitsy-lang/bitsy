@@ -6,6 +6,7 @@ pub mod ram;
 pub mod mem;
 pub mod video;
 pub mod riscv_decoder;
+pub mod terminal;
 
 pub type PortId = usize;
 pub type PortName = String;
