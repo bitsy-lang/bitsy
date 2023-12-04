@@ -8,9 +8,29 @@ pub Package: Package = {
 }
 
 pub Decl: Decl = {
-    <m:Mod> => Decl::ModDef(m),
+    <m:ModDef> => Decl::ModDef(m),
     <e:TypeDef> => Decl::TypeDef(e),
     <m:ExtDef> => Decl::ExtDef(m)
+}
+
+pub ModDef: Arc<Component> = {
+    "mod" <id:Id> "{"
+        <decls:ModDecl*>
+    "}" => {
+        let mut children = vec![];
+        let mut wires = vec![];
+        let mut whens = vec![];
+
+        for decl in decls {
+            match decl {
+                ModDecl::Component(c) => children.push(c),
+                ModDecl::Wire(w) => wires.push(w),
+                ModDecl::When(w) => whens.push(w),
+            }
+        }
+
+        Arc::new(Component::Mod(id, children, wires, whens))
+    },
 }
 
 pub ExtDef: Arc<Component> = {
@@ -82,6 +102,10 @@ pub Ext: Arc<Component> = {
     }
 }
 
+pub ModInst: Arc<Component> = {
+    "mod" <id:Id> "of" <modname:Id> ";" => Arc::new(Component::ModInst(id, modname.into())),
+}
+
 pub ExtInst: Arc<Component> = {
     "ext" <id:Id> "of" <defname:Id> ";" => Arc::new(Component::ExtInst(id, defname.into())),
 }
@@ -94,6 +118,7 @@ pub ModDecl: ModDecl  = {
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),
+    <m:ModInst> => ModDecl::Component(m),
     <m:ExtInst> => ModDecl::Component(m),
     <wire:Wire> => ModDecl::Wire(wire),
 }

@@ -24,6 +24,7 @@ pub struct Dependents {
     pub ext_ports: Vec<(ExtId, PortName)>,
 }
 
+#[derive(Debug)]
 pub struct SimCircuit {
     pub nets: Vec<Net>, // indexed by NetId
     pub combs: Vec<Comb>, // indexed by NetId
@@ -423,7 +424,7 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
         if let Expr::Reference(_loc, driver) = expr {
             immediate_driver_for.insert(target_terminal.clone(), driver.clone());
          }
-     }
+    }
 
     let mut drivers: BTreeSet<Path> = BTreeSet::new();
     for terminal in circuit.terminals() {

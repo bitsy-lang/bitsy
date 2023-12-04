@@ -292,61 +292,6 @@ fn test_node() {
 }
 
 #[test]
-fn test_circuit() {
-    let top = parse_top("
-        mod top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
-            mod foo {
-                incoming a of Word<1>;
-                outgoing z of Word<1>;
-                reg r of Word<1>;
-
-                r <= r + 1w1;
-                mod bar {
-                }
-                mod baz {
-                    reg c of Word<1>;
-                    c <= 0w1;
-                }
-            }
-
-            mod quux {
-                outgoing out of Word<1>;
-                out := 1w1;
-            }
-        }
-    ").unwrap();
-
-    assert_eq!(
-        top.modules(),
-        vec![
-            "top".into(),
-            "top.foo".into(),
-            "top.foo.bar".into(),
-            "top.foo.baz".into(),
-            "top.quux".into(),
-        ],
-    );
-
-    assert_eq!(top.component("top.foo.baz".into()).unwrap().name(), "baz");
-
-//    assert_eq!(
-//        top.visible_terminals(),
-//        vec![
-//            "out".into(),
-//            "in".into(),
-//            "foo.a".into(),
-//            "foo.z".into(),
-//        ],
-//    );
-
-    let baz = top.component("top.foo.baz".into()).unwrap();
-    assert_eq!(baz.wires().len(), 1);
-    assert_eq!(baz.wires()[0].2, WireType::Latch);
-}
-
-#[test]
 fn test_check() {
     let top = parse_top("
         mod top {

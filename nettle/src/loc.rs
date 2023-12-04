@@ -70,11 +70,21 @@ impl std::fmt::Display for LineCol {
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Loc {
     start: Pos,
     end: Pos,
     source_info: SourceInfo,
+}
+
+impl std::fmt::Debug for Loc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match &self.source_info.source {
+            Source::File(path) => write!(f, "[{}-{}:{:?}]", self.start(), self.end(), path),
+            Source::String(s) => write!(f, "[{}-{}:{:?}]", self.start(), self.end(), String::from_utf8_lossy(&s.as_bytes()[self.start..self.end])),
+            Source::Unknown => write!(f, "[{}-{}]", self.start(), self.end()),
+        }
+    }
 }
 
 impl Loc {
