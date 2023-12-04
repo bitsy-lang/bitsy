@@ -1,3 +1,4 @@
+top Core
 link Core.riscv_decoder = RiscVDecoder {}
 
 link Core.instr_mem = Mem {

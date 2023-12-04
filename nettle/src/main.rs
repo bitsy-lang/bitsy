@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         println!("No testbench file");
         let command = TestbenchCommand::Debug;
-        Testbench(vec![], vec![command])
+        Testbench(None, vec![], vec![command])
     };
 
     let sim: Sim = make_sim(top.clone(), &testbench);
@@ -53,9 +53,10 @@ fn testbench_for(filename: &str) -> Option<String> {
         None
     }
 }
-fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
+fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
-    for TestbenchLink(path, extname, params) in &testbench.0 {
+    let top = testbench.0.clone();;
+    for TestbenchLink(path, extname, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {
             "Monitor" => {
@@ -92,5 +93,5 @@ fn make_sim(top: Circuit, testbench: &Testbench) -> Sim {
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");
         exts.insert(path.clone(), ext);
     }
-    Sim::new_with_exts(&top, exts)
+    Sim::new_with_exts(&circuit, top, exts)
 }

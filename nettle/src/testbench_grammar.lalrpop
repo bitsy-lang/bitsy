@@ -4,7 +4,11 @@ use super::*;
 grammar(source_info: &SourceInfo);
 
 pub Testbench: Testbench = {
-    <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(links, commands),
+    <top:TestbenchTop?> <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(top, links, commands),
+}
+
+pub TestbenchTop: String = {
+    "top" <id:Id> => id,
 }
 
 pub TestbenchLink: TestbenchLink = {
