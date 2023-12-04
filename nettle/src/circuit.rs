@@ -25,6 +25,7 @@ impl Package {
 #[derive(Debug, Clone)]
 pub enum Decl {
     ModDef(Arc<Component>),
+    ExtDef(Arc<Component>),
     TypeDef(Arc<TypeDef>),
 }
 
@@ -57,6 +58,7 @@ impl Wire {
 pub enum Component {
     Mod(Name, Vec<Component>, Vec<Wire>, Vec<When>),
     Ext(Name, Vec<Component>),
+    ExtInst(Name, Name),
     Incoming(Name, Type),
     Outgoing(Name, Type),
     Node(Name, Type),
@@ -201,6 +203,7 @@ impl Component {
         match self {
             Component::Mod(name, _children, _wires, _whens) => name.as_str(),
             Component::Ext(name, _children) => name.as_str(),
+            Component::ExtInst(name, _defname) => name.as_str(),
             Component::Incoming(name, _typ) => name.as_str(),
             Component::Outgoing(name, _typ) => name.as_str(),
             Component::Node(name, _typ) => name.as_str(),
@@ -239,6 +242,7 @@ impl Component {
         match self {
             Component::Mod(_name, _children, _wires, _whens) => None,
             Component::Ext(_name, _children) => None,
+            Component::ExtInst(_name, _defname) => None,
             Component::Node(_name, typ) => Some(typ.clone()),
             Component::Outgoing(_name, typ) => Some(typ.clone()),
             Component::Incoming(_name, typ) => Some(typ.clone()),
@@ -412,6 +416,7 @@ impl Component {
         match self {
             Component::Mod(_name, children, _wires, _whens) => children.iter().collect(),
             Component::Ext(_name, children) => children.iter().collect(),
+            Component::ExtInst(_name, _defname) => vec![],
             Component::Incoming(_name, _typ) => vec![],
             Component::Outgoing(_name, _typ) => vec![],
             Component::Node(_name, _typ) => vec![],
@@ -465,6 +470,7 @@ impl Component {
                 Component::Outgoing(name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Mod(name, _children, _wires, _whens) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
                 Component::Ext(name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
+                Component::ExtInst(_name, defname) => todo!(),
             }
         }
         results
@@ -502,6 +508,7 @@ impl Component {
                         results.push(ext_path.join(path));
                     }
                 },
+                Component::ExtInst(name, defname) => todo!(),
             }
         }
         results
