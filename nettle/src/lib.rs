@@ -1,3 +1,4 @@
+mod reference;
 mod circuit;
 mod parse;
 mod value;

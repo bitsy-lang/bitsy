@@ -139,7 +139,9 @@ impl Repl {
             TestbenchCommand::Assert(e) => {
                 let result = e.eval(&self.sim);
                 println!("ASSERT {e:?}");
-                if result != true.into() {
+                if let Value::Word(1, 1) = result {
+                    // Do nothing.
+                } else {
                     println!("Assertion failed");
                     for path in e.paths() {
                         println!("    {path} => {:?}", self.sim.peek(path.clone()));

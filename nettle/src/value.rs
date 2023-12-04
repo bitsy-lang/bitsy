@@ -1,10 +1,9 @@
-use std::sync::Arc;
-use anyhow::anyhow;
+use crate::reference::Reference;
 
 pub type Width = u64;
 pub type Length = u64;
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct TypeDef {
     pub name: String,
     pub values: Vec<(String, Value)>,
@@ -35,57 +34,11 @@ impl TypeDef {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Type {
     Word(Width),
     Vec(Box<Type>, Length),
-    TypeDef(Ref<TypeDef>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Ref<T>(String, Arc<std::sync::Mutex<Option<Arc<T>>>>);
-
-impl<T> PartialEq for Ref<T> {
-    fn eq(&self, other: &Ref<T>) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl<T> Eq for Ref<T> {}
-
-impl Ref<TypeDef> {
-    pub fn new(name: String) -> Ref<TypeDef> {
-        Ref(name, Arc::new(std::sync::Mutex::new(None)))
-    }
-
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-}
-
-impl<T> Ref<T> {
-    pub fn get(&self) -> Option<Arc<T>> {
-        let lock = self.1.lock().unwrap();
-        match &*lock {
-            Some(t) => Some(Arc::clone(t)),
-            None => None,
-        }
-    }
-
-    pub fn is_resolved(&self) -> bool {
-        self.1.lock().unwrap().is_some()
-    }
-
-    pub fn resolve_to(&self, t: Arc<T>) -> anyhow::Result<()> {
-        let mut lock = self.1.lock().unwrap();
-        match &*lock {
-            Some(_t) => Err(anyhow!("Ref is already resolved.")),
-            None => {
-                *lock = Some(t);
-                Ok(())
-            },
-        }
-    }
+    TypeDef(Reference<TypeDef>),
 }
 
 impl Type {
@@ -98,21 +51,25 @@ impl Type {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 pub enum Value {
     #[default]
     X,
     Word(Width, u64),
     Vec(Vec<Value>),
-    Enum(Ref<TypeDef>, String),
+    Enum(Reference<TypeDef>, String),
 }
 
 impl Value {
     pub fn is_x(&self) -> bool {
-        *self == Value::X
+        if let Value::X = self {
+            true
+        } else {
+            false
+        }
     }
 
-    pub fn to_usize(&self) -> Option<u64> {
+    pub fn to_u64(&self) -> Option<u64> {
         match self {
             Value::X => None,
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
@@ -133,9 +90,9 @@ impl Value {
 #[test]
 fn value_to_usize() {
     let v: Value = Value::Word(4, 7);
-    assert_eq!(v.to_usize(), Some(7));
+    assert_eq!(v.to_u64(), Some(7));
     let v: Value = Value::Word(2, 7);
-    assert_eq!(v.to_usize(), Some(3));
+    assert_eq!(v.to_u64(), Some(3));
 }
 
 impl std::fmt::Debug for Type {
@@ -232,7 +189,7 @@ impl std::fmt::LowerHex for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0x{:x}w{w}", self.to_usize().unwrap()),
+            Value::Word(w, _n) => write!(f, "0x{:x}w{w}", self.to_u64().unwrap()),
             Value::Vec(vs) => {
                 write!(f, "[")?;
                 for (i, v) in vs.iter().enumerate() {
@@ -253,7 +210,7 @@ impl std::fmt::UpperHex for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0x{:X}w{w}", self.to_usize().unwrap()),
+            Value::Word(w, _n) => write!(f, "0x{:X}w{w}", self.to_u64().unwrap()),
             Value::Vec(vs) => {
                 write!(f, "[")?;
                 for (i, v) in vs.iter().enumerate() {
@@ -274,7 +231,7 @@ impl std::fmt::Binary for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::X => write!(f, "XXX"),
-            Value::Word(w, _n) => write!(f, "0b{:b}w{w}", self.to_usize().unwrap()),
+            Value::Word(w, _n) => write!(f, "0b{:b}w{w}", self.to_u64().unwrap()),
             Value::Vec(vs) => {
                 write!(f, "[")?;
                 for (i, v) in vs.iter().enumerate() {

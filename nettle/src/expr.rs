@@ -504,7 +504,7 @@ impl Expr {
     #[allow(unused_variables)] // TODO remove this
     pub fn typecheck(&self, type_expected: &Type, ctx: Context<Path, Type>) -> anyhow::Result<()> {
         if let Some(type_actual) = self.typeinfer(ctx.clone()) {
-            if type_actual == *type_expected {
+            if &type_actual == type_expected {
                 return Ok(());
             } else {
                 //return Err(anyhow!("{self:?} has type {type_actual:?} but expected {type_expected:?}"));
