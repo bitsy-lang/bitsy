@@ -55,7 +55,7 @@ fn testbench_for(filename: &str) -> Option<String> {
 }
 fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
-    let top = testbench.0.clone();;
+    let top = testbench.0.clone();
     for TestbenchLink(path, extname, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {
