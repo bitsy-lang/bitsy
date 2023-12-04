@@ -507,7 +507,6 @@ impl Expr {
             if &type_actual == type_expected {
                 return Ok(());
             } else {
-                //return Err(anyhow!("{self:?} has type {type_actual:?} but expected {type_expected:?}"));
                 return Err(anyhow!(TypeError::NotExpectedType(type_expected.clone(), self.clone())));
             }
         }
@@ -626,13 +625,13 @@ impl Expr {
                 Some(Type::Word(w))
             },
             Expr::Sext(_loc, e, n) => None,
-            Expr::ToWord(_loc, e) => {
+            Expr::ToWord(loc, e) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::TypeDef(typedef)) => {
                         if let Some(typedef) = typedef.get() {
                             Some(Type::Word(typedef.width()))
                         } else {
-                            panic!("Unresolved typedef: {typedef:?}")
+                            panic!("Unresolved typedef: {:?} location: {loc:?}", typedef.name())
                         }
                     }
                     _ => None,

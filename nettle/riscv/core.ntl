@@ -25,202 +25,17 @@ enum AluOp {
     SUB = 6w4;
 }
 
-mod core {
-    ext riscv_decoder {
-        incoming in of Word<32>;
-    }
-    ext instr_mem {
-        incoming read_addr of Word<32>;
-        outgoing read_data of Word<32>;
+mod Core {
+    mod rf of Rf;
+    mod control of Control;
+    mod alu of Alu;
+    mod immgen of Immgen;
+    mod decoder of Decoder;
+    mod ifetch of Ifetch;
 
-        incoming write_enable of Word<1>;
-        incoming write_addr of Word<32>;
-        incoming write_data of Word<32>;
-    }
-
-    ext mem {
-        incoming read_addr of Word<32>;
-        outgoing read_data of Word<32>;
-
-        incoming write_enable of Word<1>;
-        incoming write_addr of Word<32>;
-        incoming write_data of Word<32>;
-    }
-
-    mod rf {
-        incoming rs1 of Word<5>;
-        incoming rs2 of Word<5>;
-        incoming rd  of Word<5>;
-
-        incoming write_enable of Word<1>;
-        incoming write_data   of Word<32>;
-
-        outgoing rs1_val of Word<32>;
-        outgoing rs2_val of Word<32>;
-
-        reg xs of Vec<Word<32>, 32> reset [0w32; 32];
-
-        reg x0 of Word<32> reset 0w32;
-        reg x1 of Word<32> reset 0w32;
-        reg x2 of Word<32> reset 0w32;
-        reg x3 of Word<32> reset 0w32;
-        reg x4 of Word<32> reset 0w32;
-        reg x5 of Word<32> reset 0w32;
-        reg x6 of Word<32> reset 0w32;
-        reg x7 of Word<32> reset 0w32;
-        reg x8 of Word<32> reset 0w32;
-        reg x9 of Word<32> reset 0w32;
-        reg x10 of Word<32> reset 0w32;
-        reg x11 of Word<32> reset 0w32;
-        reg x12 of Word<32> reset 0w32;
-        reg x13 of Word<32> reset 0w32;
-        reg x14 of Word<32> reset 0w32;
-        reg x15 of Word<32> reset 0w32;
-        reg x16 of Word<32> reset 0w32;
-        reg x17 of Word<32> reset 0w32;
-        reg x18 of Word<32> reset 0w32;
-        reg x19 of Word<32> reset 0w32;
-        reg x20 of Word<32> reset 0w32;
-        reg x21 of Word<32> reset 0w32;
-        reg x22 of Word<32> reset 0w32;
-        reg x23 of Word<32> reset 0w32;
-        reg x24 of Word<32> reset 0w32;
-        reg x25 of Word<32> reset 0w32;
-        reg x26 of Word<32> reset 0w32;
-        reg x27 of Word<32> reset 0w32;
-        reg x28 of Word<32> reset 0w32;
-        reg x29 of Word<32> reset 0w32;
-        reg x30 of Word<32> reset 0w32;
-        reg x31 of Word<32> reset 0w32;
-
-        // skip x0
-        x1 <= if write_enable && rd == 1w5 { write_data } else { x1 };
-        x2 <= if write_enable && rd == 2w5 { write_data } else { x2 };
-        x3 <= if write_enable && rd == 3w5 { write_data } else { x3 };
-        x4 <= if write_enable && rd == 4w5 { write_data } else { x4 };
-        x5 <= if write_enable && rd == 5w5 { write_data } else { x5 };
-        x6 <= if write_enable && rd == 6w5 { write_data } else { x6 };
-        x7 <= if write_enable && rd == 7w5 { write_data } else { x7 };
-        x8 <= if write_enable && rd == 8w5 { write_data } else { x8 };
-        x9 <= if write_enable && rd == 9w5 { write_data } else { x9 };
-        x10 <= if write_enable && rd == 10w5 { write_data } else { x10 };
-        x11 <= if write_enable && rd == 11w5 { write_data } else { x11 };
-        x12 <= if write_enable && rd == 12w5 { write_data } else { x12 };
-        x13 <= if write_enable && rd == 13w5 { write_data } else { x13 };
-        x14 <= if write_enable && rd == 14w5 { write_data } else { x14 };
-        x15 <= if write_enable && rd == 15w5 { write_data } else { x15 };
-        x16 <= if write_enable && rd == 16w5 { write_data } else { x16 };
-        x17 <= if write_enable && rd == 17w5 { write_data } else { x17 };
-        x18 <= if write_enable && rd == 18w5 { write_data } else { x18 };
-        x19 <= if write_enable && rd == 19w5 { write_data } else { x19 };
-        x20 <= if write_enable && rd == 20w5 { write_data } else { x20 };
-        x21 <= if write_enable && rd == 21w5 { write_data } else { x21 };
-        x22 <= if write_enable && rd == 22w5 { write_data } else { x22 };
-        x23 <= if write_enable && rd == 23w5 { write_data } else { x23 };
-        x24 <= if write_enable && rd == 24w5 { write_data } else { x24 };
-        x25 <= if write_enable && rd == 25w5 { write_data } else { x25 };
-        x26 <= if write_enable && rd == 26w5 { write_data } else { x26 };
-        x27 <= if write_enable && rd == 27w5 { write_data } else { x27 };
-        x28 <= if write_enable && rd == 28w5 { write_data } else { x28 };
-        x29 <= if write_enable && rd == 29w5 { write_data } else { x29 };
-        x30 <= if write_enable && rd == 30w5 { write_data } else { x30 };
-        x31 <= if write_enable && rd == 31w5 { write_data } else { x31 };
-
-        rs1_val :=
-                 if rs1 == 1w5 { x1 }
-            else if rs1 == 2w5 { x2 }
-            else if rs1 == 3w5 { x3 }
-            else if rs1 == 4w5 { x4 }
-            else if rs1 == 5w5 { x5 }
-            else if rs1 == 6w5 { x6 }
-            else if rs1 == 7w5 { x7 }
-            else if rs1 == 8w5 { x8 }
-            else if rs1 == 9w5 { x9 }
-            else if rs1 == 10w5 { x10 }
-            else if rs1 == 11w5 { x11 }
-            else if rs1 == 12w5 { x12 }
-            else if rs1 == 13w5 { x13 }
-            else if rs1 == 14w5 { x14 }
-            else if rs1 == 15w5 { x15 }
-            else if rs1 == 16w5 { x16 }
-            else if rs1 == 17w5 { x17 }
-            else if rs1 == 18w5 { x18 }
-            else if rs1 == 19w5 { x19 }
-            else if rs1 == 20w5 { x20 }
-            else if rs1 == 21w5 { x21 }
-            else if rs1 == 22w5 { x22 }
-            else if rs1 == 23w5 { x23 }
-            else if rs1 == 24w5 { x24 }
-            else if rs1 == 25w5 { x25 }
-            else if rs1 == 26w5 { x26 }
-            else if rs1 == 27w5 { x27 }
-            else if rs1 == 28w5 { x28 }
-            else if rs1 == 29w5 { x29 }
-            else if rs1 == 30w5 { x30 }
-            else if rs1 == 31w5 { x31 }
-            else { 0w32 };
-
-        rs2_val :=
-                 if rs2 == 1w5 { x1 }
-            else if rs2 == 2w5 { x2 }
-            else if rs2 == 3w5 { x3 }
-            else if rs2 == 4w5 { x4 }
-            else if rs2 == 5w5 { x5 }
-            else if rs2 == 6w5 { x6 }
-            else if rs2 == 7w5 { x7 }
-            else if rs2 == 8w5 { x8 }
-            else if rs2 == 9w5 { x9 }
-            else if rs2 == 10w5 { x10 }
-            else if rs2 == 11w5 { x11 }
-            else if rs2 == 12w5 { x12 }
-            else if rs2 == 13w5 { x13 }
-            else if rs2 == 14w5 { x14 }
-            else if rs2 == 15w5 { x15 }
-            else if rs2 == 16w5 { x16 }
-            else if rs2 == 17w5 { x17 }
-            else if rs2 == 18w5 { x18 }
-            else if rs2 == 19w5 { x19 }
-            else if rs2 == 20w5 { x20 }
-            else if rs2 == 21w5 { x21 }
-            else if rs2 == 22w5 { x22 }
-            else if rs2 == 23w5 { x23 }
-            else if rs2 == 24w5 { x24 }
-            else if rs2 == 25w5 { x25 }
-            else if rs2 == 26w5 { x26 }
-            else if rs2 == 27w5 { x27 }
-            else if rs2 == 28w5 { x28 }
-            else if rs2 == 29w5 { x29 }
-            else if rs2 == 30w5 { x30 }
-            else if rs2 == 31w5 { x31 }
-            else { 0w32 };
-    }
-
-    mod control {
-        incoming opcode of Word<7>;
-        incoming funct3 of Word<3>;
-        incoming funct7 of Word<7>;
-
-        outgoing branch of Word<1>;
-        outgoing mem_read of Word<1>;
-        outgoing mem_write of Word<1>;
-        outgoing mem_to_reg of Word<1>;
-        outgoing alu_op of AluOp;
-        outgoing alu_source of Word<1>;
-        outgoing reg_write of Word<1>;
-
-        branch := opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JALR) || opcode == word(Opcode::JAL);
-
-        mem_read := opcode == word(Opcode::LOAD);
-        mem_write := opcode == word(Opcode::STORE);
-        mem_to_reg := mem_read;
-        alu_op := if funct3 == 0w3 { // ADD/ADDI
-            AluOp::ADD
-        } else {
-            AluOp::ADD
-        };
-        alu_source := opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD) || opcode == word(Opcode::STORE);
-        reg_write := opcode == word(Opcode::OP) || opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD);
-    }
+    ext riscv_decoder of RiscvDecoder;
+    ext instr_mem of InstrMem;
+    ext mem of Mem;
 
     instr_mem.write_enable := 0w1;
     instr_mem.write_addr := 0w32;
@@ -231,106 +46,6 @@ mod core {
     mem.write_addr := rf.rs1_val;
     mem.write_data := rf.rs2_val;
 
-    mod alu {
-        incoming a of Word<32>;
-        incoming b of Word<32>;
-        incoming op of AluOp;
-        outgoing r of Word<32>;
-
-        r := if op == AluOp::AND {
-            a && b
-        } else if op == AluOp::OR {
-            a || b
-        } else if op == AluOp::ADD {
-            a + b
-        } else if op == AluOp::SUB {
-            a - b
-        } else {
-            0w32
-        };
-    }
-
-    mod immgen {
-        incoming instr of Word<32>;
-        outgoing imm of Word<32>;
-
-        node opcode of Word<7>;
-        opcode := instr[7..0];
-
-        node typ of InstrType;
-        typ := if opcode == word(Opcode::OP_IMM) {
-            InstrType::I
-        } else if opcode == word(Opcode::LOAD) {
-            InstrType::I
-        } else if opcode == word(Opcode::STORE) {
-            InstrType::S
-        } else if opcode == word(Opcode::JAL) {
-            InstrType::J
-        } else if opcode == word(Opcode::BRANCH) {
-            InstrType::B
-        } else if opcode == word(Opcode::LUI) {
-            InstrType::U
-        } else if opcode == word(Opcode::AUIPC) {
-            InstrType::U
-        } else if opcode == word(Opcode::JALR) {
-            InstrType::I
-        } else {
-            InstrType::I
-        };
-
-        imm := if typ == InstrType::I {
-            sext(cat(instr[31], instr[32..20]), 32)
-        } else if typ == InstrType::S {
-            sext(cat(instr[31], instr[32..25], instr[12..7]), 32)
-        } else if typ == InstrType::B {
-            sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1), 32)
-        } else if typ == InstrType::U {
-            sext(cat(instr[32..12], 0w12), 32)
-        } else if typ == InstrType::J {
-            sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1), 32)
-        } else {
-            0w32
-        };
-    }
-
-    mod decoder {
-        incoming instr of Word<32>;
-
-        outgoing opcode of Word<7>;
-        outgoing rd  of Word<5>;
-        outgoing rs1 of Word<5>;
-        outgoing rs2 of Word<5>;
-        outgoing funct3  of Word<3>;
-        outgoing funct7  of Word<7>;
-
-        opcode := instr[7..0];
-        rd     := instr[12..7];
-        funct3 := instr[15..12];
-        rs1    := instr[20..15];
-        rs2    := instr[25..20];
-        funct7 := instr[32..25];
-    }
-
-    mod ifetch {
-        incoming branch_offset of Word<32>;
-        incoming branch_enable of Word<1>;
-
-        outgoing instr_mem_addr of Word<32>;
-        incoming instr_mem_data of Word<32>;
-
-        outgoing instr of Word<32>;
-
-        reg pc of Word<32> reset 0w32;
-        instr_mem_addr := pc;
-
-        pc <= if branch_enable {
-            pc + branch_offset
-        } else {
-            pc + 4w32
-        };
-
-        instr := instr_mem_data;
-    }
 
     ifetch.branch_offset := immgen.imm;
     ifetch.branch_enable := control.branch;
@@ -361,4 +76,302 @@ mod core {
 
     };
     alu.op := control.alu_op;
+}
+
+mod Rf {
+    incoming rs1 of Word<5>;
+    incoming rs2 of Word<5>;
+    incoming rd  of Word<5>;
+
+    incoming write_enable of Word<1>;
+    incoming write_data   of Word<32>;
+
+    outgoing rs1_val of Word<32>;
+    outgoing rs2_val of Word<32>;
+
+    reg xs of Vec<Word<32>, 32> reset [0w32; 32];
+
+    reg x0 of Word<32> reset 0w32;
+    reg x1 of Word<32> reset 0w32;
+    reg x2 of Word<32> reset 0w32;
+    reg x3 of Word<32> reset 0w32;
+    reg x4 of Word<32> reset 0w32;
+    reg x5 of Word<32> reset 0w32;
+    reg x6 of Word<32> reset 0w32;
+    reg x7 of Word<32> reset 0w32;
+    reg x8 of Word<32> reset 0w32;
+    reg x9 of Word<32> reset 0w32;
+    reg x10 of Word<32> reset 0w32;
+    reg x11 of Word<32> reset 0w32;
+    reg x12 of Word<32> reset 0w32;
+    reg x13 of Word<32> reset 0w32;
+    reg x14 of Word<32> reset 0w32;
+    reg x15 of Word<32> reset 0w32;
+    reg x16 of Word<32> reset 0w32;
+    reg x17 of Word<32> reset 0w32;
+    reg x18 of Word<32> reset 0w32;
+    reg x19 of Word<32> reset 0w32;
+    reg x20 of Word<32> reset 0w32;
+    reg x21 of Word<32> reset 0w32;
+    reg x22 of Word<32> reset 0w32;
+    reg x23 of Word<32> reset 0w32;
+    reg x24 of Word<32> reset 0w32;
+    reg x25 of Word<32> reset 0w32;
+    reg x26 of Word<32> reset 0w32;
+    reg x27 of Word<32> reset 0w32;
+    reg x28 of Word<32> reset 0w32;
+    reg x29 of Word<32> reset 0w32;
+    reg x30 of Word<32> reset 0w32;
+    reg x31 of Word<32> reset 0w32;
+
+    // skip x0
+    x1 <= if write_enable && rd == 1w5 { write_data } else { x1 };
+    x2 <= if write_enable && rd == 2w5 { write_data } else { x2 };
+    x3 <= if write_enable && rd == 3w5 { write_data } else { x3 };
+    x4 <= if write_enable && rd == 4w5 { write_data } else { x4 };
+    x5 <= if write_enable && rd == 5w5 { write_data } else { x5 };
+    x6 <= if write_enable && rd == 6w5 { write_data } else { x6 };
+    x7 <= if write_enable && rd == 7w5 { write_data } else { x7 };
+    x8 <= if write_enable && rd == 8w5 { write_data } else { x8 };
+    x9 <= if write_enable && rd == 9w5 { write_data } else { x9 };
+    x10 <= if write_enable && rd == 10w5 { write_data } else { x10 };
+    x11 <= if write_enable && rd == 11w5 { write_data } else { x11 };
+    x12 <= if write_enable && rd == 12w5 { write_data } else { x12 };
+    x13 <= if write_enable && rd == 13w5 { write_data } else { x13 };
+    x14 <= if write_enable && rd == 14w5 { write_data } else { x14 };
+    x15 <= if write_enable && rd == 15w5 { write_data } else { x15 };
+    x16 <= if write_enable && rd == 16w5 { write_data } else { x16 };
+    x17 <= if write_enable && rd == 17w5 { write_data } else { x17 };
+    x18 <= if write_enable && rd == 18w5 { write_data } else { x18 };
+    x19 <= if write_enable && rd == 19w5 { write_data } else { x19 };
+    x20 <= if write_enable && rd == 20w5 { write_data } else { x20 };
+    x21 <= if write_enable && rd == 21w5 { write_data } else { x21 };
+    x22 <= if write_enable && rd == 22w5 { write_data } else { x22 };
+    x23 <= if write_enable && rd == 23w5 { write_data } else { x23 };
+    x24 <= if write_enable && rd == 24w5 { write_data } else { x24 };
+    x25 <= if write_enable && rd == 25w5 { write_data } else { x25 };
+    x26 <= if write_enable && rd == 26w5 { write_data } else { x26 };
+    x27 <= if write_enable && rd == 27w5 { write_data } else { x27 };
+    x28 <= if write_enable && rd == 28w5 { write_data } else { x28 };
+    x29 <= if write_enable && rd == 29w5 { write_data } else { x29 };
+    x30 <= if write_enable && rd == 30w5 { write_data } else { x30 };
+    x31 <= if write_enable && rd == 31w5 { write_data } else { x31 };
+
+    rs1_val :=
+             if rs1 == 1w5 { x1 }
+        else if rs1 == 2w5 { x2 }
+        else if rs1 == 3w5 { x3 }
+        else if rs1 == 4w5 { x4 }
+        else if rs1 == 5w5 { x5 }
+        else if rs1 == 6w5 { x6 }
+        else if rs1 == 7w5 { x7 }
+        else if rs1 == 8w5 { x8 }
+        else if rs1 == 9w5 { x9 }
+        else if rs1 == 10w5 { x10 }
+        else if rs1 == 11w5 { x11 }
+        else if rs1 == 12w5 { x12 }
+        else if rs1 == 13w5 { x13 }
+        else if rs1 == 14w5 { x14 }
+        else if rs1 == 15w5 { x15 }
+        else if rs1 == 16w5 { x16 }
+        else if rs1 == 17w5 { x17 }
+        else if rs1 == 18w5 { x18 }
+        else if rs1 == 19w5 { x19 }
+        else if rs1 == 20w5 { x20 }
+        else if rs1 == 21w5 { x21 }
+        else if rs1 == 22w5 { x22 }
+        else if rs1 == 23w5 { x23 }
+        else if rs1 == 24w5 { x24 }
+        else if rs1 == 25w5 { x25 }
+        else if rs1 == 26w5 { x26 }
+        else if rs1 == 27w5 { x27 }
+        else if rs1 == 28w5 { x28 }
+        else if rs1 == 29w5 { x29 }
+        else if rs1 == 30w5 { x30 }
+        else if rs1 == 31w5 { x31 }
+        else { 0w32 };
+
+    rs2_val :=
+             if rs2 == 1w5 { x1 }
+        else if rs2 == 2w5 { x2 }
+        else if rs2 == 3w5 { x3 }
+        else if rs2 == 4w5 { x4 }
+        else if rs2 == 5w5 { x5 }
+        else if rs2 == 6w5 { x6 }
+        else if rs2 == 7w5 { x7 }
+        else if rs2 == 8w5 { x8 }
+        else if rs2 == 9w5 { x9 }
+        else if rs2 == 10w5 { x10 }
+        else if rs2 == 11w5 { x11 }
+        else if rs2 == 12w5 { x12 }
+        else if rs2 == 13w5 { x13 }
+        else if rs2 == 14w5 { x14 }
+        else if rs2 == 15w5 { x15 }
+        else if rs2 == 16w5 { x16 }
+        else if rs2 == 17w5 { x17 }
+        else if rs2 == 18w5 { x18 }
+        else if rs2 == 19w5 { x19 }
+        else if rs2 == 20w5 { x20 }
+        else if rs2 == 21w5 { x21 }
+        else if rs2 == 22w5 { x22 }
+        else if rs2 == 23w5 { x23 }
+        else if rs2 == 24w5 { x24 }
+        else if rs2 == 25w5 { x25 }
+        else if rs2 == 26w5 { x26 }
+        else if rs2 == 27w5 { x27 }
+        else if rs2 == 28w5 { x28 }
+        else if rs2 == 29w5 { x29 }
+        else if rs2 == 30w5 { x30 }
+        else if rs2 == 31w5 { x31 }
+        else { 0w32 };
+}
+
+mod Control {
+    incoming opcode of Word<7>;
+    incoming funct3 of Word<3>;
+    incoming funct7 of Word<7>;
+
+    outgoing branch of Word<1>;
+    outgoing mem_read of Word<1>;
+    outgoing mem_write of Word<1>;
+    outgoing mem_to_reg of Word<1>;
+    outgoing alu_op of AluOp;
+    outgoing alu_source of Word<1>;
+    outgoing reg_write of Word<1>;
+
+    branch := opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JALR) || opcode == word(Opcode::JAL);
+
+    mem_read := opcode == word(Opcode::LOAD);
+    mem_write := opcode == word(Opcode::STORE);
+    mem_to_reg := mem_read;
+    alu_op := if funct3 == 0w3 { // ADD/ADDI
+        AluOp::ADD
+    } else {
+        AluOp::ADD
+    };
+    alu_source := opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD) || opcode == word(Opcode::STORE);
+    reg_write := opcode == word(Opcode::OP) || opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD);
+}
+
+mod Alu {
+    incoming a of Word<32>;
+    incoming b of Word<32>;
+    incoming op of AluOp;
+    outgoing r of Word<32>;
+
+    r := if op == AluOp::AND {
+        a && b
+    } else if op == AluOp::OR {
+        a || b
+    } else if op == AluOp::ADD {
+        a + b
+    } else if op == AluOp::SUB {
+        a - b
+    } else {
+        0w32
+    };
+}
+
+mod Immgen {
+    incoming instr of Word<32>;
+    outgoing imm of Word<32>;
+
+    node opcode of Word<7>;
+    opcode := instr[7..0];
+
+    node typ of InstrType;
+    typ := if opcode == word(Opcode::OP_IMM) {
+        InstrType::I
+    } else if opcode == word(Opcode::LOAD) {
+        InstrType::I
+    } else if opcode == word(Opcode::STORE) {
+        InstrType::S
+    } else if opcode == word(Opcode::JAL) {
+        InstrType::J
+    } else if opcode == word(Opcode::BRANCH) {
+        InstrType::B
+    } else if opcode == word(Opcode::LUI) {
+        InstrType::U
+    } else if opcode == word(Opcode::AUIPC) {
+        InstrType::U
+    } else if opcode == word(Opcode::JALR) {
+        InstrType::I
+    } else {
+        InstrType::I
+    };
+
+    imm := if typ == InstrType::I {
+        sext(cat(instr[31], instr[32..20]), 32)
+    } else if typ == InstrType::S {
+        sext(cat(instr[31], instr[32..25], instr[12..7]), 32)
+    } else if typ == InstrType::B {
+        sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1), 32)
+    } else if typ == InstrType::U {
+        sext(cat(instr[32..12], 0w12), 32)
+    } else if typ == InstrType::J {
+        sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1), 32)
+    } else {
+        0w32
+    };
+}
+
+mod Decoder {
+    incoming instr of Word<32>;
+
+    outgoing opcode of Word<7>;
+    outgoing rd  of Word<5>;
+    outgoing rs1 of Word<5>;
+    outgoing rs2 of Word<5>;
+    outgoing funct3  of Word<3>;
+    outgoing funct7  of Word<7>;
+
+    opcode := instr[7..0];
+    rd     := instr[12..7];
+    funct3 := instr[15..12];
+    rs1    := instr[20..15];
+    rs2    := instr[25..20];
+    funct7 := instr[32..25];
+}
+
+mod Ifetch {
+    incoming branch_offset of Word<32>;
+    incoming branch_enable of Word<1>;
+
+    outgoing instr_mem_addr of Word<32>;
+    incoming instr_mem_data of Word<32>;
+
+    outgoing instr of Word<32>;
+
+    reg pc of Word<32> reset 0w32;
+    instr_mem_addr := pc;
+
+    pc <= if branch_enable {
+        pc + branch_offset
+    } else {
+        pc + 4w32
+    };
+
+    instr := instr_mem_data;
+}
+
+ext RiscvDecoder {
+    incoming in of Word<32>;
+}
+
+ext InstrMem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
+}
+
+ext Mem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
 }
