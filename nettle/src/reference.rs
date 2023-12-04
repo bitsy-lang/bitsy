@@ -4,11 +4,11 @@ use std::sync::Mutex;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct Reference<T>(String, Arc<Mutex<Option<Arc<T>>>>);
+pub struct Reference<T>(Arc<String>, Arc<Mutex<Option<Arc<T>>>>);
 
 impl<T> Reference<T> {
-    pub fn new(name: String) -> Reference<T> {
-        Reference(name, Arc::new(std::sync::Mutex::new(None)))
+    pub fn new<S: Into<Arc<String>>>(name: S) -> Reference<T> {
+        Reference(name.into(), Arc::new(std::sync::Mutex::new(None)))
     }
 
     pub fn name(&self) -> &str {

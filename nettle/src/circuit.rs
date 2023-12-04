@@ -323,11 +323,11 @@ impl Circuit {
     }
 
     pub fn check(&self) -> Result<(), Vec<(Path, CircuitError)>> {
-        let mut errors = vec![];
-        for (path, component) in self.walk() {
-            if let Err(component_errors) = self.check_component(component) {
+        let mut errors: Vec<(Path, CircuitError)> = vec![];
+        for moddef in self.package().moddefs() {
+            if let Err(component_errors) = self.check_component(moddef.clone()) {
                 for component_error in component_errors {
-                    errors.push((path.clone(), component_error));
+                    errors.push((moddef.name().into(), component_error));
                 }
             }
         }
