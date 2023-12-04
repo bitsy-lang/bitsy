@@ -2,7 +2,7 @@ top Core
 link Core.riscv_decoder = RiscVDecoder {}
 
 link Core.instr_mem = Mem {
-    file = "riscv/prog.bin"
+    file = "data/prog.bin"
 }
 
 link Core.mem = Mem {
