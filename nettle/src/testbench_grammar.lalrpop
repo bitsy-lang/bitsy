@@ -16,8 +16,8 @@ pub TestbenchLink: TestbenchLink = {
 
 pub TestbenchCommand: TestbenchCommand = {
     "peek" <path:Path> => TestbenchCommand::Peek(path),
-    "poke" <path:Path> <value:Value> => TestbenchCommand::Poke(path, value),
-    "setreg" <path:Path> <value:Value> => TestbenchCommand::Set(path, value),
+    "poke" <path:Path> <line:Line> => TestbenchCommand::Poke(path, Value::X), // TODO
+    "setreg" <path:Path> <line:Line> => TestbenchCommand::Set(path, Value::X), // TODO
     "cd" <path:Path?> => TestbenchCommand::Cd(path),
     "cd" ".." => TestbenchCommand::Cd(Some("..".into())),
     "clock" => TestbenchCommand::Clock,
@@ -31,217 +31,14 @@ pub TestbenchCommand: TestbenchCommand = {
     },
     "debug" => TestbenchCommand::Debug,
     "run" => TestbenchCommand::Run,
-    "eval" <e:Expr> => TestbenchCommand::Eval(*e),
-    "assert" <e:Expr> => TestbenchCommand::Assert(*e),
+//    "eval" <e:Expr> => TestbenchCommand::Eval(*e),     // TODO
+//    "assert" <e:Expr> => TestbenchCommand::Assert(*e),     // TODO
 }
 
 pub WatchFormat: WatchFormat = {
     "hex" => WatchFormat::Hex,
     "bin" => WatchFormat::Bin,
     "bool" => WatchFormat::Bool,
-}
-
-pub Package: Package = {
-    <decls:Decl*> => Package(decls),
-}
-
-pub Decl: Decl = {
-    <m:Mod> => Decl::ModDef(Arc::new(m)),
-    <e:TypeDef> => Decl::TypeDef(Arc::new(e)),
-}
-
-pub TypeDef: TypeDef = {
-    "enum" <name:Id> "{"
-        <values:(Id "=" Value ";")*>
-    "}" => {
-        TypeDef {
-            name,
-            values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
-        }
-    },
-}
-
-pub Mod: Component = {
-    "mod" <id:Id> "{"
-        <decls:ModDecl*>
-    "}" => {
-        let mut children = vec![];
-        let mut wires = vec![];
-        let mut whens = vec![];
-
-        for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => wires.push(w),
-                ModDecl::When(w) => whens.push(w),
-            }
-        }
-
-        Component::Mod(id, children, wires, whens)
-    },
-}
-
-pub Ext: Component = {
-    "ext" <id:Id> "{"
-        <decls:ModDecl*>
-    "}" => {
-        let mut children = vec![];
-        // let mut wires = vec![]; // TODO
-
-        for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => panic!("Exts can't have wires {id}"),
-                ModDecl::When(w) => panic!("Exts can't have whens {id}"),
-            }
-        }
-
-        Component::Ext(id, children)
-    }
-}
-
-pub ModDecl: ModDecl  = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
-    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X))))),
-    <when:When> => ModDecl::When(when),
-    <m:Mod> => ModDecl::Component(m),
-    <m:Ext> => ModDecl::Component(m),
-    <wire:Wire> => ModDecl::Wire(wire),
-}
-
-pub Wire: Wire = {
-    <reference:Reference> ":=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Direct),
-    <reference:Reference> "<=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Latch),
-    <reference:Reference> "<=!" <e:Expr> ";" => Wire::new(reference, *e, WireType::Proc),
-}
-
-pub When: When = {
-    "when" <e:Expr> "{"
-        <wires:Wire*>
-    "}" => When(*e, wires),
-}
-
-
-pub Expr: Box<Expr> = {
-    <e:ExprOr> => e,
-}
-
-pub ExprOr: Box<Expr> = {
-    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
-    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
-    <e:ExprAnd> => e,
-}
-
-pub ExprAnd: Box<Expr> = {
-    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
-    <e:ExprNot> => e,
-}
-
-pub ExprNot: Box<Expr> = {
-    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
-    <e:ExprEq> => e,
-}
-
-pub ExprEq: Box<Expr> = {
-    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
-    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
-    <e:ExprAdd> => e,
-}
-
-pub ExprAdd: Box<Expr> = {
-    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
-    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
-    <e:ExprCall> => e,
-}
-
-pub ExprCall: Box<Expr> = {
-    <ll:@L> "cat" "(" <e1:Expr> <ess:("," Expr)+> ")" <rr:@R> => {
-        let mut es = vec![*e1];
-        for (_, e) in ess {
-            es.push(*e);
-        }
-        Box::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
-    },
-    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
-    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![*e; n as usize])),
-    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Box::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
-    <e:ExprBase> => e,
-}
-
-pub ExprList: Vec<Expr> = {
-    "" => vec![],
-    <e:Expr> => vec![*e],
-    <e:Expr> "," <es:ExprList> => {
-        let mut results = vec![*e];
-        results.extend(es.into_iter());
-        results
-    },
-}
-
-pub ExprBase: Box<Expr> = {
-    <e:ExprLit> => e,
-    <e:ExprReference> => e,
-    <e:ExprIf> => e,
-    <e:ExprHole> => e,
-    "(" <e:Expr> ")" => e,
-}
-
-pub ExprHole: Box<Expr> = {
-    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
-}
-
-pub ExprIf: Box<Expr> = {
-    <ll:@L> "if" <cond:Expr> "{"
-        <e1:Expr>
-    <elseifs:("}" "else" "if" Expr "{" Expr)*>
-    "}" "else" "{"
-        <elseexpr:Expr>
-    "}" <rr:@R> => {
-        let mut result = elseexpr;
-
-        for (_, _, _, elseif_cond, _, elseif_body) in elseifs.into_iter().rev() {
-            result = Box::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
-        }
-
-        Box::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
-    },
-}
-
-pub ExprLit: Box<Expr> = {
-    <ll:@L> <v:Value> <rr:@R> => {
-        Box::new(Expr::Lit(Loc::from(source_info, ll, rr), v))
-    },
-}
-
-pub ExprReference: Box<Expr> = {
-     <ll:@L> <path:Path> <rr:@R> => Box::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
-}
-
-pub Type: Type = {
-    "Word" "<" <n:Nat> ">" => Type::Word(n),
-    <id:Id> => Type::TypeDef(id.into()),
-    "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
-}
-
-pub Value: Value = {
-    <typename:Id> "::" <name:Id> => Value::Enum(typename.into(), name.to_string()),
-    <lit:r"[0-9]+w[0-9]+"> => {
-        let parts = lit.split("w").collect::<Vec<_>>();
-        let v = parts[0].parse().unwrap();
-        let width = parts[1].parse().unwrap();
-        Value::Word(width, v)
-    },
-}
-
-pub Nat: u64 = {
-    <n:r"[0-9]+"> => n.parse().unwrap(),
 }
 
 pub Path: Path = {
@@ -268,6 +65,10 @@ pub Id: String = {
     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
 }
 
+pub Line: String = {
+    <line:r"[^(link)]\n\r]*[\r\n]"> => line.to_string(),
+}
+
 match {
     r"//[^\n\r]*[\r\n]" => {},
     r"[\r\n]*" => {},
@@ -275,4 +76,3 @@ match {
     r" " => {},
     _,
 }
-
