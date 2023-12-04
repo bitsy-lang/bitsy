@@ -40,7 +40,7 @@ impl Repl {
     }
 
     pub fn run(&mut self) {
-        let commands = self.testbench.1.clone();
+        let commands = self.testbench.2.clone();
         for command in commands{
             self.exec_tb_command(command);
         }

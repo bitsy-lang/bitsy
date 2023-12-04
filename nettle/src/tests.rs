@@ -35,7 +35,7 @@ fn buffer() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&buffer);
+    let mut nettle = Sim::new(&buffer, Some("top".to_string()));
 
     nettle.poke("top.in", true.into());
     dbg!(&nettle.peek("top.r"));
@@ -58,7 +58,7 @@ fn counter() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&counter);
+    let mut nettle = Sim::new(&counter, Some("top".to_string()));
 
     nettle.reset();
 
@@ -86,7 +86,7 @@ fn triangle_numbers() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top);
+    let mut nettle = Sim::new(&top, Some("top".to_string()));
     nettle.reset();
 
     for i in 0..16 {
@@ -119,7 +119,7 @@ fn vip() {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     exts.insert("top.vip".into(), monitor);
 
-    let mut nettle = Sim::new_with_exts(&top, exts);
+    let mut nettle = Sim::new_with_exts(&top, Some("top".to_string()), exts);
 
     nettle.reset();
     nettle.clock();
@@ -143,7 +143,7 @@ fn ifs() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top);
+    let mut nettle = Sim::new(&top, Some("top".to_string()));
 
     nettle.poke("top.in", true.into());
     assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
@@ -195,7 +195,7 @@ fn test_eval() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top);
+    let mut nettle = Sim::new(&top, Some("top".to_string()));
     nettle.reset();
 
     let tests = vec![
@@ -287,7 +287,7 @@ fn test_node() {
         }
     ").unwrap();
 
-    let nettle = Sim::new(&top);
+    let nettle = Sim::new(&top, Some("top".to_string()));
     assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
 }
 

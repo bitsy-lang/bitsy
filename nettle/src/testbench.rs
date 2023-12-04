@@ -5,7 +5,7 @@ use lalrpop_util::{lexer::Token, ParseError};
 lalrpop_mod!(testbench_grammar);
 
 #[derive(Debug, Clone)]
-pub struct Testbench(pub(crate) Vec<TestbenchLink>, pub(crate) Vec<TestbenchCommand>);
+pub struct Testbench(pub(crate) Option<String>, pub(crate) Vec<TestbenchLink>, pub(crate) Vec<TestbenchCommand>);
 
 #[derive(Debug, Clone)]
 pub(crate) struct TestbenchLink(pub(crate) Path, pub(crate) String, pub(crate) Vec<(String, String)>);

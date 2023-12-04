@@ -207,11 +207,11 @@ pub struct Sim {
 }
 
 impl Sim {
-    pub fn new(circuit: &Circuit) -> Sim {
-        Sim::new_with_exts(circuit, BTreeMap::new())
+    pub fn new(circuit: &Circuit, top: Option<String>) -> Sim {
+        Sim::new_with_exts(circuit, top, BTreeMap::new())
     }
 
-    pub fn new_with_exts(circuit: &Circuit, linked_exts: BTreeMap<Path, Box<dyn ExtInstance>>) -> Sim {
+    pub fn new_with_exts(circuit: &Circuit, top: Option<String>, linked_exts: BTreeMap<Path, Box<dyn ExtInstance>>) -> Sim {
         let sim_circuit = Arc::new(SimCircuit::new(circuit));
         let net_ids = sim_circuit.net_ids();
         let net_values: Vec<Value> = net_ids.iter().map(|_net| Value::X).collect();
