@@ -2,6 +2,8 @@ use super::*;
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
+use crate::reference::Reference;
+
 use anyhow::anyhow;
 
 pub type Name = String;
@@ -15,6 +17,17 @@ impl Package {
             if let Decl::TypeDef(typedef) = &decl {
                 if typedef.name == name {
                     return Some(typedef.clone());
+                }
+            }
+        }
+        None
+    }
+
+    fn extdef(&self, name: &str) -> Option<Arc<Component>> {
+        for decl in &self.0 {
+            if let Decl::ExtDef(extdef) = &decl {
+                if extdef.name() == name {
+                    return Some(extdef.clone());
                 }
             }
         }
@@ -56,9 +69,9 @@ impl Wire {
 
 #[derive(Debug, Clone)]
 pub enum Component {
-    Mod(Name, Vec<Component>, Vec<Wire>, Vec<When>),
-    Ext(Name, Vec<Component>),
-    ExtInst(Name, Name),
+    Mod(Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
+    Ext(Name, Vec<Arc<Component>>),
+    ExtInst(Name, Reference<Component>),
     Incoming(Name, Type),
     Outgoing(Name, Type),
     Node(Name, Type),
@@ -88,11 +101,15 @@ impl Circuit {
         circuit
     }
 
-    pub fn top(&self) -> &Component {
-        let Package(decls) = &*self.0;
+    fn package(&self) -> &Package {
+        &self.0
+    }
+
+    pub fn top(&self) -> Arc<Component> {
+        let Package(decls) = self.package();
         for decl in decls {
             if let Decl::ModDef(m) = decl {
-                return m;
+                return m.clone();
             }
         }
         panic!("No top")
@@ -106,17 +123,17 @@ impl Circuit {
         let path: Path = self.top().name().into();
         let mut results = vec![path.clone()];
         for child in self.children() {
-            if let Component::Mod(name, _children, _wires, _whens) = child {
+            if let Component::Mod(name, _children, _wires, _whens) = &*child.clone() {
                 results.extend(child.modules_rec(path.join(name.clone().into())));
             }
         }
         results
     }
 
-    pub fn component(&self, path: Path) -> Option<&Component> {
+    pub fn component(&self, path: Path) -> Option<Arc<Component>> {
         let root: Path = self.top().name().into();
         if path == root {
-            return Some(&self.top());
+            return Some(self.top());
         }
         let root_prefix = format!("{root}.");
         if !path.starts_with(&root_prefix) {
@@ -124,12 +141,41 @@ impl Circuit {
         }
         assert!(path.starts_with(&root_prefix));
         let path: Path = path[root_prefix.len()..].into();
-        self.top().component(path)
+        self.component_from(self.top(), path)
+    }
+
+    fn component_from(&self, component: Arc<Component>, path: Path) -> Option<Arc<Component>> {
+        let mut result: Arc<Component> = component;
+        for part in path.split(".") {
+            if let Some(child) = result.child(part) {
+                if let Component::ExtInst(_name, extdef) = &*child {
+                    result = extdef.get().unwrap().clone();
+                } else {
+                    result = child.clone();
+                }
+            }
+        }
+        Some(result)
     }
 
     fn resolve_references(&mut self) {
         self.resolve_references_component_types();
 
+        // resolve references in ExtInsts
+        for (_path, component) in self.walk() {
+            for child in component.children() {
+                if let Component::ExtInst(name, reference) = &*child {
+                    let package = self.package();
+                    if let Some(extdef) = package.extdef(reference.name()) {
+                        reference.resolve_to(extdef).unwrap();
+                    } else {
+                        panic!("Undefined reference to ext: {name}")
+                    }
+                }
+            }
+        }
+
+        // resolve references in Exprs in Wires
         let mut wires = self.top().wires_rec(self.top().name().into());
         for Wire(_target, expr, _wiretype) in &mut wires {
             let func = |e: &mut Expr| {
@@ -170,22 +216,26 @@ impl Circuit {
         }
     }
 
-    pub fn package(&self) -> &Package {
-        &self.0
-    }
-
     pub fn wires(&self) -> Vec<Wire> {
         self.top().wires_rec(self.top().name().into())
     }
 
-    fn walk(&self) -> Vec<(Path, &Component)> {
-        self.top().walk_rec(self.top().name().into())
+    fn walk(&self) -> Vec<(Path, Arc<Component>)> {
+        self.walk_rec(self.top(), self.top().name().into())
+    }
+
+    fn walk_rec(&self, component: Arc<Component>, path: Path) -> Vec<(Path, Arc<Component>)> {
+        let mut results = vec![(path.clone(), component.clone())];
+        for child in component.children() {
+            results.extend(self.walk_rec(child.clone(), path.join(child.name().into())));
+        }
+        results
     }
 
     pub fn exts(&self) -> Vec<Path> {
         let mut results = vec![];
         for (path, component) in self.walk() {
-            if let Component::Ext(_name, _children) = component {
+            if let Component::Ext(_name, _children) = &*component {
                 results.push(path);
             }
         }
@@ -195,7 +245,7 @@ impl Circuit {
     pub fn regs(&self) -> Vec<Path> {
         let mut results = vec![];
         for (path, component) in self.walk() {
-            if let Component::Reg(_name, _typ, _reset) = component {
+            if let Component::Reg(_name, _typ, _reset) = &*component {
                 results.push(path);
             }
         }
@@ -207,7 +257,7 @@ impl Circuit {
     }
 
     pub fn reset_for_reg(&self, path: Path) -> Option<Expr> {
-        if let Some(Component::Reg(_name, _typ, reset)) = self.component(path) {
+        if let Component::Reg(_name, _typ, reset) = &*self.component(path)? {
             Some(reset.clone())
         } else {
             None
@@ -217,7 +267,7 @@ impl Circuit {
     pub fn check(&self) -> Result<(), Vec<(Path, CircuitError)>> {
         let mut errors = vec![];
         for (path, component) in self.walk() {
-            if let Err(component_errors) = component.check() {
+            if let Err(component_errors) = self.check_component(component) {
                 for component_error in component_errors {
                     errors.push((path.clone(), component_error));
                 }
@@ -230,72 +280,34 @@ impl Circuit {
             Err(errors)
         }
     }
-}
 
-impl Component {
-    pub fn name(&self) -> &str {
-        match self {
-            Component::Mod(name, _children, _wires, _whens) => name.as_str(),
-            Component::Ext(name, _children) => name.as_str(),
-            Component::ExtInst(name, _defname) => name.as_str(),
-            Component::Incoming(name, _typ) => name.as_str(),
-            Component::Outgoing(name, _typ) => name.as_str(),
-            Component::Node(name, _typ) => name.as_str(),
-            Component::Reg(name, _typ, _value) => name.as_str(),
-        }
-    }
-
-    fn component(&self, path: Path) -> Option<&Component> {
-        let mut result: &Component = &self;
-        for part in path.split(".") {
-            result = result.child(part)?;
-        }
-        Some(result)
-    }
-
-    fn child(&self, name: &str) -> Option<&Component> {
-        for child in self.children() {
-            if child.name() == name {
-                return Some(child);
-            }
-        }
-        None
-    }
-
-    pub fn context(&self) -> anyhow::Result<Context<Path, Type>> {
+    pub fn context_for(&self, component: Arc<Component>) -> anyhow::Result<Context<Path, Type>> {
+        eprintln!("context_for({})", component.name());
         let mut ctx = vec![];
-        for path in self.visible_terminals() {
-            let component = self.component(path.clone()).unwrap();
-            let typ = component.type_of().ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", self.name()))?;
+        for path in self.visible_paths(component.clone()) {
+            eprintln!("  adding {path}...");
+            let target = self.component_from(component.clone(), path.clone()).unwrap();
+            eprintln!("  target is: {:?}", &target);
+            eprintln!("  target type is {:?}", &self.type_of(target.clone()));
+            let typ = self.type_of(target).ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", self.name()))?;
             ctx.push((path, typ));
         }
+        eprintln!("context_for({}) = {ctx:?}", component.name());
         Ok(Context::from(ctx))
     }
 
-    fn type_of(&self) -> Option<Type> {
-        match self {
-            Component::Mod(_name, _children, _wires, _whens) => None,
-            Component::Ext(_name, _children) => None,
-            Component::ExtInst(_name, _defname) => None,
-            Component::Node(_name, typ) => Some(typ.clone()),
-            Component::Outgoing(_name, typ) => Some(typ.clone()),
-            Component::Incoming(_name, typ) => Some(typ.clone()),
-            Component::Reg(_name, typ, _reset) => Some(typ.clone()),
-        }
-    }
-
-    fn check(&self) -> Result<(), Vec<CircuitError>> {
+    fn check_component(&self, component: Arc<Component>) -> Result<(), Vec<CircuitError>> {
         let mut errors = vec![];
 
-        match self {
+        match &*component {
             Component::Mod(_name, _children, _wires, _whens) => {
-                errors.extend(self.check_typecheck());
-                errors.extend(self.check_wires_no_such_component());
-                errors.extend(self.check_children_duplicate_names());
-                errors.extend(self.check_wires_duplicate_targets());
-                errors.extend(self.check_missing_drivers());
-                errors.extend(self.check_wires_wiretype());
-                errors.extend(self.check_incoming_port_driven());
+                errors.extend(self.check_typecheck(component.clone()));
+                errors.extend(self.check_wires_no_such_component(component.clone()));
+                errors.extend(self.check_children_duplicate_names(component.clone()));
+                errors.extend(self.check_wires_duplicate_targets(component.clone()));
+                errors.extend(self.check_missing_drivers(component.clone()));
+                errors.extend(self.check_wires_wiretype(component.clone()));
+                errors.extend(self.check_incoming_port_driven(component.clone()));
             },
             Component::Ext(_name, children) => {
                 for component in children {
@@ -314,10 +326,10 @@ impl Component {
         }
     }
 
-    fn check_children_duplicate_names(&self) -> Vec<CircuitError> {
+    fn check_children_duplicate_names(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
         let mut seen = BTreeSet::new();
-        for child in self.children() {
+        for child in &component.children() {
             if !seen.contains(child.name()) {
                 seen.insert(child.name());
             } else {
@@ -328,10 +340,10 @@ impl Component {
 
     }
 
-    fn check_wires_duplicate_targets(&self) -> Vec<CircuitError> {
+    fn check_wires_duplicate_targets(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
         let mut seen = BTreeSet::new();
-        for Wire(target, _expr, _typ) in &self.wires() {
+        for Wire(target, _expr, _typ) in &component.wires() {
             if !seen.contains(target) {
                 seen.insert(target);
             } else {
@@ -341,19 +353,19 @@ impl Component {
         errors
     }
 
-    fn check_typecheck(&self) -> Vec<CircuitError> {
-        let ctx = match self.context() {
+    fn check_typecheck(&self, component: Arc<Component>) -> Vec<CircuitError> {
+        let ctx = match self.context_for(component.clone()) {
             Ok(ctx) => ctx,
             Err(e) => return vec![CircuitError::Unknown(format!("{e:?}"))],
         };
 
         let mut errors = vec![];
 
-        for Wire(target, expr, _wiretype) in &self.wires() {
+        for Wire(target, expr, _wiretype) in &component.wires() {
             let target_typ = if let Some(typ) = ctx.lookup(target) {
                 typ
             } else {
-                errors.push(CircuitError::Unknown(format!("Target {target} in {} has unknown type", self.name())));
+                errors.push(CircuitError::Unknown(format!("Target {target} in {} has unknown type", component.name())));
                 continue;
             };
 
@@ -366,23 +378,23 @@ impl Component {
         errors
     }
 
-    fn check_wires_no_such_component(&self) -> Vec<CircuitError> {
+    fn check_wires_no_such_component(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
 
-        for Wire(target, _expr, _wiretype) in &self.wires() {
-            if self.component(target.clone()).is_none() {
+        for Wire(target, _expr, _wiretype) in &component.wires() {
+            if self.component_from(component.clone(), target.clone()).is_none() {
                 errors.push(CircuitError::NoSuchComponent(target.to_string()));
             }
         }
         errors
     }
 
-    fn check_wires_wiretype(&self) -> Vec<CircuitError> {
+    fn check_wires_wiretype(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
 
-        for Wire(target, _expr, wiretype) in &self.wires() {
-            if let Some(component) = self.component(target.clone()) {
-                match (component, wiretype) {
+        for Wire(target, _expr, wiretype) in &component.wires() {
+            if let Some(component) = self.component_from(component.clone(), target.clone()) {
+                match (&*component, wiretype) {
                     (Component::Reg(name, _typ, _reset), WireType::Direct) =>
                         errors.push(CircuitError::WrongWireType(name.clone(), WireType::Direct)),
                     (Component::Node(name, _typ), WireType::Latch) =>
@@ -396,14 +408,14 @@ impl Component {
         errors
     }
 
-    fn check_incoming_port_driven(&self) -> Vec<CircuitError> {
+    fn check_incoming_port_driven(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
 
-        for Wire(target, _expr, _wiretype) in &self.wires() {
-            if let Some(component) = self.component(target.clone()) {
+        for Wire(target, _expr, _wiretype) in &component.wires() {
+            if let Some(component) = self.component_from(component.clone(), target.clone()) {
                 let is_local = !target.contains(".");
                 if is_local {
-                    match component {
+                    match &*component {
                         Component::Incoming(name, _typ) =>
                             errors.push(CircuitError::IncomingPortDriven(name.clone())),
                         _ => (),
@@ -414,26 +426,25 @@ impl Component {
         errors
     }
 
-    fn check_missing_drivers(&self) -> Vec<CircuitError> {
+    fn check_missing_drivers(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
-        let mut terminals_remaining: BTreeSet<Path> = self.visible_terminals().into_iter().collect();
+        let mut terminals_remaining: BTreeSet<Path> = self.visible_paths(component.clone()).into_iter().collect();
 
-        for Wire(target, _expr, _typ) in &self.wires() {
+        for Wire(target, _expr, _typ) in &component.wires() {
             terminals_remaining.remove(target);
         }
 
         for terminal in terminals_remaining.into_iter() {
-            let is_incoming_port = if let Some(Component::Incoming(_name, _typ)) = &self.component(terminal.clone()) {
-                true
-            } else {
-                false
-            };
+            let mut is_incoming_port = false;
+            let mut is_outgoing_port = false;
 
-            let is_outgoing_port = if let Some(Component::Outgoing(_name, _typ)) = &self.component(terminal.clone()) {
-                true
-            } else {
-                false
-            };
+            if let Some(component) = self.component_from(component.clone(), terminal.clone()) {
+                if let Component::Incoming(_name, _typ) = &*component {
+                    is_incoming_port = true;
+                } else if let Component::Incoming(_name, _typ) = &*component {
+                    is_outgoing_port = true;
+                }
+            }
 
             let is_local = !terminal.contains(".");
 
@@ -446,10 +457,81 @@ impl Component {
         errors
     }
 
-    pub fn children(&self) -> Vec<&Component> {
+    fn visible_paths(&self, component: Arc<Component>) -> Vec<Path> {
+        let mut results = vec![];
+        for child in component.children() {
+            match &*child {
+                Component::Node(name, _typ) => results.push(name.to_string().into()),
+                Component::Incoming(name, _typ) => results.push(name.to_string().into()),
+                Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
+                Component::Reg(name, _typ, _reset) => results.push(name.to_string().into()),
+                Component::Mod(name, _children, _wires, _whens) => {
+                    let mod_path: Path = name.to_string().into();
+                    for path in child.port_paths() {
+                        results.push(mod_path.join(path));
+                    }
+                },
+                Component::Ext(name, _children) => {
+                    let ext_path: Path = name.to_string().into();
+                    for path in child.port_paths() {
+                        results.push(ext_path.join(path));
+                    }
+                },
+                Component::ExtInst(name, defname) => {
+                    let ext_path: Path = name.to_string().into();
+                    if let Some(extdef) = defname.get() {
+                        for path in extdef.port_paths() {
+                            results.push(ext_path.join(path));
+                        }
+                    } else {
+                        panic!("External module {name} hasn't been resolved.")
+                    }
+                },
+            }
+        }
+        results
+    }
+
+    fn type_of(&self, component: Arc<Component>) -> Option<Type> {
+        match &*component {
+            Component::Mod(_name, _children, _wires, _whens) => None,
+            Component::Ext(_name, _children) => None,
+            Component::ExtInst(_name, _defname) => None,
+            Component::Node(_name, typ) => Some(typ.clone()),
+            Component::Outgoing(_name, typ) => Some(typ.clone()),
+            Component::Incoming(_name, typ) => Some(typ.clone()),
+            Component::Reg(_name, typ, _reset) => Some(typ.clone()),
+        }
+    }
+
+}
+
+impl Component {
+    pub fn name(&self) -> &str {
         match self {
-            Component::Mod(_name, children, _wires, _whens) => children.iter().collect(),
-            Component::Ext(_name, children) => children.iter().collect(),
+            Component::Mod(name, _children, _wires, _whens) => name.as_str(),
+            Component::Ext(name, _children) => name.as_str(),
+            Component::ExtInst(name, _defname) => name.as_str(),
+            Component::Incoming(name, _typ) => name.as_str(),
+            Component::Outgoing(name, _typ) => name.as_str(),
+            Component::Node(name, _typ) => name.as_str(),
+            Component::Reg(name, _typ, _value) => name.as_str(),
+        }
+    }
+
+    fn child(&self, name: &str) -> Option<Arc<Component>> {
+        for child in self.children() {
+            if child.name() == name {
+                return Some(child);
+            }
+        }
+        None
+    }
+
+    pub fn children(&self) -> Vec<Arc<Component>> {
+        match self {
+            Component::Mod(_name, children, _wires, _whens) => children.iter().cloned().collect(),
+            Component::Ext(_name, children) => children.iter().cloned().collect(),
             Component::ExtInst(_name, _defname) => vec![],
             Component::Incoming(_name, _typ) => vec![],
             Component::Outgoing(_name, _typ) => vec![],
@@ -458,18 +540,10 @@ impl Component {
         }
     }
 
-    fn walk_rec(&self, path: Path) -> Vec<(Path, &Component)> {
-        let mut results = vec![(path.clone(), self)];
-        for child in self.children() {
-            results.extend(child.walk_rec(path.join(child.name().into())));
-        }
-        results
-    }
-
-    fn modules_rec(&self, current_path: Path) -> Vec<Path> {
+    fn modules_rec(self: Arc<Self>, current_path: Path) -> Vec<Path> {
         let mut results = vec![current_path.clone()];
         for child in self.children() {
-            if let Component::Mod(name, _children, _wires, _whens) = child {
+            if let Component::Mod(name, _children, _wires, _whens) = &*child.clone() {
                 results.extend(child.modules_rec(current_path.join(name.clone().into())));
             }
         }
@@ -494,7 +568,7 @@ impl Component {
     fn terminals_rec(&self, path: Path) -> Vec<Path> {
         let mut results = vec![];
         for child in self.children() {
-            match child {
+            match &*child {
                 Component::Node(name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Reg(name, _typ, _reset) => {
                     results.push(path.join(format!("{name}.set").into()));
@@ -504,7 +578,13 @@ impl Component {
                 Component::Outgoing(name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Mod(name, _children, _wires, _whens) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
                 Component::Ext(name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
-                Component::ExtInst(_name, defname) => todo!(),
+                Component::ExtInst(name, defname) => {
+                    if let Some(extdef) = defname.get() {
+                        results.extend(extdef.terminals_rec(path.join(name.clone().into())))
+                    } else {
+                        panic!("External module {name} hasn't been resolved.")
+                    }
+                }
             }
         }
         results
@@ -513,36 +593,10 @@ impl Component {
     fn port_paths(&self) -> Vec<Path> {
         let mut results = vec![];
         for child in self.children() {
-            match child {
+            match &*child {
                 Component::Incoming(name, _typ) => results.push(name.to_string().into()),
                 Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
                 _ => (),
-            }
-        }
-        results
-    }
-
-    fn visible_terminals(&self) -> Vec<Path> {
-        let mut results = vec![];
-        for child in self.children() {
-            match child {
-                Component::Node(name, _typ) => results.push(name.to_string().into()),
-                Component::Incoming(name, _typ) => results.push(name.to_string().into()),
-                Component::Outgoing(name, _typ) => results.push(name.to_string().into()),
-                Component::Reg(name, _typ, _reset) => results.push(name.to_string().into()),
-                Component::Mod(name, _children, _wires, _whens) => {
-                    let mod_path: Path = name.to_string().into();
-                    for path in child.port_paths() {
-                        results.push(mod_path.join(path));
-                    }
-                },
-                Component::Ext(name, _children) => {
-                    let ext_path: Path = name.to_string().into();
-                    for path in child.port_paths() {
-                        results.push(ext_path.join(path));
-                    }
-                },
-                Component::ExtInst(name, defname) => todo!(),
             }
         }
         results

@@ -8,12 +8,12 @@ pub Package: Package = {
 }
 
 pub Decl: Decl = {
-    <m:Mod> => Decl::ModDef(Arc::new(m)),
-    <e:TypeDef> => Decl::TypeDef(Arc::new(e)),
-    <m:ExtDef> => Decl::ExtDef(Arc::new(m))
+    <m:Mod> => Decl::ModDef(m),
+    <e:TypeDef> => Decl::TypeDef(e),
+    <m:ExtDef> => Decl::ExtDef(m)
 }
 
-pub ExtDef: Component = {
+pub ExtDef: Arc<Component> = {
     "ext" <id:Id> "{"
         <decls:ModDecl*>
     "}" => {
@@ -28,22 +28,22 @@ pub ExtDef: Component = {
             }
         }
 
-        Component::Ext(id, children)
+        Arc::new(Component::Ext(id, children))
     },
 }
 
-pub TypeDef: TypeDef = {
+pub TypeDef: Arc<TypeDef> = {
     "enum" <name:Id> "{"
         <values:(Id "=" Value ";")*>
     "}" => {
-        TypeDef {
+        Arc::new(TypeDef {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
-        }
+        })
     },
 }
 
-pub Mod: Component = {
+pub Mod: Arc<Component> = {
     "mod" <id:Id> "{"
         <decls:ModDecl*>
     "}" => {
@@ -59,11 +59,11 @@ pub Mod: Component = {
             }
         }
 
-        Component::Mod(id, children, wires, whens)
+        Arc::new(Component::Mod(id, children, wires, whens))
     },
 }
 
-pub Ext: Component = {
+pub Ext: Arc<Component> = {
     "ext" <id:Id> "{"
         <decls:ModDecl*>
     "}" => {
@@ -78,19 +78,19 @@ pub Ext: Component = {
             }
         }
 
-        Component::Ext(id, children)
+        Arc::new(Component::Ext(id, children))
     }
 }
 
-pub ExtInst: Component = {
-    "ext" <id:Id> "of" <defname:Id> ";" => Component::ExtInst(id, defname),
+pub ExtInst: Arc<Component> = {
+    "ext" <id:Id> "of" <defname:Id> ";" => Arc::new(Component::ExtInst(id, defname.into())),
 }
 
 pub ModDecl: ModDecl  = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Incoming(id, typ)),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Outgoing(id, typ)),
-    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Component::Node(id, typ)),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X))))),
+    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Incoming(id, typ))),
+    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Outgoing(id, typ))),
+    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Node(id, typ))),
+    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Arc::new(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),

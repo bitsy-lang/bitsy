@@ -106,9 +106,9 @@ impl SimCircuit {
         for (ext_id, path) in circuit.exts().iter().enumerate() {
             ext_id_by_path.insert(path.clone(), ext_id);
 
-            let ext_component: &Component = circuit.component(path.clone()).unwrap();
+            let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
             for child in ext_component.children() {
-                if let Component::Incoming(name, _typ) = child {
+                if let Component::Incoming(name, _typ) = &*child {
                     let incoming_path = path.join(name.to_string().into());
                     let net_id = net_id_by_path[&incoming_path];
                     ext_dependencies[net_id].push((ext_id, name.to_string()));
@@ -124,10 +124,10 @@ impl SimCircuit {
                 for path in circuit.exts() {
                     let ext_id = ext_id_by_path[&path];
                     let ext_component = circuit.component(path.clone()).unwrap();
-                    match ext_component {
+                    match &*ext_component {
                         Component::Ext(_name, children) => {
                             for child in children {
-                                match child {
+                                match &**child {
                                     Component::Incoming(name, _typ) => {
                                         let port_path = path.join(name.clone().into());
                                         let port_net_id = net_id_by_path[&port_path];
@@ -156,10 +156,10 @@ impl SimCircuit {
         for path in circuit.exts() {
             let ext_id = ext_id_by_path[&path];
             let ext_component = circuit.component(path.clone()).unwrap();
-            match ext_component {
+            match &*ext_component {
                 Component::Ext(_name, children) => {
                     for child in children {
-                        match child {
+                        match &**child {
                             Component::Outgoing(name, _typ) => {
                                 let port_path = path.join(name.clone().into());
                                 let net_id = net_id_by_path[&port_path];
@@ -223,9 +223,9 @@ impl Sim {
             ext_id_by_path.insert(path.clone(), ext_id);
             exts.push(None);
 
-            let ext_component: &Component = circuit.component(path.clone()).unwrap();
+            let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
             for child in ext_component.children() {
-                if let Component::Incoming(name, _typ) = child {
+                if let Component::Incoming(name, _typ) = &*child {
                     let incoming_path = path.join(name.to_string().into());
                     let net_id = sim_circuit.net_id_by_path[&incoming_path];
                     ext_dependencies[net_id].push((ext_id, name.to_string()));

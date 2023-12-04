@@ -448,31 +448,6 @@ fn typecheck() {
 }
 
 #[test]
-fn component_context() {
-    let top = parse_top("
-        mod top {
-            outgoing out of Word<32>;
-            reg sum of Word<32> reset 0w32;
-            mod counter {
-                outgoing out of Word<32>;
-                reg counter of Word<32> reset 1w32;
-                out := counter;
-                counter <= counter + 1w32;
-            }
-            out := sum;
-            sum <= sum + counter.out;
-        }
-    ").unwrap();
-
-    let component: &Component = top.component("top".into()).unwrap();
-    for (name, typ) in &component.context().unwrap().into_inner() {
-        dbg!(name);
-        dbg!(typ);
-
-    }
-}
-
-#[test]
 fn test_examples() {
     let examples_dir = std::path::Path::new("examples");
 

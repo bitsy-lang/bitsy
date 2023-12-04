@@ -7,7 +7,6 @@ use repl::*;
 use testbench::*;
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     let argv: Vec<String> = std::env::args().collect();
