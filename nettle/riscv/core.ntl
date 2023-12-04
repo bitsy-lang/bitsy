@@ -7,15 +7,15 @@ enum InstrType {
 }
 
 enum Opcode {
-    OP = 51w7;
-    OP_IMM = 19w7;
-    LOAD = 3w7;
-    STORE = 35w7;
-    JAL = 111w7;
-    BRANCH = 99w7;
-    LUI = 55w7;
-    AUIPC = 23w7;
-    JALR = 103w7;
+    OP      = 0b0110011w7;
+    OP_IMM  = 0b0010011w7;
+    LOAD    = 0b0000011w7;
+    STORE   = 0b0100011w7;
+    JAL     = 0b1101111w7;
+    BRANCH  = 0b1100011w7;
+    LUI     = 0b0110111w7;
+    AUIPC   = 0b0010111w7;
+    JALR    = 0b1100111w7;
 }
 
 enum AluOp {

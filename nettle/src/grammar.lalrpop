@@ -225,10 +225,26 @@ pub Value: Value = {
         let width = parts[1].parse().unwrap();
         Value::Word(width, v)
     },
+
+    <lit:r"0b[0-1]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = u64::from_str_radix(&parts[0][2..], 2).unwrap();
+        let width = parts[1].parse().unwrap();
+        Value::Word(width, v)
+    },
+
+    <lit:r"0x[0-9a-fA-F]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = u64::from_str_radix(&parts[0][2..], 16).unwrap();
+        let width = parts[1].parse().unwrap();
+        Value::Word(width, v)
+    },
 }
 
 pub Nat: u64 = {
     <n:r"[0-9]+"> => n.parse().unwrap(),
+    <n:r"0b[0-9]+"> => u64::from_str_radix(&n[2..], 2).unwrap(),
+    <n:r"0x[0-9]+"> => u64::from_str_radix(&n[2..], 16).unwrap(),
 }
 
 pub Path: Path = {
