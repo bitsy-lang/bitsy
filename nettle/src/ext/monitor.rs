@@ -25,4 +25,12 @@ impl ExtInstance for Monitor {
         }
         vec![]
     }
+
+    fn reset(&mut self) -> Vec<(PortName, Value)> {
+        if let Some(s) = &self.0 {
+            println!("Monitor: {s}");
+            self.0 = None
+        }
+        vec![]
+    }
 }
