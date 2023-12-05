@@ -106,5 +106,5 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");
         exts.insert(path.clone(), ext);
     }
-    Sim::new_with_exts(&circuit, top, exts)
+    Sim::new_with_exts(&circuit, exts)
 }

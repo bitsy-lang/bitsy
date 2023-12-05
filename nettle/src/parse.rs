@@ -16,7 +16,10 @@ pub enum ModDecl {
 pub fn parse_top(package: &str) -> Result<Circuit, Vec<CircuitError>>  {
     let source_info = SourceInfo::from_string(package);
     let package: Package = match grammar::PackageParser::new().parse(&source_info, package) {
-        Ok(package) => package,
+        Ok(package) => {
+            package.resolve_references()?;
+            package
+        },
         Err(ParseError::UnrecognizedToken { token, expected }) => {
             let start_idx = token.0;
             let end_idx = token.2;
@@ -31,7 +34,9 @@ pub fn parse_top(package: &str) -> Result<Circuit, Vec<CircuitError>>  {
         },
     };
 
-    Circuit::new(package)
+    let moddefs = package.moddefs();
+    let top = moddefs.first().unwrap().name();
+    Ok(Circuit::new(package, top))
 }
 
 impl From<&str> for Expr {

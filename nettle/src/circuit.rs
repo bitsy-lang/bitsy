@@ -10,9 +10,14 @@ use anyhow::anyhow;
 pub type Name = String;
 
 #[derive(Debug, Clone)]
-pub struct Package(pub Vec<Decl>);
+pub struct Package(Vec<Decl>);
 
 impl Package {
+    pub fn new(decls: Vec<Decl>) -> Package {
+        let package = Package(decls);
+        package
+    }
+
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
         let mut results = vec![];
         for decl in &self.0 {
@@ -54,6 +59,87 @@ impl Package {
             }
         }
         None
+    }
+
+    pub fn resolve_references(&self) -> Result<(), Vec<CircuitError>> {
+        let mut errors = vec![];
+        self.resolve_references_component_types();
+
+        // resolve references in ModInsts and ExtInsts
+        for moddef in self.moddefs() {
+            for child in moddef.children() {
+                if let Component::ExtInst(_loc, name, reference) = &*child {
+                    if let Some(extdef) = self.extdef(reference.name()) {
+                        reference.resolve_to(extdef).unwrap();
+                    } else {
+                        errors.push(CircuitError::Unknown(format!("Undefined reference to ext: {name}")));
+                    }
+                } else if let Component::ModInst(_loc, name, reference) = &*child {
+                    if let Some(moddef) = self.moddef(reference.name()) {
+                        reference.resolve_to(moddef).unwrap();
+                    } else {
+                        errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
+                    }
+                }
+            }
+        }
+
+        let errors_mutex = Arc::new(Mutex::new(errors));
+
+        // resolve references in Exprs in Wires
+        for moddef in self.moddefs() {
+            for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
+                let func = |e: &Expr| {
+                    if let Expr::Lit(_loc, Value::Enum(r, name)) = e {
+                        if let Some(typedef) = self.typedef(r.name()) {
+                            r.resolve_to(typedef).unwrap();
+                        } else {
+                            let mut errors = errors_mutex.lock().unwrap();
+                            errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
+                        }
+                    }
+                };
+                expr.with_subexprs(&func);
+            }
+        }
+
+        let errors = errors_mutex.lock().unwrap();
+        if errors.len() > 0 {
+            Err(errors.to_vec())
+        } else {
+            Ok(())
+        }
+    }
+
+    fn resolve_references_component_types(&self) {
+        for moddef in self.moddefs() {
+            for component in moddef.children() {
+                match &*component {
+                    Component::Mod(_loc, _name, _children, _wires, _whens) => (),
+                    Component::ModInst(_loc, _name, _moddef) => (),
+                    Component::Ext(_loc, _name, _children) => (),
+                    Component::ExtInst(_loc, _name, _defname) => (),
+                    Component::Node(_loc, _name, typ) => self.resolve_references_type(typ),
+                    Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ),
+                    Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ),
+                    Component::Reg(_loc, _name, typ, _reset) => self.resolve_references_type(typ),
+                }
+            }
+        }
+    }
+
+    fn resolve_references_type(&self, typ: &Type) {
+        match typ {
+            Type::Word(_width) => (),
+            Type::Vec(typ, _len) => self.resolve_references_type(typ),
+            Type::TypeDef(typedef) => {
+                if let Some(resolved_typedef) = self.typedef(typedef.name()) {
+                    typedef.resolve_to(resolved_typedef).unwrap();
+                } else {
+                    panic!("No definition for typedef {}", typedef.name())
+                }
+            },
+        }
     }
 }
 
@@ -124,40 +210,21 @@ impl HasLoc for Component {
 }
 
 #[derive(Debug, Clone)]
-pub struct Circuit(Arc<Package>);
-
-impl std::ops::Deref for Circuit {
-    type Target = Component;
-    fn deref(&self) -> &Component {
-        let Package(decls) = &*self.0;
-        for decl in decls {
-            if let Decl::ModDef(m) = decl {
-                return m;
-            }
-        }
-        panic!("No top")
-    }
-}
+pub struct Circuit(Arc<Package>, Arc<Component>);
 
 impl Circuit {
-    pub fn new(package: Package) -> Result<Circuit, Vec<CircuitError>> {
-        let mut circuit = Circuit(Arc::new(package));
-        circuit.resolve_references()?;
-        Ok(circuit)
+    pub fn new(package: Package, top: &str) -> Circuit {
+        let top = package.moddef(top).expect(&format!("No such mod definition: {top}"));
+        let circuit = Circuit(Arc::new(package), top);
+        circuit
     }
 
     fn package(&self) -> &Package {
         &self.0
     }
 
-    pub fn top(&self) -> Arc<Component> {
-        let Package(decls) = self.package();
-        for decl in decls {
-            if let Decl::ModDef(m) = decl {
-                return m.clone();
-            }
-        }
-        panic!("No top")
+    fn top(&self) -> Arc<Component> {
+        self.1.clone()
     }
 
     pub fn root(&self) -> Path {
@@ -194,88 +261,6 @@ impl Circuit {
         Some(result)
     }
 
-    fn resolve_references(&mut self) -> Result<(), Vec<CircuitError>> {
-        let mut errors = vec![];
-        self.resolve_references_component_types();
-
-        // resolve references in ModInsts and ExtInsts
-        for moddef in self.package().moddefs() {
-            for child in moddef.children() {
-                if let Component::ExtInst(_loc, name, reference) = &*child {
-                    let package = self.package();
-                    if let Some(extdef) = package.extdef(reference.name()) {
-                        reference.resolve_to(extdef).unwrap();
-                    } else {
-                        errors.push(CircuitError::Unknown(format!("Undefined reference to ext: {name}")));
-                    }
-                } else if let Component::ModInst(_loc, name, reference) = &*child {
-                    let package = self.package();
-                    if let Some(moddef) = package.moddef(reference.name()) {
-                        reference.resolve_to(moddef).unwrap();
-                    } else {
-                        errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
-                    }
-                }
-            }
-        }
-
-        let errors_mutex = Arc::new(Mutex::new(errors));
-
-        // resolve references in Exprs in Wires
-        for moddef in self.package().moddefs() {
-            for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
-                let func = |e: &Expr| {
-                    if let Expr::Lit(_loc, Value::Enum(r, name)) = e {
-                        if let Some(typedef) = self.0.typedef(r.name()) {
-                            r.resolve_to(typedef).unwrap();
-                        } else {
-                            let mut errors = errors_mutex.lock().unwrap();
-                            errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
-                        }
-                    }
-                };
-                expr.with_subexprs(&func);
-            }
-        }
-
-        let errors = errors_mutex.lock().unwrap();
-        if errors.len() > 0 {
-            Err(errors.to_vec())
-        } else {
-            Ok(())
-        }
-    }
-
-    fn resolve_references_component_types(&self) {
-        for moddef in self.package().moddefs() {
-            for component in moddef.children() {
-                match &*component {
-                    Component::Mod(_loc, _name, _children, _wires, _whens) => (),
-                    Component::ModInst(_loc, _name, _moddef) => (),
-                    Component::Ext(_loc, _name, _children) => (),
-                    Component::ExtInst(_loc, _name, _defname) => (),
-                    Component::Node(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Reg(_loc, _name, typ, _reset) => self.resolve_references_type(typ),
-                }
-            }
-        }
-    }
-
-    fn resolve_references_type(&self, typ: &Type) {
-        match typ {
-            Type::Word(_width) => (),
-            Type::Vec(typ, _len) => self.resolve_references_type(typ),
-            Type::TypeDef(typedef) => {
-                if let Some(resolved_typedef) = self.package().typedef(typedef.name()) {
-                    typedef.resolve_to(resolved_typedef).unwrap();
-                } else {
-                    panic!("No definition for typedef {}", typedef.name())
-                }
-            },
-        }
-    }
 
     pub fn wires(&self) -> Vec<Wire> {
         let mut results = vec![];
@@ -311,18 +296,6 @@ impl Circuit {
             } else {
                 results.extend(self.walk_instances_rec(child.clone(), path.join(child.name().into())));
             }
-        }
-        results
-    }
-
-    fn walk(&self) -> Vec<(Path, Arc<Component>)> {
-        self.walk_rec(self.top(), self.top().name().into())
-    }
-
-    fn walk_rec(&self, component: Arc<Component>, path: Path) -> Vec<(Path, Arc<Component>)> {
-        let mut results = vec![(path.clone(), component.clone())];
-        for child in component.children() {
-            results.extend(self.walk_rec(child.clone(), path.join(child.name().into())));
         }
         results
     }
@@ -380,7 +353,7 @@ impl Circuit {
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
 //            let target = self.component_from(component.clone(), path.clone()).unwrap();
-            let typ = self.type_of(target).ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", self.name()))?;
+            let typ = self.type_of(target).ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", self.top().name()))?;
             ctx.push((path, typ));
         }
         Ok(Context::from(ctx))
