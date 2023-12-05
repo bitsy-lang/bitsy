@@ -34,8 +34,8 @@ fn main() -> anyhow::Result<()> {
 
     let testbench = if let Some(tb_filename) = testbench_for(filename) {
         println!("Using testbench file: {tb_filename}");
-        let text = std::fs::read_to_string(tb_filename).unwrap();
-        let tb: Testbench = parse_testbench(&text).unwrap();
+        let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
+        let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
         tb
     } else {
         println!("No testbench file");

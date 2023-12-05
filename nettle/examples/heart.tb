@@ -1,10 +1,11 @@
-link top.video = Video {
+top Top
+link Top.video = Video {
 //    disabled = "true"
 }
-link top.videoram = Ram {
+link Top.videoram = Ram {
     file = "data/heart.bin"
 }
-link top.cpu.ram = Ram {
+link Top.cpu.ram = Ram {
 //    file = "program.bin"
 }
 
