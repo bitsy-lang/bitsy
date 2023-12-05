@@ -1,4 +1,0 @@
-mod nodes {
-    outgoing out of Word<1>;
-
-}

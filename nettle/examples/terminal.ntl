@@ -1,8 +1,4 @@
-ext Terminal {
-    incoming in_data of Word<8>;
-    incoming in_valid of Word<1>;
-}
-mod term {
+mod Term {
     ext terminal of Terminal;
 
     reg counter of Word<8> reset 32w8;
@@ -14,4 +10,9 @@ mod term {
 
     terminal.in_valid := 1w1;
     terminal.in_data := counter;
+}
+
+ext Terminal {
+    incoming in_data of Word<8>;
+    incoming in_valid of Word<1>;
 }

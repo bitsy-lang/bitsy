@@ -5,9 +5,6 @@ link Top.video = Video {
 link Top.videoram = Ram {
     file = "data/heart.bin"
 }
-link Top.cpu.ram = Ram {
-//    file = "program.bin"
-}
 
 reset
 run

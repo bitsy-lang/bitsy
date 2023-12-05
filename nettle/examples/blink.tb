@@ -1,3 +1,4 @@
+top Blink
 reset
 assert blink.out == 0w1
 clock

@@ -1,4 +1,4 @@
-mod blink {
+mod Blink {
     outgoing out of Word<1>;
 
     reg r of Word<1> reset 0w1;

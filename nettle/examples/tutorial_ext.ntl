@@ -1,9 +1,10 @@
-mod top {
-    ext monitor {
-        incoming in of Word<8>;
-    }
-
+mod Top {
+    ext monitor of Monitor;
     reg counter of Word<8> reset 0w8;
     counter <= counter + 2w8;
     monitor.in := counter;
+}
+
+ext Monitor {
+    incoming in of Word<8>;
 }
