@@ -14,7 +14,16 @@ fn main() -> anyhow::Result<()> {
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap().to_string().leak();
 
-    let top = parse_top(text)?;
+    let top = match parse_top(text) {
+        Ok(circuit) => circuit,
+        Err(errors) => {
+            for error in &errors {
+                eprintln!("{error:?}");
+            }
+            eprintln!("Circuit has {} errors.", errors.len());
+            std::process::exit(1);
+        },
+    };
     if let Err(errors) = top.check() {
         for (path, error) in &errors {
             eprintln!("{path}: {error:?}");

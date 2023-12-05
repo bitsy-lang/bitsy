@@ -199,8 +199,8 @@ impl Circuit {
         self.resolve_references_component_types();
 
         // resolve references in ModInsts and ExtInsts
-        for (_path, component) in self.walk() {
-            for child in component.children() {
+        for moddef in self.package().moddefs() {
+            for child in moddef.children() {
                 if let Component::ExtInst(_loc, name, reference) = &*child {
                     let package = self.package();
                     if let Some(extdef) = package.extdef(reference.name()) {
@@ -566,7 +566,7 @@ impl Circuit {
                             results.push((mod_path.join(path), child.clone()));
                         }
                     } else {
-                        panic!("External module {name} hasn't been resolved.")
+                        panic!("Module {name} hasn't been resolved.")
                     }
                 },
                 Component::Ext(_loc, name, _children) => {
@@ -717,6 +717,8 @@ pub enum CircuitError {
     IncomingPortDriven(Name),
     NoSuchComponent(Loc, String),
     TypeError(TypeError),
+    Many(Vec<CircuitError>),
+    ParseError(Loc, String),
     Unknown(String),
 }
 
@@ -738,6 +740,8 @@ impl std::fmt::Display for CircuitError {
             CircuitError::IncomingPortDriven(name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
             CircuitError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
             CircuitError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
+            CircuitError::Many(errors) => write!(f, "{}", errors.iter().map(|s| s.to_string()).collect::<Vec<_>>().join("\n")),
+            CircuitError::ParseError(_loc, _error) => write!(f, "{self:?}"),
             CircuitError::Unknown(_message) => write!(f, "{self:?}"),
         }
     }
@@ -754,6 +758,8 @@ impl HasLoc for CircuitError {
             CircuitError::IncomingPortDriven(_name) => Loc::unknown(),
             CircuitError::NoSuchComponent(loc, _name) => loc.clone(),
             CircuitError::TypeError(type_error) => type_error.loc(),
+            CircuitError::Many(_errors) => Loc::unknown(),
+            CircuitError::ParseError(loc, _error) => loc.clone(),
             CircuitError::Unknown(_string) => Loc::unknown(),
         }
     }

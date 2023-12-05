@@ -28,25 +28,29 @@ fn main() {
     let mut state = State::new();
 
     loop {
-        let message = message_recv.recv().unwrap();
-        info!("Handling message: {message:?}");
-        match message.get("method") {
-            None => break,
-            Some(method) => {
-                let method = method.as_str().unwrap();
-                info!("Method: {method:?}");
-                match method {
-                    "initialize" => state.initialize(message),
-                    "initialized" => (),
-                    "shutdown" => break,
-                    "textDocument/didOpen" => state.text_document_did_open(message),
-                    "textDocument/didChange" => state.text_document_did_change(message),
-                    "textDocument/didSave" => state.text_document_did_save(message),
-                    "textDocument/hover" => state.text_document_hover(message),
-                    "textDocument/definition" => state.text_document_definition(message),
-                    _ => (),
+        match message_recv.recv() {
+            Ok(message) => {
+                info!("Handling message: {message:?}");
+                match message.get("method") {
+                    None => break,
+                    Some(method) => {
+                        let method = method.as_str().unwrap();
+                        info!("Method: {method:?}");
+                        match method {
+                            "initialize" => state.initialize(message),
+                            "initialized" => (),
+                            "shutdown" => break,
+                            "textDocument/didOpen" => state.text_document_did_open(message),
+                            "textDocument/didChange" => state.text_document_did_change(message),
+                            "textDocument/didSave" => state.text_document_did_save(message),
+                            "textDocument/hover" => state.text_document_hover(message),
+                            "textDocument/definition" => state.text_document_definition(message),
+                            _ => (),
+                        }
+                    },
                 }
             },
+            Err(e) => return,
         }
     }
 }
@@ -61,13 +65,18 @@ fn read_message() -> Value {
     assert!(buffer.starts_with("Content-Length: "));
     let length = buffer.split(": ").collect::<Vec<_>>()[1].trim().parse::<usize>().unwrap();
     // throw away empty line
-    stdin.read_line(&mut buffer);
+    stdin.read_line(&mut buffer).unwrap();
     let mut buffer: Vec<u8> = vec![0; length];
-    stdin.read(&mut buffer);
+    let mut bytes_read = 0;
+    while bytes_read < length {
+        bytes_read += stdin.read(&mut buffer[bytes_read..]).unwrap();
+    }
+    assert_eq!(bytes_read, length);
+    assert_eq!(buffer.len(), length);
     let buffer = String::from_utf8(buffer).unwrap();
     let message: Value = serde_json::from_str(&buffer).unwrap();
     let method = &message["method"];
-    debug!("{}", serde_json::to_string_pretty(&message).unwrap());
+    //debug!("{}", serde_json::to_string_pretty(&message).unwrap());
     info!("Received message with method: {}", method.to_string());
     message
 }
@@ -173,33 +182,28 @@ impl Buffer {
 
         self.circuit = match nettle::parse_top(&self.text) {
             Ok(circuit) => circuit,
-            Err(e) => {
-                info!("Parse Error: {e:?}");
-                let source_info = SourceInfo::from_string(&self.text);
-                let (start_line, start_col, end_line, end_col, message) = match &e {
-                    lalrpop_util::ParseError::UnrecognizedToken { token, expected } => {
-                        let start_idx = token.0;
-                        let end_idx = token.2;
-                        let start_linecol = source_info.linecol_from(start_idx);
-                        let end_linecol = source_info.linecol_from(end_idx);
+            Err(errors) => {
+                info!("Parse Error: {errors:?}");
+                for error in errors {
+                    let start_line = error.loc().start().line() - 1;
+                    let start_character = error.loc().start().col() - 1;
 
-                        let message = format!("Parse error: Expected one of {}", expected.join(" "));
-                        (start_linecol.line() - 1, start_linecol.col() - 1,
-                         end_linecol.line() - 1, end_linecol.col() - 1,
-                         message)
-                    },
-                    _ => (0, 0, 0, 0, format!("{e:?}")),
-                };
+                    let end_line = error.loc().end().line() - 1;
+                    let end_character = error.loc().end().col() - 1;
 
-                let diagnostic = json!({
-                    "range": {
-                        "start": { "line": start_line, "character": start_col },
-                        "end": { "line": end_line, "character": end_col },
-                    },
-                    "severity": 1, // ERROR
-                    "message": message,
-                });
-                diagnostics.push(diagnostic);
+                    let message = format!("{error}");
+
+                    let diagnostic = json!({
+                        "range": {
+                            "start": { "line": start_line, "character": start_character },
+                            "end": { "line": end_line, "character": end_character },
+                        },
+                        "severity": 1, // ERROR
+                        "message": message,
+                    });
+                    diagnostics.push(diagnostic);
+                }
+
                 let message = json!({
                     "jsonrpc": "2.0",
                     "method": "textDocument/publishDiagnostics",

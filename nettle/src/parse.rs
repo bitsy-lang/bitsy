@@ -2,8 +2,8 @@ use super::*;
 
 use std::sync::Arc;
 
+use lalrpop_util::ParseError;
 use lalrpop_util::lalrpop_mod;
-use lalrpop_util::{lexer::Token, ParseError};
 lalrpop_mod!(pub grammar);
 
 #[derive(Debug)]
@@ -13,10 +13,25 @@ pub enum ModDecl {
     When(When),
 }
 
-pub fn parse_top(package: &str) -> Result<Circuit, ParseError<usize, Token<'_>, &'static str>>  {
+pub fn parse_top(package: &str) -> Result<Circuit, Vec<CircuitError>>  {
     let source_info = SourceInfo::from_string(package);
-    let package: Package = grammar::PackageParser::new().parse(&source_info, package)?;
-    Ok(Circuit::new(package).unwrap())
+    let package: Package = match grammar::PackageParser::new().parse(&source_info, package) {
+        Ok(package) => package,
+        Err(ParseError::UnrecognizedToken { token, expected }) => {
+            let start_idx = token.0;
+            let end_idx = token.2;
+            let loc = Loc::from(&source_info, start_idx, end_idx);
+
+            let message = format!("Parse error: Expected one of {}", expected.join(" "));
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        _ => {
+            let message = format!("Parse error");
+            return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
+        },
+    };
+
+    Circuit::new(package)
 }
 
 impl From<&str> for Expr {
