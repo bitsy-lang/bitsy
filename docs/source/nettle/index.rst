@@ -5,13 +5,13 @@ Nettle is a circuit simulator intended for use with Bitsy.
 Hello Nettle
 ------------
 Tradition dictates that the first program that is written in any programming language should be Hello, World!
-In that same spirit, let's look at the "hello world" of Nettle: `passthrough`:
+In that same spirit, let's look at the "hello world" of Nettle: `Passthrough`:
 
 .. literalinclude:: ../examples/passthrough.ntl
    :language: nettle
    :linenos:
 
-We see a module declaration, `mod passthrough`.
+We see a module declaration, `mod Passthrough`.
 Inside, we see two ports, one `incoming` port named `out` and one `outgoing` port named `in`.
 Both have type `Word<8>`, meaning that an 8-bit value passes across them.
 The line `out := in` connects the input port `in` to the output port `out`.
@@ -63,7 +63,7 @@ When we want to organize our circuit, we can nest modules:
    :language: nettle
    :linenos:
 
-In this example, lines 5 through 14 declare a submodule named `sort`.
+In this example, lines 20 through 29 declare a submodule named `Sort`.
 This submodule has two `incoming` ports and two `outgoing` ports.
 
 The body of `sort` is simply two wires, each connecting the result of an `if` expression to one of the ports.
@@ -71,15 +71,10 @@ The body of `sort` is simply two wires, each connecting the result of an `if` ex
 Because this submodule has no `reg` keyword and doesn't use any latching connects (`<=`), we can see it is **combinational**.
 That is, its outputs update immediately when the inputs change and do not wait for the next clock cycle.
 
-The `sort` module has the effect of sorting the two incoming values `a` and `b`, placing the smaller one on `min` and the larger one on `max`.
+The `Sort` module has the effect of sorting the two incoming values `a` and `b`, placing the smaller one on `min` and the larger one on `max`.
 
-
-The remainder of the `top` module declares two registers, `counter_a` and `counter_b`.
-They simply increment each clock cycle.
-The standard addition operator (`+`) in Nettle always takes two values of the same size and returns a value of the same size,
-wrapping if the counter overflows.
-
-The wires at the bottom ensure that all of the ports on `top` and the submodule `sort` are connected.
+We see on line 8 that the `Top` module instantiates `Sort` as a submodule.
+We can interact through its ports, as we see on lines 13, 14, 16, and 17.
 
 External Modules
 ----------------
