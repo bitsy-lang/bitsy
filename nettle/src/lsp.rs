@@ -225,7 +225,7 @@ impl Buffer {
                 let end_line = loc.end().line() - 1;
                 let end_character = loc.end().col() - 1;
 
-                let message = format!("{error:?}");
+                let message = format!("{error}");
 
                 let diagnostic = json!({
                     "range": {

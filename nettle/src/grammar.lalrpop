@@ -14,9 +14,9 @@ pub Decl: Decl = {
 }
 
 pub ModDef: Arc<Component> = {
-    "mod" <id:Id> "{"
+    <ll:@L> "mod" <id:Id> "{"
         <decls:ModDecl*>
-    "}" => {
+    "}" <rr:@R> => {
         let mut children = vec![];
         let mut wires = vec![];
         let mut whens = vec![];
@@ -29,14 +29,14 @@ pub ModDef: Arc<Component> = {
             }
         }
 
-        Arc::new(Component::Mod(id, children, wires, whens))
+        Arc::new(Component::Mod(Loc::from(source_info, ll, rr), id, children, wires, whens))
     },
 }
 
 pub ExtDef: Arc<Component> = {
-    "ext" <id:Id> "{"
+    <ll:@L> "ext" <id:Id> "{"
         <decls:ModDecl*>
-    "}" => {
+    "}" <rr:@R> => {
         let mut children = vec![];
         // let mut wires = vec![]; // TODO
 
@@ -48,14 +48,14 @@ pub ExtDef: Arc<Component> = {
             }
         }
 
-        Arc::new(Component::Ext(id, children))
+        Arc::new(Component::Ext(Loc::from(source_info, ll, rr), id, children))
     },
 }
 
 pub TypeDef: Arc<TypeDef> = {
-    "enum" <name:Id> "{"
+    <ll:@L> "enum" <name:Id> "{"
         <values:(Id "=" Value ";")*>
-    "}" => {
+    "}" <rr:@R> => {
         Arc::new(TypeDef {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
@@ -64,9 +64,9 @@ pub TypeDef: Arc<TypeDef> = {
 }
 
 pub Mod: Arc<Component> = {
-    "mod" <id:Id> "{"
+    <ll:@L> "mod" <id:Id> "{"
         <decls:ModDecl*>
-    "}" => {
+    "}" <rr:@R> => {
         let mut children = vec![];
         let mut wires = vec![];
         let mut whens = vec![];
@@ -79,14 +79,14 @@ pub Mod: Arc<Component> = {
             }
         }
 
-        Arc::new(Component::Mod(id, children, wires, whens))
+        Arc::new(Component::Mod(Loc::from(source_info, ll, rr), id, children, wires, whens))
     },
 }
 
 pub Ext: Arc<Component> = {
-    "ext" <id:Id> "{"
+    <ll:@L> "ext" <id:Id> "{"
         <decls:ModDecl*>
-    "}" => {
+    "}" <rr:@R> => {
         let mut children = vec![];
         // let mut wires = vec![]; // TODO
 
@@ -98,23 +98,23 @@ pub Ext: Arc<Component> = {
             }
         }
 
-        Arc::new(Component::Ext(id, children))
+        Arc::new(Component::Ext(Loc::from(source_info, ll, rr), id, children))
     }
 }
 
 pub ModInst: Arc<Component> = {
-    "mod" <id:Id> "of" <modname:Id> ";" => Arc::new(Component::ModInst(id, modname.into())),
+    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Arc::new(Component::ModInst(Loc::from(source_info, ll, rr), id, modname.into())),
 }
 
 pub ExtInst: Arc<Component> = {
-    "ext" <id:Id> "of" <defname:Id> ";" => Arc::new(Component::ExtInst(id, defname.into())),
+    <ll:@L> "ext" <id:Id> "of" <defname:Id> ";" <rr:@R> => Arc::new(Component::ExtInst(Loc::from(source_info, ll, rr), id, defname.into())),
 }
 
 pub ModDecl: ModDecl  = {
-    "incoming" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Incoming(id, typ))),
-    "outgoing" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Outgoing(id, typ))),
-    "node" <id:Id> "of" <typ:Type> ";" => ModDecl::Component(Arc::new(Component::Node(id, typ))),
-    "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" => ModDecl::Component(Arc::new(Component::Reg(id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
+    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Incoming(Loc::from(source_info, ll, rr), id, typ))),
+    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ))),
+    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Node(Loc::from(source_info, ll, rr), id, typ))),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:Ext> => ModDecl::Component(m),
@@ -124,9 +124,9 @@ pub ModDecl: ModDecl  = {
 }
 
 pub Wire: Wire = {
-    <reference:Reference> ":=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Direct),
-    <reference:Reference> "<=" <e:Expr> ";" => Wire::new(reference, *e, WireType::Latch),
-    <reference:Reference> "<=!" <e:Expr> ";" => Wire::new(reference, *e, WireType::Proc),
+    <ll:@L> <reference:Reference> ":=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Direct),
+    <ll:@L> <reference:Reference> "<=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Latch),
+    <ll:@L> <reference:Reference> "<=!" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Proc),
 }
 
 pub When: When = {

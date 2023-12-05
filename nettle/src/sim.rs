@@ -81,7 +81,7 @@ impl SimCircuit {
                 .wires()
                 .iter()
                 .cloned()
-                .map(|Wire(target, expr, wiretype)| {
+                .map(|Wire(_loc, target, expr, wiretype)| {
                     let target_net_id = match wiretype {
                         WireType::Direct => net_id_by_path[&target],
                         WireType::Latch => net_id_by_path[&target.set()],
@@ -109,7 +109,7 @@ impl SimCircuit {
 
             let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
             for child in ext_component.children() {
-                if let Component::Incoming(name, _typ) = &*child {
+                if let Component::Incoming(_loc, name, _typ) = &*child {
                     let incoming_path = path.join(name.to_string().into());
                     let net_id = net_id_by_path[&incoming_path];
                     ext_dependencies[net_id].push((ext_id, name.to_string()));
@@ -126,10 +126,10 @@ impl SimCircuit {
                     let ext_id = ext_id_by_path[&path];
                     let ext_component = circuit.component(path.clone()).unwrap();
                     match &*ext_component {
-                        Component::Ext(_name, children) => {
+                        Component::Ext(_loc, _name, children) => {
                             for child in children {
                                 match &**child {
-                                    Component::Incoming(name, _typ) => {
+                                    Component::Incoming(_loc, name, _typ) => {
                                         let port_path = path.join(name.clone().into());
                                         let port_net_id = net_id_by_path[&port_path];
                                         if  port_net_id == *net_id {
@@ -158,10 +158,10 @@ impl SimCircuit {
             let ext_id = ext_id_by_path[&path];
             let ext_component = circuit.component(path.clone()).unwrap();
             match &*ext_component {
-                Component::Ext(_name, children) => {
+                Component::Ext(_loc, _name, children) => {
                     for child in children {
                         match &**child {
-                            Component::Outgoing(name, _typ) => {
+                            Component::Outgoing(_loc, name, _typ) => {
                                 let port_path = path.join(name.clone().into());
                                 let net_id = net_id_by_path[&port_path];
                                 net_id_by_ext_port.insert((ext_id, name.clone()), net_id);
@@ -226,7 +226,7 @@ impl Sim {
 
             let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
             for child in ext_component.children() {
-                if let Component::Incoming(name, _typ) = &*child {
+                if let Component::Incoming(_loc, name, _typ) = &*child {
                     let incoming_path = path.join(name.to_string().into());
                     let net_id = sim_circuit.net_id_by_path[&incoming_path];
                     ext_dependencies[net_id].push((ext_id, name.to_string()));
@@ -415,7 +415,7 @@ impl std::fmt::Debug for Sim {
 pub fn nets(circuit: &Circuit) -> Vec<Net> {
     let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
 
-    for Wire(target, expr, wire_type) in circuit.wires() {
+    for Wire(_loc, target, expr, wire_type) in circuit.wires() {
         let target_terminal: Path = match wire_type {
             WireType::Direct => target.clone(),
             WireType::Latch => target.set(),

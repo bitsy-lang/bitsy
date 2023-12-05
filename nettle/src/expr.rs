@@ -505,7 +505,7 @@ impl Expr {
             if &type_actual == type_expected {
                 return Ok(());
             } else {
-                return Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()));
+                return Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()));
             }
         }
 
@@ -546,12 +546,13 @@ impl Expr {
                         e.typecheck(typ, ctx.clone())?;
                     }
                     if es.len() != *n as usize {
-                        Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()))
+                        let type_actual = Type::Vec(typ.clone(), es.len().try_into().unwrap());
+                        Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()))
                     } else {
                         Ok(())
                     }
                 } else {
-                    Err(TypeError::NotExpectedType(type_expected.clone(), self.clone()))
+                    Err(TypeError::Other(self.clone(), format!("Expected {type_expected:?} but found a Vec.")))
                 }
             },
             Expr::Idx(_loc, e, i) => {
@@ -659,7 +660,7 @@ impl Expr {
 #[derive(Clone, Debug)]
 pub enum TypeError {
     UndefinedReference(Expr),
-    NotExpectedType(Type, Expr),
+    NotExpectedType(Type, Type, Expr),
     InvalidLit(Expr),
     CantInferType(Expr),
     Other(Expr, String),
@@ -669,7 +670,7 @@ impl HasLoc for TypeError {
     fn loc(&self) -> Loc {
         match self {
             TypeError::UndefinedReference(e) => e.loc(),
-            TypeError::NotExpectedType(_typ, e) => e.loc(),
+            TypeError::NotExpectedType(_type_expected, _type_actual , e) => e.loc(),
             TypeError::InvalidLit(e) => e.loc(),
             TypeError::CantInferType(e) => e.loc(),
             TypeError::Other(e, _msg) => e.loc(),
@@ -679,6 +680,12 @@ impl HasLoc for TypeError {
 
 impl std::fmt::Display for TypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "[{}] {self:?}", self.loc().start())
+        match self {
+            TypeError::UndefinedReference(expr) => write!(f, "Undefiend reference: {expr:?}"),
+            TypeError::NotExpectedType(type_expected, type_actual, expr) => write!(f, "Not expected type: {expr:?} has type {type_actual:?} but expected {type_expected:?}."),
+            TypeError::InvalidLit(expr) => write!(f, "Invalid literal: {expr:?}"),
+            TypeError::CantInferType(expr) => write!(f, "Can't infer type: {expr:?}"),
+            TypeError::Other(_expr, _string) => write!(f, "{self:?}"),
+        }
     }
 }
