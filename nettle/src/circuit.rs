@@ -169,8 +169,8 @@ impl Package {
                 Component::ModInst(_loc, name, defname) => {
                     let mod_path: Path = name.to_string().into();
                     if let Some(moddef) = defname.get() {
-                        for (path, _component) in moddef.port_paths() {
-                            results.push((mod_path.join(path), child.clone()));
+                        for (path, component) in moddef.port_paths() {
+                            results.push((mod_path.join(path), component.clone()));
                         }
                     } else {
                         panic!("Module {name} hasn't been resolved.")

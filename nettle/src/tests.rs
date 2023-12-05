@@ -406,7 +406,8 @@ fn test_examples() {
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
                         };
 
-                        let _top = parse_top(&text).expect(&format!("Testing {:?}", entry.path()));
+                        let top = parse_top(&text).expect(&format!("Testing {:?}", entry.path()));
+                        top.package().check().expect(&format!("Failed to check: {file_name}"));
                     }
                 }
             }

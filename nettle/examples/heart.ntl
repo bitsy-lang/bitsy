@@ -22,11 +22,11 @@ mod top {
     }
 
     mod pixeler {
-        incoming x of Word<8>;
-        incoming y of Word<8>;
+        incoming x of Word<4>;
+        incoming y of Word<4>;
         incoming frame_start of Word<1>;
         incoming frame_count of Word<32>;
-        outgoing signal of Word<4>;
+        outgoing signal of Word<2>;
         outgoing read_addr of Word<16>;
         incoming read_data of Word<8>;
 
