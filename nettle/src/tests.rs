@@ -35,7 +35,7 @@ fn buffer() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&buffer, Some("top".to_string()));
+    let mut nettle = Sim::new(&buffer);
 
     nettle.poke("top.in", true.into());
     dbg!(&nettle.peek("top.r"));
@@ -58,7 +58,7 @@ fn counter() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&counter, Some("top".to_string()));
+    let mut nettle = Sim::new(&counter);
 
     nettle.reset();
 
@@ -86,7 +86,7 @@ fn triangle_numbers() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top, Some("top".to_string()));
+    let mut nettle = Sim::new(&top);
     nettle.reset();
 
     for i in 0..16 {
@@ -119,7 +119,7 @@ fn vip() {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     exts.insert("top.vip".into(), monitor);
 
-    let mut nettle = Sim::new_with_exts(&top, Some("top".to_string()), exts);
+    let mut nettle = Sim::new_with_exts(&top, exts);
 
     nettle.reset();
     nettle.clock();
@@ -143,7 +143,7 @@ fn ifs() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top, Some("top".to_string()));
+    let mut nettle = Sim::new(&top);
 
     nettle.poke("top.in", true.into());
     assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
@@ -195,7 +195,7 @@ fn test_eval() {
         }
     ").unwrap();
 
-    let mut nettle = Sim::new(&top, Some("top".to_string()));
+    let mut nettle = Sim::new(&top);
     nettle.reset();
 
     let tests = vec![
@@ -287,7 +287,7 @@ fn test_node() {
         }
     ").unwrap();
 
-    let nettle = Sim::new(&top, Some("top".to_string()));
+    let nettle = Sim::new(&top);
     assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
 }
 
@@ -302,7 +302,7 @@ fn test_check() {
         }
     ").unwrap();
 
-    top.check().unwrap();
+    top.package().check().unwrap();
 
     /*
     let top2 = parse_top("
@@ -429,7 +429,7 @@ fn test_locs() {
 
     let source_info = SourceInfo::from_string(text);
     let top = parse_top(text).unwrap();
-    top.check().unwrap();
+    top.package().check().unwrap();
     let wires = top.wires();
     let Wire(_loc, _target, expr, _wiretype) = wires.first().unwrap();
     assert_eq!(source_info.start(expr).to_string(), "6:20");

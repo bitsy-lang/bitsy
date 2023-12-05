@@ -217,7 +217,7 @@ impl Buffer {
             },
         };
 
-        if let Err(errors) = self.circuit.check() {
+        if let Err(errors) = self.circuit.package().check() {
             warn!("Errors found: {}", errors.len());
             for (path, error) in &errors {
                 let loc: Loc = error.loc();

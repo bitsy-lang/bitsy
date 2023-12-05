@@ -14,7 +14,7 @@ fn main() -> anyhow::Result<()> {
     let filename = argv.get(1).unwrap_or(&default);
     let text = std::fs::read_to_string(filename).unwrap().to_string().leak();
 
-    let top = match parse_top(text) {
+    let circuit = match parse_top(text) {
         Ok(circuit) => circuit,
         Err(errors) => {
             for error in &errors {
@@ -24,7 +24,7 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         },
     };
-    if let Err(errors) = top.check() {
+    if let Err(errors) = circuit.package().check() {
         for (path, error) in &errors {
             eprintln!("{path}: {error:?}");
         }
@@ -43,8 +43,8 @@ fn main() -> anyhow::Result<()> {
         Testbench(None, vec![], vec![command])
     };
 
-    let sim: Sim = make_sim(top.clone(), &testbench);
-    let mut repl = Repl::new(sim, top, testbench);
+    let sim: Sim = make_sim(circuit.clone(), &testbench);
+    let mut repl = Repl::new(sim, circuit, testbench);
     repl.run();
     Ok(())
 }
