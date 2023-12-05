@@ -41,6 +41,10 @@ impl SourceInfo {
     pub fn end(&self, item: &dyn HasLoc) -> LineCol {
         self.linelens.linecol(item.loc().end)
     }
+
+    pub fn linecol_from(&self, pos: usize) -> LineCol {
+        self.linelens.linecol(pos)
+    }
 }
 
 #[derive(Clone, Debug)]

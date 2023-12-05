@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 use nettle::Circuit;
-use nettle::{Loc, HasLoc};
+use nettle::{Loc, HasLoc, SourceInfo};
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -13,6 +13,7 @@ use log::*;
 
 fn main() {
     init_logging();
+    std::panic::set_hook(Box::new(panic_handler));
     info!("Starting nettle-lsp");
 
     let (message_send, message_recv) = channel::<Value>();
@@ -28,10 +29,12 @@ fn main() {
 
     loop {
         let message = message_recv.recv().unwrap();
+        info!("Handling message: {message:?}");
         match message.get("method") {
             None => break,
             Some(method) => {
                 let method = method.as_str().unwrap();
+                info!("Method: {method:?}");
                 match method {
                     "initialize" => state.initialize(message),
                     "initialized" => (),
@@ -150,7 +153,7 @@ impl Buffer {
     fn new(uri: &Uri, text: &str) -> Buffer {
         let circuit = match nettle::parse_top(text) {
             Ok(circuit) => circuit,
-            Err(_e) => todo!(),
+            Err(_e) => nettle::parse_top("mod Top {}").unwrap(),
         };
 
         Buffer {
@@ -166,12 +169,49 @@ impl Buffer {
     }
 
     fn send_diagnostics(&mut self) {
+        let mut diagnostics = vec![];
+
         self.circuit = match nettle::parse_top(&self.text) {
             Ok(circuit) => circuit,
-            Err(_e) => todo!(),
-        };
+            Err(e) => {
+                info!("Parse Error: {e:?}");
+                let source_info = SourceInfo::from_string(&self.text);
+                let (start_line, start_col, end_line, end_col, message) = match &e {
+                    lalrpop_util::ParseError::UnrecognizedToken { token, expected } => {
+                        let start_idx = token.0;
+                        let end_idx = token.2;
+                        let start_linecol = source_info.linecol_from(start_idx);
+                        let end_linecol = source_info.linecol_from(end_idx);
 
-        let mut diagnostics = vec![];
+                        let message = format!("Parse error: Expected one of {}", expected.join(" "));
+                        (start_linecol.line() - 1, start_linecol.col() - 1,
+                         end_linecol.line() - 1, end_linecol.col() - 1,
+                         message)
+                    },
+                    _ => (0, 0, 0, 0, format!("{e:?}")),
+                };
+
+                let diagnostic = json!({
+                    "range": {
+                        "start": { "line": start_line, "character": start_col },
+                        "end": { "line": end_line, "character": end_col },
+                    },
+                    "severity": 1, // ERROR
+                    "message": message,
+                });
+                diagnostics.push(diagnostic);
+                let message = json!({
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/publishDiagnostics",
+                    "params": {
+                        "uri": self.uri.to_string(),
+                        "diagnostics": diagnostics,
+                    },
+                });
+                send_message(message);
+                return;
+            },
+        };
 
         if let Err(errors) = self.circuit.check() {
             warn!("Errors found: {}", errors.len());
@@ -310,4 +350,8 @@ impl State {
 
         send_message(response);
     }
+}
+
+fn panic_handler(info: &std::panic::PanicInfo) {
+    error!("Panic occurred: {}", info);
 }
