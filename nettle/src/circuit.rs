@@ -23,6 +23,8 @@ impl Package {
         for decl in &self.0 {
             if let Decl::ModDef(moddef) = &decl {
                 results.push(moddef.clone());
+            } else if let Decl::ExtDef(moddef) = &decl {
+                results.push(moddef.clone());
             }
         }
         results
@@ -31,6 +33,10 @@ impl Package {
     pub fn moddef(&self, name: &str) -> Option<Arc<Component>> {
         for decl in &self.0 {
             if let Decl::ModDef(moddef) = &decl {
+                if moddef.name() == name {
+                    return Some(moddef.clone());
+                }
+            } else if let Decl::ExtDef(moddef) = &decl {
                 if moddef.name() == name {
                     return Some(moddef.clone());
                 }
@@ -95,7 +101,7 @@ impl Package {
                             r.resolve_to(typedef).unwrap();
                         } else {
                             let mut errors = errors_mutex.lock().unwrap();
-                            errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
+                            errors.push(CircuitError::Unknown(format!("Undefined reference to typedef {name}")));
                         }
                     }
                 };

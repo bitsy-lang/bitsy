@@ -107,12 +107,14 @@ fn vip() {
                 out := counter;
             }
 
-            ext vip {
-                incoming in of Word<4>;
-            }
-
+            mod vip of Vip;
             vip.in := counter.out;
         }
+
+        ext Vip {
+            incoming in of Word<4>;
+        }
+
     ", None).unwrap();
 
     let monitor = Box::new(ext::monitor::Monitor::new());

@@ -83,25 +83,6 @@ pub Mod: Arc<Component> = {
     },
 }
 
-pub Ext: Arc<Component> = {
-    <ll:@L> "ext" <id:Id> "{"
-        <decls:ModDecl*>
-    "}" <rr:@R> => {
-        let mut children = vec![];
-        // let mut wires = vec![]; // TODO
-
-        for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => panic!("Exts can't have wires {id}"),
-                ModDecl::When(w) => panic!("Exts can't have whens {id}"),
-            }
-        }
-
-        Arc::new(Component::Ext(Loc::from(source_info, ll, rr), id, children))
-    }
-}
-
 pub ModInst: Arc<Component> = {
     <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Arc::new(Component::ModInst(Loc::from(source_info, ll, rr), id, modname.into())),
 }
@@ -117,7 +98,6 @@ pub ModDecl: ModDecl  = {
     <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
-    <m:Ext> => ModDecl::Component(m),
     <m:ModInst> => ModDecl::Component(m),
     <m:ExtInst> => ModDecl::Component(m),
     <wire:Wire> => ModDecl::Wire(wire),

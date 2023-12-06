@@ -32,10 +32,9 @@ mod Core {
     mod immgen of Immgen;
     mod decoder of Decoder;
     mod ifetch of Ifetch;
-
-    ext riscv_decoder of RiscvDecoder;
-    ext instr_mem of InstrMem;
-    ext mem of Mem;
+    mod riscv_decoder of RiscvDecoder;
+    mod instr_mem of InstrMem;
+    mod mem of Mem;
 
     instr_mem.write_enable := 0w1;
     instr_mem.write_addr := 0w32;
