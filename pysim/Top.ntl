@@ -1,0 +1,11 @@
+mod Top {
+    reg counter of Word<7> reset 0w7;
+    counter <= counter + 1w7;
+
+    mod monitor of Monitor;
+    monitor.in := counter;
+}
+
+ext Monitor {
+    incoming in of Word<7>;
+}
