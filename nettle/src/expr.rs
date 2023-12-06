@@ -9,6 +9,7 @@ pub enum Expr {
     UnOp(Loc, UnOp, Box<Expr>),
     BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
     If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    Mux(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
     Cat(Loc, Vec<Expr>),
     Sext(Loc, Box<Expr>, u64),
     ToWord(Loc, Box<Expr>),
@@ -28,6 +29,7 @@ impl HasLoc for Expr {
             Expr::UnOp(loc, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _cond, _e1, _e2) => loc.clone(),
+            Expr::Mux(loc, _cond, _e1, _e2) => loc.clone(),
             Expr::Cat(loc, _es) => loc.clone(),
             Expr::Sext(loc, _e, _n) => loc.clone(),
             Expr::ToWord(loc, _e) => loc.clone(),
@@ -68,6 +70,7 @@ impl std::fmt::Debug for Expr {
             Expr::If(_loc, cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
             },
+            Expr::Mux(loc, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
             Expr::Cat(_loc, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Sext(_loc, e, n) => write!(f, "sext({e:?}, {n})"),
             Expr::ToWord(_loc, e) => write!(f, "word({e:?})"),
@@ -134,6 +137,12 @@ impl Expr {
                 e2.with_subexprs(callback);
                 callback(self);
             },
+            Expr::Mux(_loc, cond, e1, e2) => {
+                cond.with_subexprs(callback);
+                e1.with_subexprs(callback);
+                e2.with_subexprs(callback);
+                callback(self);
+            },
             Expr::Cat(_loc, es) => {
                 for e in es {
                     e.with_subexprs(callback);
@@ -187,6 +196,12 @@ impl Expr {
                 callback(self);
             },
             Expr::If(_loc, cond, e1, e2) => {
+                cond.with_subexprs_mut(callback);
+                e1.with_subexprs_mut(callback);
+                e2.with_subexprs_mut(callback);
+                callback(self);
+            },
+            Expr::Mux(_loc, cond, e1, e2) => {
                 cond.with_subexprs_mut(callback);
                 e1.with_subexprs_mut(callback);
                 e2.with_subexprs_mut(callback);
@@ -255,6 +270,7 @@ impl Expr {
             Expr::UnOp(_loc, _op, e) => e.is_constant(),
             Expr::BinOp(_loc, _op, e1, e2) => e1.is_constant() && e2.is_constant(),
             Expr::If(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
+            Expr::Mux(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
             Expr::Cat(_loc, es) => es.iter().all(|e| e.is_constant()),
             Expr::ToWord(_loc, e) => e.is_constant(),
             Expr::Vec(_loc, es) => es.iter().all(|e| e.is_constant()),
@@ -295,6 +311,7 @@ impl Expr {
             Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::Mux(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(_loc, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Sext(_loc, e, _n) => e.depends_on_net(net_id),
             Expr::ToWord(_loc, e) => e.depends_on_net(net_id),
@@ -346,6 +363,19 @@ impl Expr {
                 }
             },
             Expr::If(_loc, cond, e1, e2) => {
+                let cond_v = cond.eval(nettle);
+                let v1 = e1.eval(nettle);
+                let v2 = e2.eval(nettle);
+                if cond_v.is_x() || v1.is_x() || v2.is_x() {
+                    return Value::X;
+                }
+                match cond_v {
+                    Value::Word(1, 1) => v1,
+                    Value::Word(1, 0) => v2,
+                    _ => Value::X,
+                }
+            },
+            Expr::Mux(loc, cond, e1, e2) => {
                 let cond_v = cond.eval(nettle);
                 let v1 = e1.eval(nettle);
                 let v2 = e2.eval(nettle);
@@ -527,6 +557,12 @@ impl Expr {
                 e2.typecheck(type_expected, ctx.clone())?;
                 Ok(())
             },
+            Expr::Mux(_loc, cond, e1, e2) => {
+                cond.typecheck(&Type::Word(1), ctx.clone())?;
+                e1.typecheck(type_expected, ctx.clone())?;
+                e2.typecheck(type_expected, ctx.clone())?;
+                Ok(())
+            },
             Expr::Cat(_loc, _es) => unreachable!(),
             Expr::Sext(_loc, e, n) => {
                 if let Some(Type::Word(m)) = e.typeinfer(ctx.clone()) {
@@ -603,6 +639,16 @@ impl Expr {
                 }
             },
             Expr::If(_loc, cond, e1, e2) => {
+                cond.typecheck(&Type::Word(1), ctx.clone()).ok()?;
+                let typ1 = e1.typeinfer(ctx.clone())?;
+                let typ2 = e2.typeinfer(ctx.clone())?;
+                if typ1 == typ2 {
+                    Some(typ1)
+                } else {
+                    None
+                }
+            },
+            Expr::Mux(_loc, cond, e1, e2) => {
                 cond.typecheck(&Type::Word(1), ctx.clone()).ok()?;
                 let typ1 = e1.typeinfer(ctx.clone())?;
                 let typ2 = e2.typeinfer(ctx.clone())?;

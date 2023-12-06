@@ -177,6 +177,7 @@ pub ExprCall: Box<Expr> = {
         }
         Box::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
     },
+    <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Box::new(Expr::Mux(Loc::from(source_info, ll, rr), cond, e1, e2)),
     <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
     <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),

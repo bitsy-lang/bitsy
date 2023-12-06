@@ -125,37 +125,37 @@ mod Rf {
     reg x31 of Word<32> reset 0w32;
 
     // skip x0
-    x1 <= if write_enable && rd == 1w5 { write_data } else { x1 };
-    x2 <= if write_enable && rd == 2w5 { write_data } else { x2 };
-    x3 <= if write_enable && rd == 3w5 { write_data } else { x3 };
-    x4 <= if write_enable && rd == 4w5 { write_data } else { x4 };
-    x5 <= if write_enable && rd == 5w5 { write_data } else { x5 };
-    x6 <= if write_enable && rd == 6w5 { write_data } else { x6 };
-    x7 <= if write_enable && rd == 7w5 { write_data } else { x7 };
-    x8 <= if write_enable && rd == 8w5 { write_data } else { x8 };
-    x9 <= if write_enable && rd == 9w5 { write_data } else { x9 };
-    x10 <= if write_enable && rd == 10w5 { write_data } else { x10 };
-    x11 <= if write_enable && rd == 11w5 { write_data } else { x11 };
-    x12 <= if write_enable && rd == 12w5 { write_data } else { x12 };
-    x13 <= if write_enable && rd == 13w5 { write_data } else { x13 };
-    x14 <= if write_enable && rd == 14w5 { write_data } else { x14 };
-    x15 <= if write_enable && rd == 15w5 { write_data } else { x15 };
-    x16 <= if write_enable && rd == 16w5 { write_data } else { x16 };
-    x17 <= if write_enable && rd == 17w5 { write_data } else { x17 };
-    x18 <= if write_enable && rd == 18w5 { write_data } else { x18 };
-    x19 <= if write_enable && rd == 19w5 { write_data } else { x19 };
-    x20 <= if write_enable && rd == 20w5 { write_data } else { x20 };
-    x21 <= if write_enable && rd == 21w5 { write_data } else { x21 };
-    x22 <= if write_enable && rd == 22w5 { write_data } else { x22 };
-    x23 <= if write_enable && rd == 23w5 { write_data } else { x23 };
-    x24 <= if write_enable && rd == 24w5 { write_data } else { x24 };
-    x25 <= if write_enable && rd == 25w5 { write_data } else { x25 };
-    x26 <= if write_enable && rd == 26w5 { write_data } else { x26 };
-    x27 <= if write_enable && rd == 27w5 { write_data } else { x27 };
-    x28 <= if write_enable && rd == 28w5 { write_data } else { x28 };
-    x29 <= if write_enable && rd == 29w5 { write_data } else { x29 };
-    x30 <= if write_enable && rd == 30w5 { write_data } else { x30 };
-    x31 <= if write_enable && rd == 31w5 { write_data } else { x31 };
+    x1 <= mux(write_enable && rd == 1w5, write_data, x1);
+    x2 <= mux(write_enable && rd == 2w5, write_data, x2);
+    x3 <= mux(write_enable && rd == 3w5, write_data, x3);
+    x4 <= mux(write_enable && rd == 4w5, write_data, x4);
+    x5 <= mux(write_enable && rd == 5w5, write_data, x5);
+    x6 <= mux(write_enable && rd == 6w5, write_data, x6);
+    x7 <= mux(write_enable && rd == 7w5, write_data, x7);
+    x8 <= mux(write_enable && rd == 8w5, write_data, x8);
+    x9 <= mux(write_enable && rd == 9w5, write_data, x9);
+    x10 <= mux(write_enable && rd == 10w5, write_data, x10);
+    x11 <= mux(write_enable && rd == 11w5, write_data, x11);
+    x12 <= mux(write_enable && rd == 12w5, write_data, x12);
+    x13 <= mux(write_enable && rd == 13w5, write_data, x13);
+    x14 <= mux(write_enable && rd == 14w5, write_data, x14);
+    x15 <= mux(write_enable && rd == 15w5, write_data, x15);
+    x16 <= mux(write_enable && rd == 16w5, write_data, x16);
+    x17 <= mux(write_enable && rd == 17w5, write_data, x17);
+    x18 <= mux(write_enable && rd == 18w5, write_data, x18);
+    x19 <= mux(write_enable && rd == 19w5, write_data, x19);
+    x20 <= mux(write_enable && rd == 20w5, write_data, x20);
+    x21 <= mux(write_enable && rd == 21w5, write_data, x21);
+    x22 <= mux(write_enable && rd == 22w5, write_data, x22);
+    x23 <= mux(write_enable && rd == 23w5, write_data, x23);
+    x24 <= mux(write_enable && rd == 24w5, write_data, x24);
+    x25 <= mux(write_enable && rd == 25w5, write_data, x25);
+    x26 <= mux(write_enable && rd == 26w5, write_data, x26);
+    x27 <= mux(write_enable && rd == 27w5, write_data, x27);
+    x28 <= mux(write_enable && rd == 28w5, write_data, x28);
+    x29 <= mux(write_enable && rd == 29w5, write_data, x29);
+    x30 <= mux(write_enable && rd == 30w5, write_data, x30);
+    x31 <= mux(write_enable && rd == 31w5, write_data, x31);
 
     rs1_val :=
              if rs1 == 1w5 { x1 }
