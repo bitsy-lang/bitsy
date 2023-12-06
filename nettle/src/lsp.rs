@@ -160,9 +160,9 @@ struct Buffer {
 
 impl Buffer {
     fn new(uri: &Uri, text: &str) -> Buffer {
-        let circuit = match nettle::parse_top(text) {
+        let circuit = match nettle::parse_top(text, None) {
             Ok(circuit) => circuit,
-            Err(_e) => nettle::parse_top("mod Top {}").unwrap(),
+            Err(_e) => nettle::parse_top("mod Top {}", Some("Top")).unwrap(),
         };
 
         Buffer {
@@ -180,7 +180,7 @@ impl Buffer {
     fn send_diagnostics(&mut self) {
         let mut diagnostics = vec![];
 
-        self.circuit = match nettle::parse_top(&self.text) {
+        self.circuit = match nettle::parse_top(&self.text, None) {
             Ok(circuit) => circuit,
             Err(errors) => {
                 info!("Parse Error: {errors:?}");

@@ -13,7 +13,7 @@ pub enum ModDecl {
     When(When),
 }
 
-pub fn parse_top(package: &str) -> Result<Circuit, Vec<CircuitError>>  {
+pub fn parse_top(package: &str, top: Option<&str>) -> Result<Circuit, Vec<CircuitError>>  {
     let source_info = SourceInfo::from_string(package);
     let package: Package = match grammar::PackageParser::new().parse(&source_info, package) {
         Ok(package) => {
@@ -35,7 +35,7 @@ pub fn parse_top(package: &str) -> Result<Circuit, Vec<CircuitError>>  {
     };
 
     let moddefs = package.moddefs();
-    let top = moddefs.first().unwrap().name();
+    let top = top.unwrap_or_else(|| moddefs.first().unwrap().name());
     Ok(Circuit::new(package, top))
 }
 

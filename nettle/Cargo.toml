@@ -10,6 +10,7 @@ lalrpop = "0.20.0"
 [dependencies]
 anyhow = "1.0.75"
 chrono = "0.4.31"
+clap = { version = "4.4.11", features = ["derive"] }
 ctrlc = "3.4.1"
 fern = "0.6.2"
 lalrpop = "0.20.0"

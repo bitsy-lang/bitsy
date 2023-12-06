@@ -5,16 +5,43 @@ mod repl;
 mod testbench;
 use repl::*;
 use testbench::*;
+use clap::Parser;
 
 use std::collections::BTreeMap;
 
-fn main() -> anyhow::Result<()> {
-    let argv: Vec<String> = std::env::args().collect();
-    let default = "Top.ntl".to_string();
-    let filename = argv.get(1).unwrap_or(&default);
-    let text = std::fs::read_to_string(filename).unwrap().to_string().leak();
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    filename: String,
 
-    let circuit = match parse_top(text) {
+    #[arg(long)]
+    tb: Option<String>,
+
+    #[arg(long)]
+    top: Option<String>,
+
+    #[arg(short, long, default_value_t = false)]
+    debug: bool,
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let text = std::fs::read_to_string(&args.filename).unwrap().to_string();
+
+    let testbench_filename = args.tb.or_else(|| testbench_for(&args.filename));
+    let testbench = if let Some(tb_filename) = testbench_filename {
+        println!("Using testbench file: {tb_filename}");
+        let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
+        let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
+        tb
+    } else {
+        println!("No testbench file");
+        let command = TestbenchCommand::Debug;
+        Testbench(None, vec![], vec![command])
+    };
+
+    let top = args.top.or_else(|| testbench.0.clone());
+    let circuit = match parse_top(&text, top.as_deref()) {
         Ok(circuit) => circuit,
         Err(errors) => {
             for error in &errors {
@@ -32,16 +59,6 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-    let testbench = if let Some(tb_filename) = testbench_for(filename) {
-        println!("Using testbench file: {tb_filename}");
-        let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
-        let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
-        tb
-    } else {
-        println!("No testbench file");
-        let command = TestbenchCommand::Debug;
-        Testbench(None, vec![], vec![command])
-    };
 
     let sim: Sim = make_sim(circuit.clone(), &testbench);
     let mut repl = Repl::new(sim, circuit, testbench);
@@ -62,9 +79,9 @@ fn testbench_for(filename: &str) -> Option<String> {
         None
     }
 }
+
 fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
-    let top = testbench.0.clone();
     for TestbenchLink(path, extname, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {

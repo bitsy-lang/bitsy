@@ -33,7 +33,7 @@ fn buffer() {
             r <= in;
             out := r;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let mut nettle = Sim::new(&buffer);
 
@@ -56,7 +56,7 @@ fn counter() {
             out := counter;
             counter <= counter + 1w4;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let mut nettle = Sim::new(&counter);
 
@@ -84,7 +84,7 @@ fn triangle_numbers() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let mut nettle = Sim::new(&top);
     nettle.reset();
@@ -113,7 +113,7 @@ fn vip() {
 
             vip.in := counter.out;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let monitor = Box::new(ext::monitor::Monitor::new());
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
@@ -141,7 +141,7 @@ fn ifs() {
                 100w8
             };
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let mut nettle = Sim::new(&top);
 
@@ -193,7 +193,7 @@ fn test_eval() {
             p := 1w1;
             q := 0w1;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let mut nettle = Sim::new(&top);
     nettle.reset();
@@ -241,7 +241,7 @@ fn test_nets() {
             r <= in;
             out := r;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let top_nets = nets(&top);
     assert_eq!(top_nets.len(), 2);
@@ -271,7 +271,7 @@ fn test_nets() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let triangle_numbers_nets = nets(&triangle_numbers_top);
     assert_eq!(triangle_numbers_nets.len(), 4);
@@ -285,7 +285,7 @@ fn test_node() {
             node n of Word<1>;
             n := 1w1;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     let nettle = Sim::new(&top);
     assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
@@ -300,7 +300,7 @@ fn test_check() {
 
             out := in;
         }
-    ").unwrap();
+    ", None).unwrap();
 
     top.package().check().unwrap();
 
@@ -312,7 +312,7 @@ fn test_check() {
             node n of Word<1>;
             in := n;
         }
-    ");
+    ", None);
 
     dbg!(top2.check());
     */
@@ -406,7 +406,7 @@ fn test_examples() {
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
                         };
 
-                        let top = parse_top(&text).expect(&format!("Testing {:?}", entry.path()));
+                        let top = parse_top(&text, None).expect(&format!("Testing {:?}", entry.path()));
                         top.package().check().expect(&format!("Failed to check: {file_name}"));
                     }
                 }
@@ -429,7 +429,7 @@ fn test_locs() {
     ";
 
     let source_info = SourceInfo::from_string(text);
-    let top = parse_top(text).unwrap();
+    let top = parse_top(text, None).unwrap();
     top.package().check().unwrap();
     let wires = top.wires();
     let Wire(_loc, _target, expr, _wiretype) = wires.first().unwrap();

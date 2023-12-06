@@ -70,7 +70,7 @@ impl std::fmt::Debug for Expr {
             Expr::If(_loc, cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
             },
-            Expr::Mux(loc, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
+            Expr::Mux(_loc, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
             Expr::Cat(_loc, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Sext(_loc, e, n) => write!(f, "sext({e:?}, {n})"),
             Expr::ToWord(_loc, e) => write!(f, "word({e:?})"),
@@ -375,7 +375,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Mux(loc, cond, e1, e2) => {
+            Expr::Mux(_loc, cond, e1, e2) => {
                 let cond_v = cond.eval(nettle);
                 let v1 = e1.eval(nettle);
                 let v2 = e2.eval(nettle);
