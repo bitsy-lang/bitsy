@@ -87,7 +87,9 @@ impl Repl {
                 if verbose {
                     println!("SET {terminal} = {value:?}");
                 }
-                self.sim.set(terminal, value);
+                // TODO
+                // self.sim.set(terminal, value);
+                eprintln!("Not implemented");
             },
             TestbenchCommand::Clock => {
                 if verbose {

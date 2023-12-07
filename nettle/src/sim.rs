@@ -39,121 +39,119 @@ pub struct SimCircuit {
     pub root: Path,
 }
 
-impl SimCircuit {
-    pub fn new(circuit: &Circuit) -> SimCircuit {
-        let root = circuit.root();
-        let nets = nets(circuit);
-        let net_ids: Vec<NetId> = (0..nets.len()).into_iter().collect();
-        let net_id_by_path: BTreeMap<Path, NetId> =
-            circuit
-                .terminals()
-                .iter()
-                .map(|path| {
-                    for (net_id, net) in nets.iter().enumerate() {
-                        if net.contains(path.clone()) {
-                            return (path.clone(), net_id);
-                        }
-                    }
-                    unreachable!()
-                })
-                .collect();
+fn make_net_id_by_path(circuit: &Circuit, nets: &[Net]) -> BTreeMap<Path, NetId> {
+    /*
+        Supply a Path and get a NetId out.
+        Used extensively to build the Sim instance.
+        Otherwise, it's only used for the outward peek() and poke() calls
+        through the net_id() helper.
 
-        let regs: Vec<RegInfo> =
-            circuit
-                .regs()
-                .iter()
-                .cloned()
-                .map(|path| {
-                    let set_net_id = net_id_by_path[&path.set()];
-                    let val_net_id = net_id_by_path[&path.clone()];
-                    let reset = circuit.reset_for_reg(path).unwrap();
-
-                    RegInfo {
-                        set_net_id,
-                        val_net_id,
-                        reset,
-                    }
-                })
-                .collect();
-
-        let combs: Vec<Comb> =
-            circuit
-                .wires()
-                .iter()
-                .cloned()
-                .map(|Wire(_loc, target, expr, wiretype)| {
-                    let target_net_id = match wiretype {
-                        WireType::Direct => net_id_by_path[&target],
-                        WireType::Latch => net_id_by_path[&target.set()],
-                        _ => todo!(),
-                    };
-                    (target_net_id, expr.references_to_nets(&net_id_by_path), wiretype)
-                })
-                .filter(|(target_net_id, expr, _wiretype)| {
-                    if let Expr::Net(_loc, net_id) = expr {
-                        target_net_id != net_id
-                    } else {
-                        true
-                    }
-                })
-                .map(|(target_net_id, expr, _wiretype)| {
-                    Comb(target_net_id, expr)
-                })
-                .collect();
-
-        let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
-        let mut ext_dependencies = vec![vec![]; nets.len()];
-
-        for (ext_id, path) in circuit.exts().iter().enumerate() {
-            ext_id_by_path.insert(path.clone(), ext_id);
-
-            let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
-            for child in ext_component.children() {
-                if let Component::Incoming(_loc, name, _typ) = &*child {
-                    let incoming_path = path.join(name.to_string().into());
-                    let net_id = net_id_by_path[&incoming_path];
-                    ext_dependencies[net_id].push((ext_id, name.to_string()));
+        The definition just takes each path and finds which net contains it.
+    */
+    circuit
+        .terminals()
+        .iter()
+        .map(|path| {
+            for (net_id, net) in nets.iter().enumerate() {
+                if net.contains(path.clone()) {
+                    return (path.clone(), net_id);
                 }
             }
+            unreachable!()
+        })
+        .collect()
+}
+
+fn make_regs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<RegInfo> {
+    /*
+        Straightforward resolution of the Circuit data to net data for all registers.
+    */
+    circuit
+        .regs()
+        .iter()
+        .cloned()
+        .map(|path| {
+            let set_net_id = net_id_by_path[&path.set()];
+            let val_net_id = net_id_by_path[&path.clone()];
+            let reset = circuit.reset_for_reg(path).unwrap();
+
+            RegInfo {
+                set_net_id,
+                val_net_id,
+                reset,
+            }
+        })
+        .collect()
+}
+
+fn make_combs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<Comb> {
+    /*
+        Created from the Wires of the Circuit.
+        Look at the WireType and decide if we need to capture the val or set terminal.
+        Converts everything to nets.
+        Don't add a comb when the two point at the same net.
+        (To avoid errors from the ad-hoc optimization).
+    */
+    circuit
+        .wires()
+        .iter()
+        .cloned()
+        .map(|Wire(_loc, target, expr, wiretype)| {
+            let target_net_id = match wiretype {
+                WireType::Direct => net_id_by_path[&target],
+                WireType::Latch => net_id_by_path[&target.set()],
+                _ => todo!(), // Proc Wires not handled
+            };
+            (target_net_id, expr.references_to_nets(&net_id_by_path), wiretype)
+        })
+        .filter(|(target_net_id, expr, _wiretype)| {
+            if let Expr::Net(_loc, net_id) = expr {
+                target_net_id != net_id
+            } else {
+                true
+            }
+        })
+        .map(|(target_net_id, expr, _wiretype)| {
+            Comb(target_net_id, expr)
+        })
+        .collect()
+}
+
+fn make_ext_id_by_path(
+    circuit: &Circuit,
+    net_id_by_path: &BTreeMap<Path, NetId>,
+    nets: &[Net],
+) -> BTreeMap<Path, ExtId> {
+    let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
+    let mut ext_dependencies = vec![vec![]; nets.len()];
+
+    for (ext_id, path) in circuit.exts().iter().enumerate() {
+        ext_id_by_path.insert(path.clone(), ext_id);
+
+        let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
+        for child in ext_component.children() {
+            if let Component::Incoming(_loc, name, _typ) = &*child {
+                let incoming_path = path.join(name.to_string().into());
+                let net_id = net_id_by_path[&incoming_path];
+                ext_dependencies[net_id].push((ext_id, name.to_string()));
+            }
         }
+    }
 
-        let dependents: Vec<Dependents> = net_ids
-            .iter()
-            .map(|net_id| {
-                let combs: Vec<CombId> = combs.iter().enumerate().filter(|(_comb_id, comb)| comb.depends_on(*net_id)).map(|(comb_id, _comb)| comb_id).collect();
-                let mut ext_ports: Vec<(ExtId, PortName)> = vec![];
-                for path in circuit.exts() {
-                    let ext_id = ext_id_by_path[&path];
-                    let ext_component = circuit.component(path.clone()).unwrap();
-                    match &*ext_component {
-                        Component::Ext(_loc, _name, children) => {
-                            for child in children {
-                                match &**child {
-                                    Component::Incoming(_loc, name, _typ) => {
-                                        let port_path = path.join(name.clone().into());
-                                        let port_net_id = net_id_by_path[&port_path];
-                                        if  port_net_id == *net_id {
-                                            ext_ports.push((ext_id, name.to_string()))
-                                        }
-                                    },
-                                    _ => (),
-                                }
-                            }
-                        },
-                        _ => unreachable!(),
-                    }
-                }
+    ext_id_by_path
+}
 
-                let dependents = Dependents {
-                    combs,
-                    ext_ports,
-                };
-                dependents
-            })
-            .collect();
-
-        let mut net_id_by_ext_port: BTreeMap<(ExtId, PortName), NetId> = BTreeMap::new();
-
+fn make_dependents(
+    circuit: &Circuit,
+    net_ids: &[NetId],
+    combs: &[Comb],
+    net_id_by_path: &BTreeMap<Path, NetId>,
+    ext_id_by_path: &BTreeMap<Path, ExtId>,
+) -> Vec<Dependents> {
+    net_ids.iter()
+    .map(|net_id| {
+        let combs: Vec<CombId> = combs.iter().enumerate().filter(|(_comb_id, comb)| comb.depends_on(*net_id)).map(|(comb_id, _comb)| comb_id).collect();
+        let mut ext_ports: Vec<(ExtId, PortName)> = vec![];
         for path in circuit.exts() {
             let ext_id = ext_id_by_path[&path];
             let ext_component = circuit.component(path.clone()).unwrap();
@@ -161,10 +159,12 @@ impl SimCircuit {
                 Component::Ext(_loc, _name, children) => {
                     for child in children {
                         match &**child {
-                            Component::Outgoing(_loc, name, _typ) => {
+                            Component::Incoming(_loc, name, _typ) => {
                                 let port_path = path.join(name.clone().into());
-                                let net_id = net_id_by_path[&port_path];
-                                net_id_by_ext_port.insert((ext_id, name.clone()), net_id);
+                                let port_net_id = net_id_by_path[&port_path];
+                                if  port_net_id == *net_id {
+                                    ext_ports.push((ext_id, name.to_string()))
+                                }
                             },
                             _ => (),
                         }
@@ -173,6 +173,68 @@ impl SimCircuit {
                 _ => unreachable!(),
             }
         }
+
+        let dependents = Dependents {
+            combs,
+            ext_ports,
+        };
+        dependents
+    })
+    .collect()
+}
+
+fn make_net_id_by_ext_port(
+    circuit: &Circuit,
+    net_id_by_path: &BTreeMap<Path, NetId>,
+    ext_id_by_path: &BTreeMap<Path, ExtId>,
+) -> BTreeMap<(ExtId, PortName), NetId> {
+    let mut net_id_by_ext_port = BTreeMap::new();
+
+    for path in circuit.exts() {
+        let ext_id = ext_id_by_path[&path];
+        let ext_component = circuit.component(path.clone()).unwrap();
+        match &*ext_component {
+            Component::Ext(_loc, _name, children) => {
+                for child in children {
+                    match &**child {
+                        Component::Outgoing(_loc, name, _typ) => {
+                            let port_path = path.join(name.clone().into());
+                            let net_id = net_id_by_path[&port_path];
+                            net_id_by_ext_port.insert((ext_id, name.clone()), net_id);
+                        },
+                        _ => (),
+                    }
+                }
+            },
+            _ => unreachable!(),
+        }
+    }
+    net_id_by_ext_port
+}
+
+impl SimCircuit {
+    pub fn new(circuit: &Circuit) -> SimCircuit {
+        let root = circuit.root();
+        let nets = nets(circuit);
+        let net_ids: Vec<NetId> = (0..nets.len()).into_iter().collect();
+        let net_id_by_path: BTreeMap<Path, NetId> = make_net_id_by_path(&circuit, &nets);
+        let regs: Vec<RegInfo> = make_regs(&circuit, &net_id_by_path);
+        let combs: Vec<Comb> = make_combs(&circuit, &net_id_by_path);
+        let ext_id_by_path = make_ext_id_by_path(&circuit, &net_id_by_path, &nets);
+
+        let dependents: Vec<Dependents> = make_dependents(
+            &circuit,
+            &net_ids,
+            &combs,
+            &net_id_by_path,
+            &ext_id_by_path,
+        );
+
+        let net_id_by_ext_port = make_net_id_by_ext_port(
+            &circuit,
+            &net_id_by_path,
+            &ext_id_by_path,
+        );
 
         SimCircuit {
             nets,
@@ -218,20 +280,10 @@ impl Sim {
 
         let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
         let mut exts: Vec<Option<Box<dyn ExtInstance>>> = vec![];
-        let mut ext_dependencies = Box::new(vec![vec![]; net_ids.len()]);
 
         for (ext_id, path) in circuit.exts().iter().enumerate() {
             ext_id_by_path.insert(path.clone(), ext_id);
             exts.push(None);
-
-            let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
-            for child in ext_component.children() {
-                if let Component::Incoming(_loc, name, _typ) = &*child {
-                    let incoming_path = path.join(name.to_string().into());
-                    let net_id = sim_circuit.net_id_by_path[&incoming_path];
-                    ext_dependencies[net_id].push((ext_id, name.to_string()));
-                }
-            }
         }
 
         let mut sim = Sim {
@@ -319,10 +371,6 @@ impl Sim {
     pub fn poke<P: Into<Path>>(&mut self, path: P, value: Value) {
         let net_id = self.net_id(path.into());
         self.poke_net(net_id, value);
-    }
-
-    pub fn set<P: Into<Path>>(&mut self, _path: P, _value: Value) {
-        todo!()
     }
 
     fn broadcast_update_constants(&mut self) {
