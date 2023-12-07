@@ -21,8 +21,15 @@ impl Sim {
         sim
     }
 
-    pub fn poke_net(&mut self, net_id: NetId, value: Value) {
-        eprintln!("poke_net({net_id}, {value:?})");
+    pub fn peek(&mut self, terminal: Terminal) -> Value {
+        self.peek_net(terminal.net_id())
+    }
+
+    pub fn poke(&mut self, terminal: Terminal, value: Value) {
+        self.poke_net(terminal.net_id(), value)
+    }
+
+    fn poke_net(&mut self, net_id: NetId, value: Value) {
         self.net_values[net_id] = value.clone();
 
         // update dependent nets through all combs
@@ -33,16 +40,17 @@ impl Sim {
             }
         }
     }
-    pub fn peek_net(&self, net_id: NetId) -> Value {
+    fn peek_net(&self, net_id: NetId) -> Value {
         self.net_values[net_id].clone()
     }
 
     fn update_constants(&mut self) {
-        eprintln!("update_constants()");
         for comb in self.combs() {
-            let inputs: Vec<Value> = comb.inputs().iter().map(|terminal| self.net_values[terminal.net_id()].clone()).collect();
-            for (terminal, value) in comb.outputs().iter().zip(comb.eval(&inputs).iter()) {
-                self.poke_net(terminal.net_id(), value.clone());
+            if comb.is_constant() {
+                let inputs: Vec<Value> = comb.inputs().iter().map(|terminal| self.net_values[terminal.net_id()].clone()).collect();
+                for (terminal, value) in comb.outputs().iter().zip(comb.eval(&inputs).iter()) {
+                    self.poke_net(terminal.net_id(), value.clone());
+                }
             }
         }
     }
@@ -58,13 +66,11 @@ impl Sim {
         }
     }
 
-    /*
     pub fn reset(&mut self) {
         for register in self.registers() {
-            self.poke_net(register.val().net_id(), register.reset.eval(&self));
+            self.poke_net(register.val().net_id(), register.reset());
         }
     }
-    */
 
     fn registers(&self) -> Vec<Register> {
         self.circuit.registers().clone()

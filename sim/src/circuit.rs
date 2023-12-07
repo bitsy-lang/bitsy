@@ -43,13 +43,13 @@ impl Circuit {
         terminal
     }
 
-    pub fn add_register(&mut self) -> Register {
+    pub fn add_register(&mut self, reset: Value) -> Register {
         let val_net_id = self.next_net_id();
         let set_net_id = val_net_id + 1;
         let register = Register {
             val: Terminal(val_net_id),
             set: Terminal(set_net_id),
-            //reset: Expr::Lit(Loc::unknown(), Value::X),
+            reset,
         };
         self.components.push(Component::Register(register.clone()));
         register
@@ -123,15 +123,20 @@ impl Terminal {
 pub struct Register {
     pub set: Terminal,
     pub val: Terminal,
+    pub reset: Value,
 }
 
 impl Register {
     pub fn val(&self) -> Terminal {
-        self.val.clone()
+        self.val
     }
 
     pub fn set(&self) -> Terminal {
-        self.set.clone()
+        self.set
+    }
+
+    pub fn reset(&self) -> Value {
+        self.reset
     }
 }
 
@@ -188,7 +193,9 @@ impl Comb {
 
         for instr in self.instrs().iter().cloned() {
             let result = match instr {
-                Instr::Const(val) => val,
+                Instr::Const(val) => {
+                    val
+                },
                 Instr::Load(r0) => stack[r0],
                 Instr::Add(r0, r1) => {
                     match (stack[r0], stack[r1]) {
@@ -196,7 +203,9 @@ impl Comb {
                             let mask = (1 << w0) - 1;
                             Value::Word(w0, (n0 + n1) & mask)
                         },
-                        _ => panic!("Can't add non-Words."),
+                        (Value::Word(w0, _n0), Value::Word(w1, _n1)) => panic!("Can't add Word<{w0}> and Word<{w1}>"),
+                        (Value::X, _) => Value::X,
+                        (_, Value::X) => Value::X,
                     }
                 },
                 Instr::Neg(r0) => {
@@ -205,13 +214,14 @@ impl Comb {
                             let mask = (1 << w0) - 1;
                             Value::Word(w0, (1 + !n0) & mask)
                         },
-                        _ => panic!("Can't add non-Words."),
+                        Value::X => Value::X,
                     }
                 },
                 Instr::Mux(r0, r1, r2) => {
                     match stack[r0] {
                         Value::Word(_w, 0) => stack[r2],
                         Value::Word(_w, 1) => stack[r1],
+                        Value::X => Value::X,
                         _ => panic!("Can't mux non-Word<1>s."),
                     }
                 },
@@ -220,7 +230,6 @@ impl Comb {
         }
         let results = stack[stack.len()-self.outputs.len()..].to_vec();
         assert_eq!(results.len(), self.outputs.len());
-        eprintln!("{stack:?}");
         results
     }
 }
