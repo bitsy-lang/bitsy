@@ -41,6 +41,7 @@ syn match nettleAnd "&&"
 syn match nettleOr "||"
 syn match nettleFatArrow "=>"
 syn match nettleAdd "+"
+syn match nettleAddCarry "+%"
 syn match nettleMul "*"
 syn match nettleHole "?"
 hi link nettleAt Keyword
@@ -58,6 +59,7 @@ hi link nettleEqOp Keyword
 hi link nettleNeqOp Keyword
 hi link nettleAnd Keyword
 hi link nettleAdd Keyword
+hi link nettleAddCarry Keyword
 hi link nettleOr Keyword
 hi link nettleMul Keyword
 hi link nettleHole Comment

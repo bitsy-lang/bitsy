@@ -145,6 +145,7 @@ pub ExprEq: Box<Expr> = {
 
 pub ExprAdd: Box<Expr> = {
     <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
     <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
     <e:ExprCall> => e,
 }

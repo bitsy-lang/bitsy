@@ -57,7 +57,9 @@ impl std::fmt::Debug for Expr {
             Expr::BinOp(_loc, op, e1, e2) => {
                 let op_symbol = match op {
                     BinOp::Add => "+",
+                    BinOp::AddCarry => "+%",
                     BinOp::Sub => "-",
+//                    BinOp::SubBorrow => "-%",
                     BinOp::And => "&&",
                     BinOp::Or => "||",
                     BinOp::Xor => "^",
@@ -107,7 +109,9 @@ pub enum UnOp {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum BinOp {
     Add,
+    AddCarry,
     Sub,
+//    SubBorrow,
     And,
     Or,
     Xor,
@@ -351,6 +355,10 @@ impl Expr {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
                     (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
+                    (BinOp::AddCarry, Value::Word(w, a),  Value::Word(_w, b)) => {
+                        let new_w = w + 1;
+                        Value::Word(new_w, a.wrapping_add(b) % (1 << new_w))
+                    },
                     (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % (1 << w)),
                     (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
                     (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
@@ -625,6 +633,18 @@ impl Expr {
                 Value::X => None,
             },
             Expr::UnOp(_loc, _op, e) => e.typeinfer(ctx.clone()),
+            Expr::BinOp(_loc, BinOp::AddCarry, e1, e2) => {
+                let typ1 = e1.typeinfer(ctx.clone())?;
+                let typ2 = e2.typeinfer(ctx.clone())?;
+                if typ1 == typ2 {
+                    match typ1 {
+                        Type::Word(w) => Some(Type::Word(w + 1)),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            },
             Expr::BinOp(_loc, op, e1, e2) => {
                 let typ1 = e1.typeinfer(ctx.clone())?;
                 let typ2 = e2.typeinfer(ctx.clone())?;
