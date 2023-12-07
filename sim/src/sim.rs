@@ -26,9 +26,11 @@ impl Sim {
         self.net_values[net_id] = value.clone();
 
         // update dependent nets through all combs
-        for Comb(target, expr) in self.combs_dependent_on(net_id) {
-            let value = expr.eval(&self);
-            self.poke_net(target.net_id(), value);
+        for comb in self.combs_dependent_on(net_id) {
+            let inputs: Vec<Value> = comb.inputs().iter().map(|terminal| self.net_values[terminal.net_id()].clone()).collect();
+            for (terminal, value) in comb.outputs().iter().zip(comb.eval(&inputs).iter()) {
+                self.poke_net(terminal.net_id(), value.clone());
+            }
         }
     }
     pub fn peek_net(&self, net_id: NetId) -> Value {
@@ -37,10 +39,10 @@ impl Sim {
 
     fn update_constants(&mut self) {
         eprintln!("update_constants()");
-        for Comb(target, expr) in self.combs() {
-            if expr.is_constant() {
-                let value = expr.eval(&self);
-                self.poke_net(target.net_id(), value);
+        for comb in self.combs() {
+            let inputs: Vec<Value> = comb.inputs().iter().map(|terminal| self.net_values[terminal.net_id()].clone()).collect();
+            for (terminal, value) in comb.outputs().iter().zip(comb.eval(&inputs).iter()) {
+                self.poke_net(terminal.net_id(), value.clone());
             }
         }
     }
@@ -56,11 +58,13 @@ impl Sim {
         }
     }
 
+    /*
     pub fn reset(&mut self) {
         for register in self.registers() {
             self.poke_net(register.val().net_id(), register.reset.eval(&self));
         }
     }
+    */
 
     fn registers(&self) -> Vec<Register> {
         self.circuit.registers().clone()
@@ -82,64 +86,3 @@ impl Sim {
         results
     }
 }
-
-impl Comb {
-    pub fn depends_on(&self, net_id: NetId) -> bool {
-        let Comb(_net_id, expr) = self;
-        expr.depends_on_net(net_id)
-    }
-}
-
-/*
-fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Path {
-    let mut driver: &Path = &terminal;
-    while let Some(immediate_driver) = &immediate_driver_for.get(driver) {
-        driver = immediate_driver;
-    }
-    driver.clone()
-}
-
-impl std::fmt::Debug for Net {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(f, "Net({} {})", self.0, self.1.iter().map(|path| path.to_string()).collect::<Vec<_>>().join(" "))
-    }
-}
-
-impl Net {
-    pub fn from(terminal: Path) -> Net {
-        Net(terminal, vec![])
-    }
-
-    pub fn add(&mut self, terminal: Path) {
-        if self.0 != terminal {
-            self.1.push(terminal);
-            self.1.sort();
-            self.1.dedup();
-        }
-    }
-
-    pub fn driver(&self) -> Path {
-        self.0.clone()
-    }
-
-    pub fn drivees(&self) -> &[Path] {
-        &self.1
-    }
-
-    pub fn terminals(&self) -> Vec<Path> {
-        let mut results = vec![self.0.clone()];
-        for terminal in &self.1 {
-            results.push(terminal.clone());
-        }
-        results
-    }
-
-    pub fn contains(&self, terminal: Path) -> bool {
-        if terminal == self.0 {
-            true
-        } else {
-            self.1.contains(&terminal)
-        }
-    }
-}
-*/

@@ -54,13 +54,13 @@ impl Type {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Default)]
+#[derive(Eq, PartialEq, Clone, Default, Copy)]
 pub enum Value {
     #[default]
     X,
     Word(Width, u64),
-    Vec(Vec<Value>),
-    Enum(Ref<TypeDef>, String),
+//    Vec(Vec<Value>),
+//    Enum(Ref<TypeDef>, String),
 }
 
 impl Value {
@@ -72,8 +72,8 @@ impl Value {
         match self {
             Value::X => None,
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
-            Value::Vec(_vs) => panic!(),
-            Value::Enum(_typedef, _name) => panic!(),
+//            Value::Vec(_vs) => panic!(),
+//            Value::Enum(_typedef, _name) => panic!(),
         }
     }
 
@@ -126,8 +126,8 @@ impl TryFrom<Value> for u64 {
         match value {
             Value::X => Err(()),
             Value::Word(_w, n) => Ok(n),
-            Value::Enum(_typedef, _name) => Err(()),
-            _ => Err(()),
+//            Value::Enum(_typedef, _name) => Err(()),
+//            _ => Err(()),
         }
     }
 }
@@ -137,18 +137,18 @@ impl std::fmt::Debug for Value {
         match self {
             Value::X => write!(f, "XXX"),
             Value::Word(w, n) => write!(f, "{n}w{w}"),
-            Value::Vec(vs) => {
-                write!(f, "[")?;
-                for (i, v) in vs.iter().enumerate() {
-                    if i + 1 < vs.len() {
-                        write!(f, "{v:?}, ")?;
-                    } else {
-                        write!(f, "{v:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+//            Value::Vec(vs) => {
+//                write!(f, "[")?;
+//                for (i, v) in vs.iter().enumerate() {
+//                    if i + 1 < vs.len() {
+//                        write!(f, "{v:?}, ")?;
+//                    } else {
+//                        write!(f, "{v:?}")?;
+//                    }
+//                }
+//                write!(f, "]")
+//            },
+//            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
         }
     }
 }
