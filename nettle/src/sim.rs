@@ -200,7 +200,7 @@ impl SimCircuit {
 pub struct Sim {
     sim_circuit: Arc<SimCircuit>,
     net_values: Vec<Value>,
-    exts: Vec<Option<Box<dyn ExtInstance>>>, // indexed by ExtId
+    exts: Vec<Option<dyn ExtInstance>>, // indexed by ExtId
     clock_ticks: u64,
     start_time: SystemTime,
     clock_freq_cap: Option<f64>,
@@ -211,13 +211,13 @@ impl Sim {
         Sim::new_with_exts(circuit, BTreeMap::new())
     }
 
-    pub fn new_with_exts(circuit: &Circuit, linked_exts: BTreeMap<Path, Box<dyn ExtInstance>>) -> Sim {
+    pub fn new_with_exts(circuit: &Circuit, linked_exts: BTreeMap<String, Box<dyn Ext>>) -> Sim {
         let sim_circuit = Arc::new(SimCircuit::new(circuit));
         let net_ids = sim_circuit.net_ids();
         let net_values: Vec<Value> = net_ids.iter().map(|_net| Value::X).collect();
 
         let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
-        let mut exts: Vec<Option<Box<dyn ExtInstance>>> = vec![];
+        let mut exts: Vec<Option<Box<ExtInstance>>> = vec![];
         let mut ext_dependencies = Box::new(vec![vec![]; net_ids.len()]);
 
         for (ext_id, path) in circuit.exts().iter().enumerate() {

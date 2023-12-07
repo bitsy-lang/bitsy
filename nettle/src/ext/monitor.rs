@@ -1,7 +1,7 @@
 use super::*;
 
-#[derive(Debug)]
-pub struct Monitor(Option<String>);
+#[derive(Debug, Clone)]
+pub struct Monitor;
 
 impl Monitor {
   pub fn new() -> Monitor {
@@ -9,28 +9,32 @@ impl Monitor {
   }
 }
 
-impl ExtInstance for Monitor {
+impl Ext for Monitor {
+    fn incoming_ports(&self) -> Vec<PortName> { vec!["in".to_string()] }
+    fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
+}
+
+impl Ext for Monitor {
+    type State = Option<String>;
+
     fn incoming_ports(&self) -> Vec<PortName> { vec!["in".to_string()] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
 
-    fn update(&mut self, _port: &PortName, value: Value) -> Vec<(PortName, Value)> {
-        self.0 = Some(format!("{value:?}"));
+    fn instantiate(&self) -> ExtInstance<'_, Self::State> {
+        None
+    }
+
+    fn update(&self, state: &mut Self::State, port: PortId, value: Value) -> Vec<(PortId, Value)> {
+        *state = Some(format!("{value:?}"));
         vec![]
     }
 
-    fn clock(&mut self) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
+    fn clock(&self, state: &mut Self::State) -> Vec<(PortId, Value)> {
+        if let Some(s) = state {
             println!("Monitor: {s}");
-            self.0 = None
+            *state = None
         }
         vec![]
     }
-
-    fn reset(&mut self) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
-            println!("Monitor: {s}");
-            self.0 = None
-        }
-        vec![]
-    }
+    fn reset(&self, state: &mut Self::State) -> Vec<(PortId, Value)> { vec![] }
 }
