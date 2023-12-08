@@ -13,7 +13,7 @@ class BitsyLexer(RegexLexer):
 
     KEYWORDS = [
         'top', 'reg', 'node', 'mod', 'ext', 'if', 'reset',
-        'incoming', 'outgoing', 'enum',
+        'incoming', 'outgoing', 'enum', 'of', 'type',
     ]
 
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
