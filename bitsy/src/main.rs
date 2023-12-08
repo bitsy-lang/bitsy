@@ -25,7 +25,7 @@ struct Args {
     debug: bool,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     let args = Args::parse();
     let text = std::fs::read_to_string(&args.filename).unwrap().to_string();
 
@@ -41,14 +41,27 @@ fn main() -> anyhow::Result<()> {
         Testbench(None, vec![], vec![command])
     };
 
-    let top = args.top.or_else(|| testbench.0.clone());
-    let circuit = match parse_top(&text, top.as_deref()) {
-        Ok(circuit) => circuit,
+    let package = match bitsy::load_package_from_string(&text) {
+        Ok(package) => package,
         Err(errors) => {
             for error in &errors {
                 eprintln!("{error:?}");
             }
             eprintln!("Circuit has {} errors.", errors.len());
+            std::process::exit(1);
+        },
+    };
+
+    let top_name = match args.top.or_else(|| testbench.0.clone()) {
+        Some(top_name) => top_name,
+        None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
+    };
+
+    let circuit = match package.top(&top_name) {
+        Ok(circuit) => circuit,
+        Err(error) => {
+            eprintln!("{error:?}");
+            eprintln!("Circuit has 1 errors.");
             std::process::exit(1);
         },
     };
@@ -60,11 +73,9 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(1);
     }
 
-
     let sim: Sim = make_sim(circuit.clone(), &testbench);
     let mut repl = Repl::new(sim, circuit, testbench);
     repl.run();
-    Ok(())
 }
 
 fn testbench_for(filename: &str) -> Option<String> {

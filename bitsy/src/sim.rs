@@ -36,7 +36,6 @@ pub struct SimCircuit {
 
     pub net_id_by_path: BTreeMap<Path, NetId>,
     pub ext_id_by_path: BTreeMap<Path, ExtId>,
-    pub root: Path,
 }
 
 fn make_net_id_by_path(circuit: &Circuit, nets: &[Net]) -> BTreeMap<Path, NetId> {
@@ -214,7 +213,6 @@ fn make_net_id_by_ext_port(
 
 impl SimCircuit {
     pub fn new(circuit: &Circuit) -> SimCircuit {
-        let root = circuit.root();
         let nets = nets(circuit);
         let net_ids: Vec<NetId> = (0..nets.len()).into_iter().collect();
         let net_id_by_path: BTreeMap<Path, NetId> = make_net_id_by_path(&circuit, &nets);
@@ -246,16 +244,11 @@ impl SimCircuit {
 
             net_id_by_path,
             ext_id_by_path,
-            root,
         }
     }
 
     pub fn net_ids(&self) -> Vec<NetId> {
         (0..self.nets.len()).into_iter().collect()
-    }
-
-    pub fn root(&self) -> Path {
-        self.root.clone()
     }
 }
 
@@ -307,10 +300,6 @@ impl Sim {
 
     pub fn net(&self, net_id: NetId) -> &Net {
         &self.sim_circuit.nets[net_id]
-    }
-
-    pub fn root(&self) -> Path {
-        self.sim_circuit.root()
     }
 
     pub fn cap_clock_freq(mut self, freq: f64) -> Self {

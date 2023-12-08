@@ -11,7 +11,7 @@ pub struct Repl {
 
 impl Repl {
     pub fn new(sim: Sim, circuit: Circuit, testbench: Testbench) -> Repl {
-        let current_path = sim.root();
+        let current_path = "top".into();
         let readline = rustyline::DefaultEditor::new().unwrap();
 
         Repl {
@@ -67,7 +67,7 @@ impl Repl {
                         }
                     }
                 } else {
-                    self.current_path = self.sim.root();
+                    self.current_path = "top".into();
                 }
             },
             TestbenchCommand::Peek(terminal) => {

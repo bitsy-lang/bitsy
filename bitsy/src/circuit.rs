@@ -29,6 +29,14 @@ impl Package {
         package
     }
 
+    pub fn top(&self, top_name: &str) -> Result<Circuit, CircuitError>  {
+        if let Some(top) = self.moddef(top_name) {
+            Ok(Circuit(self.clone(), top))
+        } else {
+            Err(CircuitError::Unknown(None, format!("No such mod definition: {top_name}")))
+        }
+    }
+
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
         let mut results = vec![];
         for decl in &self.0 {
@@ -329,15 +337,9 @@ impl HasLoc for Component {
 /// A [`Circuit`] is a module instance.
 /// It allows you to walk the instance, following references to definitions.
 #[derive(Debug, Clone)]
-pub struct Circuit(Arc<Package>, Arc<Component>);
+pub struct Circuit(Package, Arc<Component>);
 
 impl Circuit {
-    pub fn new(package: Package, top: &str) -> Circuit {
-        let top = package.moddef(top).expect(&format!("No such mod definition: {top}"));
-        let circuit = Circuit(Arc::new(package), top);
-        circuit
-    }
-
     pub fn package(&self) -> &Package {
         &self.0
     }
@@ -347,22 +349,17 @@ impl Circuit {
         self.1.clone()
     }
 
-    pub fn root(&self) -> Path {
-        // TODO REMOVE THIS
-        self.top().name().into()
-    }
-
     /// Dot into the given path.
     /// Follow [`Component::ModInst`]s to their definitions.
     pub fn component(&self, path: Path) -> Option<Arc<Component>> {
-        let root: Path = self.top().name().into();
-        if path == root {
+        dbg!(&path);
+        if path == "top".into() {
             return Some(self.top());
         }
         // TODO GET RID OF THIS
-        let root_prefix = format!("{root}.");
+        let root_prefix = format!("top.");
         if !path.starts_with(&root_prefix) {
-            eprintln!("{path} does not start with {root_prefix})");
+            eprintln!("{path} does not start with top");
         }
         assert!(path.starts_with(&root_prefix));
         let path: Path = path[root_prefix.len()..].into();
@@ -420,7 +417,7 @@ impl Circuit {
 
     /// Walk the instance's module hierarchy, returning all [`Path`]s for everything.
     pub fn terminals(&self) -> Vec<Path> {
-        self.top().terminals_rec(self.top().name().into())
+        self.top().terminals_rec("top".into())
     }
 
     /// Given a [`Path`], if it is a [`Component::Reg`], return its reset value.
@@ -433,7 +430,7 @@ impl Circuit {
     }
 
     fn walk_instances(&self) -> Vec<(Path, Arc<Component>)> {
-        self.walk_instances_rec(self.top(), self.top().name().into())
+        self.walk_instances_rec(self.top(), "top".into())
     }
 
     fn walk_instances_rec(&self, component: Arc<Component>, path: Path) -> Vec<(Path, Arc<Component>)> {

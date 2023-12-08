@@ -26,15 +26,16 @@ fn path_depends() {
 
 #[test]
 fn buffer() {
-    let buffer = parse_top("
-        mod top {
+    let buffer = load_package_from_string("
+        mod Top {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
             r <= in;
             out := r;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let buffer = buffer.top("Top").unwrap();
 
     let mut bitsy = Sim::new(&buffer);
 
@@ -50,14 +51,15 @@ fn buffer() {
 
 #[test]
 fn counter() {
-    let counter = parse_top("
-        mod top {
+    let counter = load_package_from_string("
+        mod Top {
             outgoing out of Word<4>;
             reg counter of Word<4> reset 0w4;
             out := counter;
             counter <= counter + 1w4;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let counter = counter.top("Top").unwrap();
 
     let mut bitsy = Sim::new(&counter);
 
@@ -72,8 +74,8 @@ fn counter() {
 
 #[test]
 fn triangle_numbers() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             outgoing out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
@@ -85,7 +87,8 @@ fn triangle_numbers() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let mut bitsy = Sim::new(&top);
     bitsy.reset();
@@ -99,8 +102,8 @@ fn triangle_numbers() {
 
 #[test]
 fn vip() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             mod counter {
                 outgoing out of Word<4>;
                 reg counter of Word<4>;
@@ -116,7 +119,8 @@ fn vip() {
             incoming in of Word<4>;
         }
 
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let monitor = Box::new(ext::monitor::Monitor::new());
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
@@ -133,8 +137,8 @@ fn vip() {
 
 #[test]
 fn ifs() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
@@ -144,7 +148,8 @@ fn ifs() {
                 100w8
             };
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let mut bitsy = Sim::new(&top);
 
@@ -179,8 +184,8 @@ fn test_parse() {
 
 #[test]
 fn test_eval() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             node x of Word<1>;
             reg r of Word<1> reset 0w1;
             x := 1w1;
@@ -196,7 +201,8 @@ fn test_eval() {
             p := 1w1;
             q := 0w1;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let mut bitsy = Sim::new(&top);
     bitsy.reset();
@@ -236,15 +242,16 @@ fn test_eval() {
 
 #[test]
 fn test_nets() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             incoming in of Word<1>;
             reg r of Word<1>;
             outgoing out of Word<1>;
             r <= in;
             out := r;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let top_nets = crate::sim::nets(&top);
     assert_eq!(top_nets.len(), 2);
@@ -261,8 +268,8 @@ fn test_nets() {
 
     assert_eq!(drivers, expected_drivers);
 
-    let triangle_numbers_top = parse_top("
-        mod top {
+    let triangle_numbers_top = load_package_from_string("
+        mod Top {
             node out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
@@ -274,21 +281,22 @@ fn test_nets() {
             out := sum;
             sum <= sum + counter.out;
         }
-    ", None).unwrap();
-
+    ").unwrap();
+    let triangle_numbers_top = triangle_numbers_top.top("Top").unwrap();
     let triangle_numbers_nets = crate::sim::nets(&triangle_numbers_top);
     assert_eq!(triangle_numbers_nets.len(), 4);
 }
 
 #[test]
 fn test_node() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             outgoing out of Word<1>;
             node n of Word<1>;
             n := 1w1;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     let bitsy = Sim::new(&top);
     assert_eq!(bitsy.peek("top.n"), Value::Word(1, 1));
@@ -296,14 +304,15 @@ fn test_node() {
 
 #[test]
 fn test_check() {
-    let top = parse_top("
-        mod top {
+    let top = load_package_from_string("
+        mod Top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
             out := in;
         }
-    ", None).unwrap();
+    ").unwrap();
+    let top = top.top("Top").unwrap();
 
     top.package().check().unwrap();
 
@@ -409,8 +418,8 @@ fn test_examples() {
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
                         };
 
-                        let top = parse_top(&text, None).expect(&format!("Testing {:?}", entry.path()));
-                        top.package().check().expect(&format!("Failed to check: {file_name}"));
+                        let package = load_package_from_string(&text).expect(&format!("Testing {:?}", entry.path()));
+                        package.check().expect(&format!("Failed to check: {file_name}"));
                     }
                 }
             }
@@ -423,7 +432,7 @@ fn test_examples() {
 #[test]
 fn test_locs() {
     let text = "
-        mod top {
+        mod Top {
             outgoing out of Word<8>;
             incoming in of Word<8>;
 
@@ -432,8 +441,9 @@ fn test_locs() {
     ";
 
     let source_info = SourceInfo::from_string(text);
-    let top = parse_top(text, None).unwrap();
-    top.package().check().unwrap();
+    let package = load_package_from_string(text).unwrap();
+    package.check().unwrap();
+    let top = package.top("Top").unwrap();
     let wires = top.wires();
     let Wire(_loc, _target, expr, _wiretype) = wires.first().unwrap();
     assert_eq!(source_info.start(expr).to_string(), "6:20");

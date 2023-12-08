@@ -13,9 +13,19 @@ enum ModDecl {
     When(When),
 }
 
-pub fn parse_top(package: &str, top: Option<&str>) -> Result<Circuit, Vec<CircuitError>>  {
-    let source_info = SourceInfo::from_string(package);
-    let package: Package = match grammar::PackageParser::new().parse(&source_info, package) {
+pub fn load_package_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Package, Vec<CircuitError>> {
+    let package_text = std::fs::read_to_string(path.as_ref()).unwrap();
+    let source_info = SourceInfo::from_file(path.as_ref(), &package_text);
+    package_from_string(source_info, &package_text)
+}
+
+pub fn load_package_from_string(package_text: &str) -> Result<Package, Vec<CircuitError>> {
+    let source_info = SourceInfo::from_string(package_text);
+    package_from_string(source_info, package_text)
+}
+
+fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Package, Vec<CircuitError>> {
+    let package: Package = match grammar::PackageParser::new().parse(&source_info, &package_text) {
         Ok(package) => {
             package.resolve_references()?;
             package
@@ -33,10 +43,7 @@ pub fn parse_top(package: &str, top: Option<&str>) -> Result<Circuit, Vec<Circui
             return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
         },
     };
-
-    let moddefs = package.moddefs();
-    let top = top.unwrap_or_else(|| moddefs.first().unwrap().name());
-    Ok(Circuit::new(package, top))
+    Ok(package)
 }
 
 impl From<&str> for Expr {
