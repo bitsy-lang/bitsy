@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use lalrpop_util::ParseError;
 use lalrpop_util::lalrpop_mod;
-lalrpop_mod!(pub grammar);
+lalrpop_mod!(grammar);
 
 #[derive(Debug)]
 pub enum ModDecl {
