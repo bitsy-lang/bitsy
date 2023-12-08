@@ -2,6 +2,9 @@ use std::sync::Arc;
 
 type Pos = usize;
 
+/// A [`SourceInfo`] maintains location data for parsed objects.
+/// Maintains the filename (if from a file) or the originating string (if from a string).
+/// Helps with the conversion from byte-position in the source to a [`LineCol`].
 #[derive(Clone, Debug)]
 pub struct SourceInfo {
     source: Source,
@@ -54,14 +57,17 @@ pub enum Source {
     Unknown,
 }
 
+/// A [`LineCol`] is a container for a line and column.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LineCol(usize, usize);
 
 impl LineCol {
+    /// The line number. Starts with line 1.
     pub fn line(&self) -> usize {
         self.0 + 1
     }
 
+    /// The column. Starts with column 1.
     pub fn col(&self) -> usize {
         self.1 + 1
     }
@@ -73,7 +79,7 @@ impl std::fmt::Display for LineCol {
     }
 }
 
-
+/// A [`Loc`] tracks the span of an object parsed from a source.
 #[derive(Clone)]
 pub struct Loc {
     start: Pos,
@@ -92,6 +98,7 @@ impl std::fmt::Debug for Loc {
 }
 
 impl Loc {
+    /// When the location of something is unknown, you can use this.
     pub fn unknown() -> Loc {
         Loc {
             start: 0,
@@ -108,15 +115,19 @@ impl Loc {
         }
     }
 
+    /// The start of the span.
     pub fn start(&self) -> LineCol {
         self.source_info.linelens.linecol(self.start)
     }
 
+    /// The end of the span.
     pub fn end(&self) -> LineCol {
         self.source_info.linelens.linecol(self.end)
     }
 }
 
+/// Many objects have location information.
+/// [`HasLoc`] allows you to call [`HasLoc::loc`] to get the span information.
 pub trait HasLoc {
     fn loc(&self) -> Loc;
 }
@@ -150,6 +161,7 @@ impl LineLens {
 
 #[test]
 fn linelens() {
+    // TODO Move this to tests.
     let text = "Hello,
 world!
 How are you?";

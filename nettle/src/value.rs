@@ -1,8 +1,12 @@
 use crate::reference::Reference;
 
+/// The bitwidth of a [`Type::Word`].
 pub type Width = u64;
+
+/// The length of a [`Type::Vec`].
 pub type Length = u64;
 
+/// A user-defined `enum` type.
 #[derive(Debug, Clone)]
 pub struct TypeDef {
     pub name: String,
@@ -34,10 +38,14 @@ impl TypeDef {
     }
 }
 
+/// A type classifier for [`Value`]s.
 #[derive(Clone, PartialEq)]
 pub enum Type {
+    /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
     Word(Width),
+    /// A n-element vector. Written `Vec<T, n>`.
     Vec(Box<Type>, Length),
+    /// A reference to a user-defined `enum`.
     TypeDef(Reference<TypeDef>),
 }
 
@@ -51,12 +59,17 @@ impl Type {
     }
 }
 
+/// A value used in the simulator (see [`crate::Sim`]).
 #[derive(Clone, Default, PartialEq)]
 pub enum Value {
+    /// An undefined value.
     #[default]
     X,
+    /// An element of `Word<n>`.
     Word(Width, u64),
+    /// An element of `Vec<T, n>`.
     Vec(Vec<Value>),
+    /// An element of a user-defined `enum`.
     Enum(Reference<TypeDef>, String),
 }
 
@@ -89,6 +102,7 @@ impl Value {
 
 #[test]
 fn value_to_usize() {
+    // TODO move this to tests.
     let v: Value = Value::Word(4, 7);
     assert_eq!(v.to_u64(), Some(7));
     let v: Value = Value::Word(2, 7);

@@ -13,6 +13,13 @@ use anyhow::anyhow;
 
 pub type Name = String;
 
+/// A Package is a parsed Nettle file.
+/// It consists of a number of top-level declarations.
+///
+/// After it is constructed, you need to call [`Package::resolve_references`]
+/// to ensure all variables have valid referents.
+/// After that, you also need to call [`Package::check`] to do typechecking of expressions
+/// and connection checking of components.
 #[derive(Debug, Clone)]
 pub struct Package(Vec<Decl>);
 
@@ -71,6 +78,12 @@ impl Package {
         None
     }
 
+    /// Iterate over all declarations and resolve references.
+    ///
+    /// Submodule instances (eg, `mod foo of Foo`) will resolve the module definition (eg, `Foo`).
+    ///
+    /// For each wire, the expression is resolved.
+    /// This will find any references to typedefs and resolve those (eg, `AluOp::Add`).
     pub fn resolve_references(&self) -> Result<(), Vec<CircuitError>> {
         let mut errors = vec![];
         self.resolve_references_component_types();
@@ -152,7 +165,9 @@ impl Package {
         }
     }
 
+    /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
     pub fn context_for(&self, component: Arc<Component>) -> anyhow::Result<Context<Path, Type>> {
+        // TODO Remove this anyhow
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
 //            let target = self.component_from(component.clone(), path.clone()).unwrap();
@@ -238,6 +253,7 @@ impl Package {
 
 }
 
+/// A top-level declaration in a [`Package`].
 #[derive(Debug, Clone)]
 pub enum Decl {
     ModDef(Arc<Component>),
@@ -245,19 +261,23 @@ pub enum Decl {
     TypeDef(Arc<TypeDef>),
 }
 
+/// The different kinds of [`Wire`]s in Nettle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireType {
+    /// Direct wire. Written `:=` in the syntax. Connects one terminal to another.
     Direct,
+    /// Latched wire. Written `<=` in the syntax. Connects one terminal to the data pin of a register.
     Latch,
+    /// Procedural. Written `<=!` in the syntax. Connects one terminal to the data pin of a register.
     Proc,
 }
 
+/// [`Wire`]s drive the value of port, node, or register.
 #[derive(Debug, Clone)]
 pub struct Wire(pub Loc, pub Path, pub Expr, pub WireType);
 
 #[derive(Debug, Clone)]
 pub struct When(pub Expr, pub Vec<Wire>);
-
 
 impl Wire {
     pub fn new(loc: Loc, target: Path, expr: Expr, typ: WireType) -> Wire {
@@ -265,17 +285,19 @@ impl Wire {
     }
 
     pub fn rebase(self, base: Path) -> Wire {
+        // TODO REMOVE THIS.
         let Wire(loc, target, expr, typ) = self;
         Wire(loc, base.join(target), expr.rebase(base), typ)
     }
 }
 
+/// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]
 pub enum Component {
     Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
     ModInst(Loc, Name, Reference<Component>),
     Ext(Loc, Name, Vec<Arc<Component>>),
-    ExtInst(Loc, Name, Reference<Component>),
+    ExtInst(Loc, Name, Reference<Component>), // TODO GET RID OF THIS
     Incoming(Loc, Name, Type),
     Outgoing(Loc, Name, Type),
     Node(Loc, Name, Type),
@@ -304,6 +326,8 @@ impl HasLoc for Component {
     }
 }
 
+/// A [`Circuit`] is a module instance.
+/// It allows you to walk the instance, following references to definitions.
 #[derive(Debug, Clone)]
 pub struct Circuit(Arc<Package>, Arc<Component>);
 
@@ -318,19 +342,24 @@ impl Circuit {
         &self.0
     }
 
+    /// The module definition for this [`Circuit`].
     pub fn top(&self) -> Arc<Component> {
         self.1.clone()
     }
 
     pub fn root(&self) -> Path {
+        // TODO REMOVE THIS
         self.top().name().into()
     }
 
+    /// Dot into the given path.
+    /// Follow [`Component::ModInst`]s to their definitions.
     pub fn component(&self, path: Path) -> Option<Arc<Component>> {
         let root: Path = self.top().name().into();
         if path == root {
             return Some(self.top());
         }
+        // TODO GET RID OF THIS
         let root_prefix = format!("{root}.");
         if !path.starts_with(&root_prefix) {
             eprintln!("{path} does not start with {root_prefix})");
@@ -356,14 +385,51 @@ impl Circuit {
         Some(result)
     }
 
+    /// Walk the instance's module hierarchy, returning all [`Wire`]s.
     pub fn wires(&self) -> Vec<Wire> {
         let mut results = vec![];
         for (path, component) in self.walk_instances() {
             for Wire(_loc, target, expr, wiretype) in component.wires() {
+                // TODO _loc should be loc?
                 results.push(Wire(_loc, path.clone().join(target), expr.rebase(path.clone()), wiretype));
             }
         }
         results
+    }
+
+    pub fn exts(&self) -> Vec<Path> {
+        let mut results = vec![];
+        for (path, component) in self.walk_instances() {
+            if let Component::Ext(_loc, _name, _children) = &*component {
+                results.push(path);
+            }
+        }
+        results
+    }
+
+    /// Walk the instance's module hierarchy, returning all [`Wire`]s.
+    pub fn regs(&self) -> Vec<Path> {
+        let mut results = vec![];
+        for (path, component) in self.walk_instances() {
+            if let Component::Reg(_loc, _name, _typ, _reset) = &*component {
+                results.push(path);
+            }
+        }
+        results
+    }
+
+    /// Walk the instance's module hierarchy, returning all [`Path`]s for everything.
+    pub fn terminals(&self) -> Vec<Path> {
+        self.top().terminals_rec(self.top().name().into())
+    }
+
+    /// Given a [`Path`], if it is a [`Component::Reg`], return its reset value.
+    pub fn reset_for_reg(&self, path: Path) -> Option<Expr> {
+        if let Component::Reg(_loc, _name, _typ, reset) = &*self.component(path)? {
+            Some(reset.clone())
+        } else {
+            None
+        }
     }
 
     fn walk_instances(&self) -> Vec<(Path, Arc<Component>)> {
@@ -394,37 +460,6 @@ impl Circuit {
         results
     }
 
-    pub fn exts(&self) -> Vec<Path> {
-        let mut results = vec![];
-        for (path, component) in self.walk_instances() {
-            if let Component::Ext(_loc, _name, _children) = &*component {
-                results.push(path);
-            }
-        }
-        results
-    }
-
-    pub fn regs(&self) -> Vec<Path> {
-        let mut results = vec![];
-        for (path, component) in self.walk_instances() {
-            if let Component::Reg(_loc, _name, _typ, _reset) = &*component {
-                results.push(path);
-            }
-        }
-        results
-    }
-
-    pub fn terminals(&self) -> Vec<Path> {
-        self.top().terminals_rec(self.top().name().into())
-    }
-
-    pub fn reset_for_reg(&self, path: Path) -> Option<Expr> {
-        if let Component::Reg(_loc, _name, _typ, reset) = &*self.component(path)? {
-            Some(reset.clone())
-        } else {
-            None
-        }
-    }
 }
 
 impl Component {
