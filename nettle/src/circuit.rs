@@ -11,7 +11,7 @@ use crate::reference::Reference;
 
 use anyhow::anyhow;
 
-pub type Name = String;
+type Name = String;
 
 /// A Package is a parsed Nettle file.
 /// It consists of a number of top-level declarations.
