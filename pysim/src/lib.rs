@@ -15,7 +15,7 @@ fn pysim(_py: Python, m: &PyModule) -> PyResult<()> {
 
 #[pyclass]
 #[derive(Clone)]
-struct Ext(nettle::Path, &'static str);
+struct Ext(bitsy::Path, &'static str);
 
 #[pymethods]
 impl Ext {
@@ -53,7 +53,7 @@ impl Ext {
 
 #[pyclass(unsendable)]
 struct Sim {
-    sim: nettle::Sim,
+    sim: bitsy::sim::Sim,
 }
 
 #[pymethods]
@@ -61,35 +61,35 @@ impl Sim {
     #[staticmethod]
     fn load_from(filename: &str, exts: Option<&PyList>) -> Sim {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
-        let circuit = nettle::parse_top(&text, None).unwrap();
+        let circuit = bitsy::parse_top(&text, None).unwrap();
 
-        let mut exts_map: BTreeMap<nettle::Path, Box<dyn nettle::ExtInstance>> = BTreeMap::new();
+        let mut exts_map: BTreeMap<bitsy::Path, Box<dyn bitsy::ExtInstance>> = BTreeMap::new();
         if let Some(exts) = exts {
             for ext in exts.into_iter() {
                 let Ext(path, name) = ext.extract().unwrap();
-                let e: Box<dyn nettle::ExtInstance> = match name {
+                let e: Box<dyn bitsy::ExtInstance> = match name {
                     "Monitor" => {
-                        let e = Box::new(nettle::ext::monitor::Monitor::new());
+                        let e = Box::new(bitsy::ext::monitor::Monitor::new());
                         e
                     },
                     "RiscVDecoder" => {
-                        let e = Box::new(nettle::ext::riscv_decoder::RiscVDecoder::new());
+                        let e = Box::new(bitsy::ext::riscv_decoder::RiscVDecoder::new());
                         e
                     },
                     "Ram" => {
-                        let e = Box::new(nettle::ext::ram::Ram::new());
+                        let e = Box::new(bitsy::ext::ram::Ram::new());
                         e
                     },
                     "Mem" => {
-                        let e = Box::new(nettle::ext::mem::Mem::new());
+                        let e = Box::new(bitsy::ext::mem::Mem::new());
                         e
                     },
                     "Video" => {
-                        let e = Box::new(nettle::ext::video::Video::new());
+                        let e = Box::new(bitsy::ext::video::Video::new());
                         e
                     },
                     "Terminal" => {
-                        let e = Box::new(nettle::ext::terminal::Terminal::new());
+                        let e = Box::new(bitsy::ext::terminal::Terminal::new());
                         e
                     },
                     _ => panic!("Unknown ext module being linked: {name}")
@@ -97,7 +97,7 @@ impl Sim {
                 exts_map.insert(path, e);
             }
         }
-        let sim = nettle::Sim::new_with_exts(&circuit, exts_map);
+        let sim = bitsy::sim::Sim::new_with_exts(&circuit, exts_map);
 
         Sim {
             sim,
@@ -114,14 +114,14 @@ impl Sim {
 
     fn peek(&self, path: &str) -> Value {
         match self.sim.peek(path) {
-            nettle::Value::Word(_width, n) => Value(n),
+            bitsy::Value::Word(_width, n) => Value(n),
             _ => todo!(),
         }
     }
 
     fn poke(&mut self, path: &str, value: &Value) {
         let Value(n) = value;
-        self.sim.poke(path, nettle::Value::Word(u64::MAX, *n));
+        self.sim.poke(path, bitsy::Value::Word(u64::MAX, *n));
     }
 }
 
@@ -137,7 +137,7 @@ impl Value {
 
 #[pyclass]
 struct Package {
-    package: nettle::Package,
+    package: bitsy::Package,
 }
 
 #[pymethods]
@@ -145,7 +145,7 @@ impl Package {
     #[new]
     fn new(filename: &str) -> Self {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
-        let circuit = nettle::parse_top(&text, None).unwrap();
+        let circuit = bitsy::parse_top(&text, None).unwrap();
         let package = circuit.package().clone();
         Package {
             package,

@@ -66,9 +66,9 @@ dependencies = [
 
 [[package]]
 name = "anstyle-query"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3a318f1f38d2418400f8209655bfd825785afd25aa30bb7ba6cc792e4596748"
+checksum = "e28923312444cdd728e4738b3f9c9cac739500909bb3d3c94b43551b16517648"
 dependencies = [
  "windows-sys 0.52.0",
 ]
@@ -141,6 +141,24 @@ name = "bitflags"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
+
+[[package]]
+name = "bitsy"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap 4.4.11",
+ "ctrlc",
+ "fern",
+ "lalrpop",
+ "lalrpop-util",
+ "lazy_static",
+ "log",
+ "riscy",
+ "rustyline",
+ "serde_json",
+]
 
 [[package]]
 name = "bumpalo"
@@ -605,24 +623,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nettle"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap 4.4.11",
- "ctrlc",
- "fern",
- "lalrpop",
- "lalrpop-util",
- "lazy_static",
- "log",
- "riscy",
- "rustyline",
- "serde_json",
-]
-
-[[package]]
 name = "new_debug_unreachable"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -670,9 +670,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.18.0"
+version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd8b5dd2ae5ed71462c540258bedcb51965123ad7e7ccf4b9a8cafaa4a63576d"
+checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
 name = "parking_lot"
@@ -831,7 +831,7 @@ dependencies = [
 name = "pysim"
 version = "0.1.0"
 dependencies = [
- "nettle",
+ "bitsy",
  "pyo3",
 ]
 
@@ -922,9 +922,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.26"
+version = "0.38.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9470c4bf8246c8daf25f9598dca807fb6510347b1e1cfa55749113850c79d88a"
+checksum = "bfeae074e687625746172d639330f1de242a178bf3189b51e35a7a21573513ac"
 dependencies = [
  "bitflags 2.4.1",
  "errno",
