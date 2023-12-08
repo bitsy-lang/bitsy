@@ -1,4 +1,5 @@
 use super::*;
+use crate::sim::Sim;
 
 impl Expr {
     pub fn eval(&self, nettle: &Sim) -> Value {

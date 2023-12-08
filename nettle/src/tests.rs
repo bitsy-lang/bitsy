@@ -1,4 +1,5 @@
 use super::*;
+use crate::sim::Sim;
 
 use std::collections::{BTreeSet, BTreeMap};
 
@@ -245,7 +246,7 @@ fn test_nets() {
         }
     ", None).unwrap();
 
-    let top_nets = nets(&top);
+    let top_nets = crate::sim::nets(&top);
     assert_eq!(top_nets.len(), 2);
 
     let drivers: BTreeSet<Path> = top_nets
@@ -275,7 +276,7 @@ fn test_nets() {
         }
     ", None).unwrap();
 
-    let triangle_numbers_nets = nets(&triangle_numbers_top);
+    let triangle_numbers_nets = crate::sim::nets(&triangle_numbers_top);
     assert_eq!(triangle_numbers_nets.len(), 4);
 }
 

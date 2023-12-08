@@ -2,6 +2,7 @@ mod typecheck;
 mod eval;
 
 use super::*;
+use crate::sim::NetId;
 use std::collections::BTreeMap;
 
 pub use typecheck::TypeError;

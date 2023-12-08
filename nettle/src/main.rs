@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use nettle::*;
+use nettle::sim::*;
 
 mod repl;
 mod testbench;
