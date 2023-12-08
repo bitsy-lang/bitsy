@@ -1,6 +1,7 @@
 pub mod sim;
 mod types;
 mod reference;
+mod package;
 mod circuit;
 mod parse;
 mod value;
@@ -13,6 +14,7 @@ mod loc;
 mod tests;
 
 pub use types::*;
+pub use package::*;
 pub use circuit::*;
 pub use parse::*;
 pub use value::*;
