@@ -9,44 +9,39 @@ syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
 hi link blockComment Comment
 
-syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn
+syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when
 hi link bitsyKeyword Keyword
-syn keyword bitsyConstant true false X io
+syn keyword bitsyConstant true false XXX io
 hi link bitsyConstant Number
 
-syn match bitsyDecNumber /\<[1-9][0-9]*\>/
-syn match bitsyBinNumber /\<0b[01_]\+\>/
-syn match bitsyOctNumber /\<0[0-7_]*\>/
-syn match bitsyHexNumber /\<0x[0-9a-fA-F_]\+\>/
-syn match bitsyDecFloatNumber /\<\([1-9][0-9_]*\|0\)\.[0-9]\+\([eE][+-]\?[0-9_]\+\)\?\>/
-syn match bitsyDecFloatNumber /\<\([1-9][0-9_]*\|0\)[eE][+-]\?[0-9_]\+\>/
-syn match bitsyHexFloatNumber /\<0x[0-9a-fA-F_]\+\.[0-9a-fA-F_]\+\([pP][+-]\?[0-9a-fA-F_]\+\)\?\>/
-syn match bitsyHexFloatNumber /\<0x[0-9a-fA-F_]\+[pP][+-]\?[0-9a-fA-F_]\+\>/
-hi link bitsyDecNumber bitsyNumber
-hi link bitsyBinNumber bitsyNumber
-hi link bitsyOctNumber bitsyNumber
-hi link bitsyHexNumber bitsyNumber
+syn match bitsyNumber /\<[0-9][0-9]*\>/
 hi link bitsyNumber Number
-hi link bitsyDecFloatNumber bitsyFloatNumber
-hi link bitsyHexFloatNumber bitsyFloatNumber
-hi link bitsyFloatNumber Float
 
-syn match bitsyIdentifier "\<[a-z_][A-Za-z0-9_]*"
-syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*"
+syn match bitsyWord /\<[0-9][0-9]*w[0-9][0-9]*\>/
+hi link bitsyWord Number
+
+syn match bitsyIdentifier "\<[a-z_][A-Za-z0-9_]*\>"
+syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*\>"
 hi link bitsyIdentifier Function
 hi link bitsyUpperIdentifier Type
 
 syn match bitsyAt "@"
 syn match bitsyColon ":"
 syn match bitsyRevFatArrow "<="
+syn match bitsyRevFatArrowBang "<=!"
+syn match bitsyRevColonArrow ":="
+syn match bitsyRevColonArrowBang ":=!"
 syn match lt "<"
 syn match gt ">"
 syn match bitsyArrow "->"
 syn match bitsyEq "="
 syn match bitsyEqOp "=="
 syn match bitsyNeqOp "!="
+syn match bitsyAnd "&&"
+syn match bitsyOr "||"
 syn match bitsyFatArrow "=>"
 syn match bitsyAdd "+"
+syn match bitsyAddCarry "+%"
 syn match bitsyMul "*"
 syn match bitsyHole "?"
 hi link bitsyAt Keyword
@@ -55,11 +50,17 @@ hi link lt Keyword
 hi link gt Keyword
 hi link bitsyArrow Keyword
 hi link bitsyRevFatArrow Keyword
+hi link bitsyRevFatArrowBang Keyword
+hi link bitsyRevColonArrow Keyword
+hi link bitsyRevColonArrowBang Keyword
 hi link bitsyFatArrow Keyword
 hi link bitsyEq Keyword
 hi link bitsyEqOp Keyword
 hi link bitsyNeqOp Keyword
+hi link bitsyAnd Keyword
 hi link bitsyAdd Keyword
+hi link bitsyAddCarry Keyword
+hi link bitsyOr Keyword
 hi link bitsyMul Keyword
 hi link bitsyHole Comment
 

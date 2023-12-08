@@ -403,7 +403,7 @@ fn test_examples() {
         for entry in entries {
             if let Ok(entry) = entry {
                 if let Some(file_name) = entry.file_name().to_str() {
-                    if file_name.ends_with(".ntl") {
+                    if file_name.ends_with(".bitsy") {
                         let text = match std::fs::read_to_string(entry.path()) {
                             Ok(text) => text,
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
