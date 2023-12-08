@@ -74,17 +74,17 @@ impl Package {
         // resolve references in ModInsts and ExtInsts
         for moddef in self.moddefs() {
             for child in moddef.children() {
-                if let Component::ExtInst(_loc, name, reference) = &*child {
+                if let Component::ExtInst(loc, name, reference) = &*child {
                     if let Some(extdef) = self.extdef(reference.name()) {
                         reference.resolve_to(extdef).unwrap();
                     } else {
-                        errors.push(CircuitError::Unknown(format!("Undefined reference to ext: {name}")));
+                        errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to ext: {name}")));
                     }
-                } else if let Component::ModInst(_loc, name, reference) = &*child {
+                } else if let Component::ModInst(loc, name, reference) = &*child {
                     if let Some(moddef) = self.moddef(reference.name()) {
                         reference.resolve_to(moddef).unwrap();
                     } else {
-                        errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
+                        errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
                     }
                 }
             }
@@ -96,12 +96,12 @@ impl Package {
         for moddef in self.moddefs() {
             for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
                 let func = |e: &Expr| {
-                    if let Expr::Lit(_loc, Value::Enum(r, name)) = e {
+                    if let Expr::Lit(loc, Value::Enum(r, name)) = e {
                         if let Some(typedef) = self.typedef(r.name()) {
                             r.resolve_to(typedef).unwrap();
                         } else {
                             let mut errors = errors_mutex.lock().unwrap();
-                            errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
+                            errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
                         }
                     }
                 };
@@ -246,10 +246,10 @@ impl Package {
                 errors.extend(self.check_wires_wiretype(component.clone()));
                 errors.extend(self.check_incoming_port_driven(component.clone()));
             },
-            Component::Ext(_loc, _name, children) => {
+            Component::Ext(loc, _name, children) => {
                 for component in children {
                     if !component.is_port() {
-                        errors.push(CircuitError::ExtHasNonPort(component.name().to_string()));
+                        errors.push(CircuitError::ExtHasNonPort(loc.clone(), component.name().to_string()));
                     }
                 }
             },
@@ -270,7 +270,7 @@ impl Package {
             if !seen.contains(child.name()) {
                 seen.insert(child.name());
             } else {
-                errors.push(CircuitError::DuplicateComponent(child.name().to_string()));
+                errors.push(CircuitError::DuplicateComponent(child.clone()));
             }
         }
         errors
@@ -280,11 +280,11 @@ impl Package {
     fn check_wires_duplicate_targets(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let mut errors = vec![];
         let mut seen = BTreeSet::new();
-        for Wire(_loc, target, _expr, _typ) in &component.wires() {
+        for Wire(loc, target, _expr, _typ) in &component.wires() {
             if !seen.contains(target) {
                 seen.insert(target);
             } else {
-                errors.push(CircuitError::MultipleDrivers(target.to_string()));
+                errors.push(CircuitError::MultipleDrivers(loc.clone(), target.to_string()));
             }
         }
         errors
@@ -293,7 +293,7 @@ impl Package {
     fn check_typecheck(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let ctx = match self.context_for(component.clone()) {
             Ok(ctx) => ctx,
-            Err(e) => return vec![CircuitError::Unknown(format!("{e:?}"))],
+            Err(e) => return vec![CircuitError::Unknown(Some(component.loc()), format!("{e:?}"))],
         };
 
         let mut errors = vec![];
@@ -353,8 +353,8 @@ impl Package {
                 let is_local = !target.contains(".");
                 if is_local {
                     match &*component {
-                        Component::Incoming(_loc, name, _typ) =>
-                            errors.push(CircuitError::IncomingPortDriven(name.clone())),
+                        Component::Incoming(loc, name, _typ) =>
+                            errors.push(CircuitError::IncomingPortDriven(loc.clone(), name.clone())),
                         _ => (),
                     }
                 }
@@ -703,25 +703,24 @@ impl Component {
 
 #[derive(Debug, Clone)]
 pub enum CircuitError {
-    ExtHasNonPort(Name),
-    DuplicateComponent(Name),
-    MultipleDrivers(Name),
+    ExtHasNonPort(Loc, Name),
+    DuplicateComponent(Arc<Component>),
+    MultipleDrivers(Loc, Name),
     NoDrivers(Arc<Component>),
     WrongWireType(Loc, Name, WireType),
-    IncomingPortDriven(Name),
+    IncomingPortDriven(Loc, Name),
     NoSuchComponent(Loc, String),
     TypeError(TypeError),
-    Many(Vec<CircuitError>),
     ParseError(Loc, String),
-    Unknown(String),
+    Unknown(Option<Loc>, String),
 }
 
 impl std::fmt::Display for CircuitError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            CircuitError::ExtHasNonPort(name) => write!(f, "Ext declares a component other than an incoming or outgoing: {name}"),
-            CircuitError::DuplicateComponent(name) => write!(f, "Duplicate component: {name}"),
-            CircuitError::MultipleDrivers(name) => write!(f, "Component has multiple drivers: {name}."),
+            CircuitError::ExtHasNonPort(_loc, name) => write!(f, "Ext declares a component other than an incoming or outgoing: {name}"),
+            CircuitError::DuplicateComponent(component) => write!(f, "Duplicate component: {}", component.name()),
+            CircuitError::MultipleDrivers(_loc, name) => write!(f, "Component has multiple drivers: {name}."),
             CircuitError::NoDrivers(component) => write!(f, "Component is not driven: {}", component.name()),
             CircuitError::WrongWireType(_loc, name, wire_type) => {
                 let symbol = match wire_type {
@@ -731,12 +730,11 @@ impl std::fmt::Display for CircuitError {
                 };
                 write!(f, "Wrong wire type: {name} does not support {symbol}")
             },
-            CircuitError::IncomingPortDriven(name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
+            CircuitError::IncomingPortDriven(_loc, name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
             CircuitError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
             CircuitError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
-            CircuitError::Many(errors) => write!(f, "{}", errors.iter().map(|s| s.to_string()).collect::<Vec<_>>().join("\n")),
             CircuitError::ParseError(_loc, _error) => write!(f, "{self:?}"),
-            CircuitError::Unknown(_message) => write!(f, "{self:?}"),
+            CircuitError::Unknown(_loc, _message) => write!(f, "{self:?}"),
         }
     }
 }
@@ -744,17 +742,16 @@ impl std::fmt::Display for CircuitError {
 impl HasLoc for CircuitError {
     fn loc(&self) -> Loc {
         match self {
-            CircuitError::ExtHasNonPort(_name) => Loc::unknown(),
-            CircuitError::DuplicateComponent(_name) => Loc::unknown(),
-            CircuitError::MultipleDrivers(_name) => Loc::unknown(),
+            CircuitError::ExtHasNonPort(loc, _name) => loc.clone(),
+            CircuitError::DuplicateComponent(component) => component.loc(),
+            CircuitError::MultipleDrivers(loc, _name) => loc.clone(),
             CircuitError::NoDrivers(component) => component.loc(),
             CircuitError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
-            CircuitError::IncomingPortDriven(_name) => Loc::unknown(),
+            CircuitError::IncomingPortDriven(loc, _name) => loc.clone(),
             CircuitError::NoSuchComponent(loc, _name) => loc.clone(),
             CircuitError::TypeError(type_error) => type_error.loc(),
-            CircuitError::Many(_errors) => Loc::unknown(),
             CircuitError::ParseError(loc, _error) => loc.clone(),
-            CircuitError::Unknown(_string) => Loc::unknown(),
+            CircuitError::Unknown(loc, _string) => loc.clone().unwrap_or_else(|| Loc::unknown()),
         }
     }
 }
