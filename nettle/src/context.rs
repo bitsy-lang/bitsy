@@ -1,3 +1,4 @@
+/// A [`Context`] is an associative list which assigns each element with type information.
 #[derive(Clone, Debug)]
 pub struct Context<K, T>(Vec<(K, T)>);
 

@@ -7,7 +7,7 @@ use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(grammar);
 
 #[derive(Debug)]
-pub enum ModDecl {
+enum ModDecl {
     Component(Arc<Component>),
     Wire(Wire),
     When(When),

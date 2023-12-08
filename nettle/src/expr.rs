@@ -7,22 +7,37 @@ use std::collections::BTreeMap;
 
 pub use typecheck::TypeError;
 
+/// An expression.
 #[derive(Clone)]
 pub enum Expr {
+    /// A referenec to a port, reg, or node.
     Reference(Loc, Path),
+    /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
     Net(Loc, NetId),
+    /// A literal value.
     Lit(Loc, Value),
+    /// A unary operation. Eg, `!0b101w3`.
     UnOp(Loc, UnOp, Box<Expr>),
+    /// A binary operation. Eg, `1w8 + 1w8`.
     BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
+    /// An `if` expression.
     If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    /// A multiplexer. Eg, `mux(cond, a, b)`.
     Mux(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    /// A concatenate expression. Eg, `cat(foo, 0w1)`.
     Cat(Loc, Vec<Expr>),
+    /// A sign extension expression.
     Sext(Loc, Box<Expr>, u64),
+    /// A word expression. Used to cast user-defined `enum` types to their bit values.
     ToWord(Loc, Box<Expr>),
+    /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
     Vec(Loc, Vec<Expr>),
+    /// A static index. Eg, `foo[0]`.
     Idx(Loc, Box<Expr>, u64),
     IdxRange(Loc, Box<Expr>, u64, u64),
+    /// A static index range. Eg, `foo[8..4]`.
     IdxDyn(Loc, Box<Expr>, Box<Expr>),
+    /// A hole. Eg, `?foo`.
     Hole(Loc, Option<String>),
 }
 
@@ -127,6 +142,7 @@ pub enum BinOp {
 }
 
 impl Expr {
+    /// Walk the expression tree in-order, calling `callback` for each subexpression.
     pub fn with_subexprs(&self, callback: &dyn Fn(&Expr)) {
         match self {
             Expr::Reference(_loc, _path) => callback(self),
@@ -191,6 +207,7 @@ impl Expr {
         }
     }
 
+    /// Walk the expression tree in-order, calling `callback` for each subexpression.
     pub fn with_subexprs_mut(&mut self, callback: &dyn Fn(&mut Expr)) {
         match self {
             Expr::Reference(_loc, _path) => callback(self),
@@ -292,7 +309,10 @@ impl Expr {
         }
     }
 
+    /// Replace all references (see [`Expr::Reference`]) with nets (see [`Expr::Net`])
+    /// to get it ready for simulation.
     pub fn references_to_nets(mut self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
+        // TODO shouldn't this just take self and not &mut self?
         let func = |e: &mut Expr| {
             match &e {
                 Expr::Reference(loc, path) => {
@@ -334,6 +354,7 @@ impl Expr {
     }
 
     pub fn rebase(mut self, current_path: Path) -> Expr {
+        // TODO shouldn't this just take self and not &mut self?
         let func = |e: &mut Expr| {
             match &e {
                 Expr::Reference(loc, path) => *e = Expr::Reference(loc.clone(), current_path.join(path.clone())),
