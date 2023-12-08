@@ -101,7 +101,7 @@ impl Package {
                             r.resolve_to(typedef).unwrap();
                         } else {
                             let mut errors = errors_mutex.lock().unwrap();
-                            errors.push(CircuitError::Unknown(format!("Undefined reference to typedef {name}")));
+                            errors.push(CircuitError::Unknown(format!("Undefined reference to mod {name}")));
                         }
                     }
                 };
@@ -373,19 +373,16 @@ impl Package {
 
         for (path, component) in terminals_remaining.into_iter() {
             let mut is_incoming_port = false;
-            let mut is_outgoing_port = false;
 
             if let Component::Incoming(_loc, _name, _typ) = &*component {
                 is_incoming_port = true;
-            } else if let Component::Incoming(_loc, _name, _typ) = &*component {
-                is_outgoing_port = true;
             }
 
             let is_local = !path.contains(".");
 
             if !is_local && is_incoming_port {
                 errors.push(CircuitError::NoDrivers(component.clone()));
-            } else if is_local && is_outgoing_port {
+            } else if is_local && !is_incoming_port {
                 errors.push(CircuitError::NoDrivers(component.clone()));
             }
         }
@@ -637,7 +634,9 @@ impl Component {
 
     fn wires(&self) -> Vec<Wire> {
         match self {
-            Component::Mod(_loc, _name, _children, wires, _whens) => wires.clone(),
+            Component::Mod(_loc, _name, _children, wires, _whens) => {
+                wires.clone()
+            }
             _ => vec![],
         }
     }
@@ -748,7 +747,7 @@ impl HasLoc for CircuitError {
             CircuitError::ExtHasNonPort(_name) => Loc::unknown(),
             CircuitError::DuplicateComponent(_name) => Loc::unknown(),
             CircuitError::MultipleDrivers(_name) => Loc::unknown(),
-            CircuitError::NoDrivers(_name) => Loc::unknown(),
+            CircuitError::NoDrivers(component) => component.loc(),
             CircuitError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
             CircuitError::IncomingPortDriven(_name) => Loc::unknown(),
             CircuitError::NoSuchComponent(loc, _name) => loc.clone(),
