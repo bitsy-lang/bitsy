@@ -6,6 +6,7 @@ pub mod loc;
 //mod expr;
 mod path;
 mod value;
+pub mod mlir;
 
 pub use circuit::*;
 pub use sim::*;
