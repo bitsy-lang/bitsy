@@ -1,5 +1,5 @@
 mod Term {
-    ext terminal of Terminal;
+    mod terminal of Terminal;
 
     reg counter of Word<8> reset 32w8;
     counter <= if counter < 127w8 {
@@ -12,7 +12,7 @@ mod Term {
     terminal.in_data := counter;
 }
 
-ext Terminal {
+ext mod Terminal {
     incoming in_data of Word<8>;
     incoming in_valid of Word<1>;
 }

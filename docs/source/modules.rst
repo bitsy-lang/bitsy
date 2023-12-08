@@ -65,7 +65,7 @@ which might log the value presented on the port `in` on every cycle.
 
 .. code-block::
 
-   ext Monitor {
+   ext mod Monitor {
         incoming in of Word<8>;
     }
 

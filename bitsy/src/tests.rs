@@ -115,7 +115,7 @@ fn vip() {
             vip.in := counter.out;
         }
 
-        ext Vip {
+        ext mod Vip {
             incoming in of Word<4>;
         }
 

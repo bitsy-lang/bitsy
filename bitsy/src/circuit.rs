@@ -41,9 +41,7 @@ impl Circuit {
         let mut result: Arc<Component> = component;
         for part in path.split(".") {
             if let Some(child) = result.child(part) {
-                if let Component::ExtInst(_loc, _name, extdef) = &*child {
-                    result = extdef.get().unwrap().clone();
-                } else if let Component::ModInst(_loc, _name, moddef) = &*child {
+                if let Component::ModInst(_loc, _name, moddef) = &*child {
                     result = moddef.get().unwrap().clone();
                 } else {
                     result = child.clone();
@@ -114,14 +112,7 @@ impl Circuit {
                 } else {
                     panic!("Undefined reference to ext: {name}")
                 }
-            } else if let Component::ExtInst(_loc, name, reference) = &*child {
-                let package = self.package();
-                if let Some(extdef) = package.extdef(reference.name()) {
-                    results.extend(self.walk_instances_rec(extdef.clone(), path.join(child.name().into())));
-                } else {
-                    panic!("Undefined reference to ext: {name}")
-                }
-            } else {
+            }  else {
                 results.extend(self.walk_instances_rec(child.clone(), path.join(child.name().into())));
             }
         }
@@ -136,7 +127,6 @@ impl Component {
             Component::Mod(_loc, name, _children, _wires, _whens) => name.as_str(),
             Component::ModInst(_loc, name, _defname) => name.as_str(),
             Component::Ext(_loc, name, _children) => name.as_str(),
-            Component::ExtInst(_loc, name, _defname) => name.as_str(),
             Component::Incoming(_loc, name, _typ) => name.as_str(),
             Component::Outgoing(_loc, name, _typ) => name.as_str(),
             Component::Node(_loc, name, _typ) => name.as_str(),
@@ -158,7 +148,6 @@ impl Component {
             Component::Mod(_loc, _name, children, _wires, _whens) => children.iter().cloned().collect(),
             Component::ModInst(_loc, _name, _defname) => vec![],
             Component::Ext(_loc, _name, children) => children.iter().cloned().collect(),
-            Component::ExtInst(_loc, _name, _defname) => vec![],
             Component::Incoming(_loc, _name, _typ) => vec![],
             Component::Outgoing(_loc, _name, _typ) => vec![],
             Component::Node(_loc, _name, _typ) => vec![],
@@ -195,13 +184,6 @@ impl Component {
                     }
                 }
                 Component::Ext(_loc, name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
-                Component::ExtInst(_loc, name, defname) => {
-                    if let Some(extdef) = defname.get() {
-                        results.extend(extdef.terminals_rec(path.join(name.clone().into())))
-                    } else {
-                        panic!("External module {name} hasn't been resolved.")
-                    }
-                }
             }
         }
         results

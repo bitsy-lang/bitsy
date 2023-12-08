@@ -1,4 +1,4 @@
-enum InstrType {
+enum type InstrType {
     I = 1w3;
     S = 2w3;
     B = 3w3;
@@ -6,7 +6,7 @@ enum InstrType {
     J = 5w3;
 }
 
-enum Opcode {
+enum type Opcode {
     OP      = 0b0110011w7;
     OP_IMM  = 0b0010011w7;
     LOAD    = 0b0000011w7;
@@ -18,7 +18,7 @@ enum Opcode {
     JALR    = 0b1100111w7;
 }
 
-enum AluOp {
+enum type AluOp {
     AND = 0w4;
     OR = 1w4;
     ADD = 2w4;
@@ -350,11 +350,11 @@ mod Ifetch {
     instr := instr_mem_data;
 }
 
-ext RiscvDecoder {
+ext mod RiscvDecoder {
     incoming in of Word<32>;
 }
 
-ext InstrMem {
+ext mod InstrMem {
     incoming read_addr of Word<32>;
     outgoing read_data of Word<32>;
 
@@ -363,7 +363,7 @@ ext InstrMem {
     incoming write_data of Word<32>;
 }
 
-ext Mem {
+ext mod Mem {
     incoming read_addr of Word<32>;
     outgoing read_data of Word<32>;
 

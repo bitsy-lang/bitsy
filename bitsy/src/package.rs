@@ -91,16 +91,10 @@ impl Package {
         let mut errors = vec![];
         self.resolve_references_component_types();
 
-        // resolve references in ModInsts and ExtInsts
+        // resolve references in ModInsts
         for moddef in self.moddefs() {
             for child in moddef.children() {
-                if let Component::ExtInst(loc, name, reference) = &*child {
-                    if let Some(extdef) = self.extdef(reference.name()) {
-                        reference.resolve_to(extdef).unwrap();
-                    } else {
-                        errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to ext: {name}")));
-                    }
-                } else if let Component::ModInst(loc, name, reference) = &*child {
+                if let Component::ModInst(loc, name, reference) = &*child {
                     if let Some(moddef) = self.moddef(reference.name()) {
                         reference.resolve_to(moddef).unwrap();
                     } else {
@@ -144,7 +138,6 @@ impl Package {
                     Component::Mod(_loc, _name, _children, _wires, _whens) => (),
                     Component::ModInst(_loc, _name, _moddef) => (),
                     Component::Ext(_loc, _name, _children) => (),
-                    Component::ExtInst(_loc, _name, _defname) => (),
                     Component::Node(_loc, _name, typ) => self.resolve_references_type(typ),
                     Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ),
                     Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ),
@@ -210,16 +203,6 @@ impl Package {
                         results.push((ext_path.join(path), component.clone()));
                     }
                 },
-                Component::ExtInst(_loc, name, defname) => {
-                    let ext_path: Path = name.to_string().into();
-                    if let Some(extdef) = defname.get() {
-                        for (path, component) in extdef.port_paths() {
-                            results.push((ext_path.join(path), component.clone()));
-                        }
-                    } else {
-                        panic!("External module {name} hasn't been resolved.")
-                    }
-                },
             }
         }
         results
@@ -230,7 +213,6 @@ impl Package {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,
             Component::Ext(_loc, _name, _children) => None,
-            Component::ExtInst(_loc, _name, _defname) => None,
             Component::Node(_loc, _name, typ) => Some(typ.clone()),
             Component::Outgoing(_loc, _name, typ) => Some(typ.clone()),
             Component::Incoming(_loc, _name, typ) => Some(typ.clone()),
@@ -242,9 +224,7 @@ impl Package {
         let mut result: Arc<Component> = component;
         for part in path.split(".") {
             if let Some(child) = result.child(part) {
-                if let Component::ExtInst(_loc, _name, extdef) = &*child {
-                    result = extdef.get().unwrap().clone();
-                } else if let Component::ModInst(_loc, _name, moddef) = &*child {
+                if let Component::ModInst(_loc, _name, moddef) = &*child {
                     result = moddef.get().unwrap().clone();
                 } else {
                     result = child.clone();
@@ -300,7 +280,6 @@ pub enum Component {
     Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
     ModInst(Loc, Name, Reference<Component>),
     Ext(Loc, Name, Vec<Arc<Component>>),
-    ExtInst(Loc, Name, Reference<Component>), // TODO GET RID OF THIS
     Incoming(Loc, Name, Type),
     Outgoing(Loc, Name, Type),
     Node(Loc, Name, Type),
@@ -320,7 +299,6 @@ impl HasLoc for Component {
             Component::Mod(loc, _name, _children, _wires, _whens) => loc.clone(),
             Component::ModInst(loc, _name, _moddef) => loc.clone(),
             Component::Ext(loc, _name, _children) => loc.clone(),
-            Component::ExtInst(loc, _name, _extdef) => loc.clone(),
             Component::Incoming(loc, _name, _typ) => loc.clone(),
             Component::Outgoing(loc, _name, _typ) => loc.clone(),
             Component::Node(loc, _name, _typ) => loc.clone(),
@@ -328,5 +306,3 @@ impl HasLoc for Component {
         }
     }
 }
-
-

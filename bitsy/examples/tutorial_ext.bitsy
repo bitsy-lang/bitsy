@@ -5,6 +5,6 @@ mod Top {
     monitor.in := counter;
 }
 
-ext Monitor {
+ext mod Monitor {
     incoming in of Word<8>;
 }

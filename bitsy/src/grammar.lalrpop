@@ -34,7 +34,7 @@ ModDef: Arc<Component> = {
 }
 
 ExtDef: Arc<Component> = {
-    <ll:@L> "ext" <id:Id> "{"
+    <ll:@L> "ext" "mod" <id:Id> "{"
         <decls:ModDecl*>
     "}" <rr:@R> => {
         let mut children = vec![];
@@ -53,7 +53,7 @@ ExtDef: Arc<Component> = {
 }
 
 TypeDef: Arc<TypeDef> = {
-    <ll:@L> "enum" <name:Id> "{"
+    <ll:@L> "enum" "type" <name:Id> "{"
         <values:(Id "=" Value ";")*>
     "}" <rr:@R> => {
         Arc::new(TypeDef {
@@ -87,10 +87,6 @@ ModInst: Arc<Component> = {
     <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Arc::new(Component::ModInst(Loc::from(source_info, ll, rr), id, modname.into())),
 }
 
-ExtInst: Arc<Component> = {
-    <ll:@L> "ext" <id:Id> "of" <defname:Id> ";" <rr:@R> => Arc::new(Component::ExtInst(Loc::from(source_info, ll, rr), id, defname.into())),
-}
-
 ModDecl: ModDecl  = {
     <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Incoming(Loc::from(source_info, ll, rr), id, typ))),
     <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ))),
@@ -99,7 +95,6 @@ ModDecl: ModDecl  = {
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:ModInst> => ModDecl::Component(m),
-    <m:ExtInst> => ModDecl::Component(m),
     <wire:Wire> => ModDecl::Wire(wire),
 }
 

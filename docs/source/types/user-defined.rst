@@ -11,7 +11,7 @@ to capture the list of 7-bit instruction opcodes:
 
 .. code-block:: bitsy
 
-    enum Opcode {
+    enum type Opcode {
         OP      = 0b0110011w7;
         OP_IMM  = 0b0010011w7;
         LOAD    = 0b0000011w7;
