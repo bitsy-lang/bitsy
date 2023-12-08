@@ -1,5 +1,7 @@
 use super::*;
 
+/// A monitor.
+/// On reset and on clock, whatever value is presesnted to the `in` port is printed.
 #[derive(Debug)]
 pub struct Monitor(Option<String>);
 

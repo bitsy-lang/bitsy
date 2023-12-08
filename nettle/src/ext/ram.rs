@@ -1,5 +1,9 @@
 use super::*;
 
+/// A same-cycle random-access memory.
+/// Has 64KiB of memory.
+/// Addressed by a 16-bit address.
+/// Reads and writes an 8-bit word at a time.
 #[derive(Debug)]
 pub struct Ram {
     mem: [u8; 1 << 16],

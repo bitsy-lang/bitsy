@@ -1,5 +1,8 @@
 use super::*;
 
+/// Debug monitor for a RISC-V core.
+/// On reset and on clock, decodes the 32-bit value presented to `in` as a RV32I instruction and
+/// prints it to the screen.
 #[derive(Debug)]
 pub struct RiscVDecoder(Option<String>);
 
