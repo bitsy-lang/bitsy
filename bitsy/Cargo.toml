@@ -3,6 +3,7 @@ name = "bitsy"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
+default-run = "bitsy"
 
 [build-dependencies]
 lalrpop = "0.20.0"
