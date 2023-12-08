@@ -36,7 +36,7 @@ impl Expr {
                 e2.typecheck(type_expected, ctx.clone())?;
                 Ok(())
             },
-            Expr::Cat(_loc, _es) => unreachable!(),
+            Expr::Cat(_loc, _es) => Err(TypeError::CantInferType(self.clone())),
             Expr::Sext(_loc, e, n) => {
                 if let Some(Type::Word(m)) = e.typeinfer(ctx.clone()) {
                     if *n >= m {
