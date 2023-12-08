@@ -1,0 +1,28 @@
+mod Buffer {
+    incoming in  of Word<1>;
+    outgoing out of Word<1>;
+
+    reg queue of Word<1> reset 0w8;
+
+    queue <= in;
+    out := queue;
+}
+
+mod ShiftReg {
+    incoming cin  of Word<1>;
+    outgoing cout of Word<1>;
+    outgoing val  of Word<4>;
+
+    mod buf0 of Buffer;
+    mod buf1 of Buffer;
+    mod buf2 of Buffer;
+    mod buf3 of Buffer;
+
+    buf0.in <= cin;
+    buf1.in <= buf0.out;
+    buf2.in <= buf1.out;
+    buf3.in <= buf2.out;
+    cout := buf3.out;
+
+    val := cat(buf3.out, buf2.out, buf1.out, buf0.out);
+}

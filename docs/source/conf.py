@@ -3,7 +3,6 @@ import sys
 sys.path.insert(0, os.path.abspath('.'))
 
 import bitsy_ext
-import nettle_ext
 import sphinx_rtd_theme
 from sphinx.highlighting import lexers
 
@@ -26,7 +25,6 @@ author = 'Michael Maloney'
 extensions = [
     "sphinx_rtd_theme",
     "bitsy_ext",
-    "nettle_ext",
 ]
 
 templates_path = ['_templates']
@@ -48,7 +46,6 @@ default_role = 'code'
 
 # Add your custom lexer to the list of supported lexers
 lexers['bitsy'] = bitsy_ext.BitsyLexer()
-lexers['nettle'] = nettle_ext.NettleLexer()
 
 # Set the default lexer for your language
 primary_domain = 'bitsy'

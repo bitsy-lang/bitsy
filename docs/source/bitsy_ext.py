@@ -12,10 +12,8 @@ class BitsyLexer(RegexLexer):
     filenames = ['*.bitsy']
 
     KEYWORDS = [
-        'pub', 'enum', 'of', 'end', 'shape', 'fn', 'let', 'if', 'else', 'match',
-        'port', 'incoming', 'outgoing', 'wire', 'reg', 'port', 'struct', 'field',
-        'otherwise', 'mod', 'gate', 'to', 'bundle', 'miso', 'mosi', 'interface',
-        'master', 'slave', 'extern', 'connect', 'as',
+        'top', 'reg', 'node', 'mod', 'ext', 'if', 'reset',
+        'incoming', 'outgoing', 'enum',
     ]
 
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
@@ -25,11 +23,16 @@ class BitsyLexer(RegexLexer):
         'root': [
             (r'=>', Punctuation),
             (r'<=', Punctuation),
+            (r':=', Punctuation),
+            (r'!', Punctuation),
             (r'=', Punctuation),
             (r'==', Punctuation),
             (r'\.', Punctuation),
             (r'[-+()<>{}\[\],;]', Punctuation),
             (r'\$', Punctuation),
+            (r'[0-9][0-9]*w[0-9][0-9]*', Number.Integer),
+            (r'[0-9]b[0-1]*w[0-9][0-9]*', Number.Integer),
+            (r'[0-9]x[0-9a-fA-F]*w[0-9][0-9]*', Number.Integer),
             (r'[0-9]+', Number.Integer),
             (words(KEYWORDS, suffix=r'\b'), Keyword),
             (r'@\b([a-zA-Z][a-zA-Z0-9]*)\b', Name.Decorator),
@@ -50,7 +53,6 @@ class BitsyLexer(RegexLexer):
     }
 
 
-
 class BitsyDomain(Domain):
     name = 'bitsy'
     label = 'Bitsy Language'
@@ -62,3 +64,4 @@ class BitsyDomain(Domain):
 
 def setup(app):
     app.add_domain(BitsyDomain)
+

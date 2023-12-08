@@ -7,11 +7,11 @@ SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
-EXAMPLES      = $(wildcard ../nettle/examples/*.ntl)
+EXAMPLES      = $(wildcard ../nettle/examples/*.bitsy)
 
 auto: examples $(EXAMPLES)
 	mkdir -p ./source/examples/
-	cp ../nettle/examples/*.ntl ./source/examples/
+	cp ../bitsy/examples/*.bitsy ./source/examples/
 	poetry run make html
 
 .PHONY: auto clean examples

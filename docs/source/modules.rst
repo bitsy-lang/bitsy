@@ -10,37 +10,31 @@ A module has a list of pins, a list of components, and a list of wires.
 
 The following example is a `Buffer` module, which demonstrates all three parts:
 
-.. code-block::
+.. literalinclude:: examples/buffer.bitsy
+   :language: bitsy
+   :linenos:
 
-    pub mod Buffer
-        incoming in  of Bit
-        outgoing out of Bit
-
-        reg queue of Bit init false
-
-        wire queue <= io.in
-        wire io.out <= queue
-    end
-
-This module is marked `pub` and is thus public.
-It is guaranteed not to be optimized away, and it may be imported from other packages.
-
-This module has two pins, an incoming pins `in` and and outgoing pins `out`.
-Both carry a value of shape `Bit` (a byte) to and from the module.
+This module has two ports, an incoming port `in` and and outgoing port `out`.
+Both carry a value of type `Word<1>` (that is, a bit) to and from the module.
 
 This module contains one subcomponent: a `reg` (register) named `queue`.
-It stores a value of shape `Bit`.
-The `init` clause shows the reset value of the register is `false`.
+It stores a value of type `Word<1>`.
+The `reset` clause declares that the reset value of the register is `0w1`.
+This is an 1-bit representation of the number 0.
 
 The final two statements are wires.
-The first, `wire queue <= io.in` will connect the pin `io.in` to the data pin of the register `queue`.
-The first, `wire io.out <= queue` will connect the output pin of the register `queue` to the pin `io.out`.
-The `io` in `io.in` and `io.out` is a component representing the pins of the current module.
 
-Since no domain information has been provided, the module `Buffer` implicitly operates on an implicit clock and reset.
-Thus, on each clock cycle, the register `queue` will latch the value on `io.in`,
-while simultaneously driving `io.out` with the value that `queue` had on the previous cycle.
+The first wire, `queue <= in`, will connect the incoming port `in` to the register `queue`.
+The syntax `<=` is a *latching* wire.
+It is only used with `reg`\s, and it tells us that the register will latch the value of `in` on the next clock cycle.
 
+The second wire, `out := queue`, will connect the register `queue` to the outgoing port `out`.
+The syntax `:=` is a *direct* connect.
+It is used with ports and with nodes,
+and it tells us that the value of `queue` will be sent to the port `out` on the same clock cycle.
+
+In Bitsy, clocks and resets are usually passed implicitly to a module.
+There is no need to declare them for synchronous circuits.
 
 Module Instances
 ----------------
@@ -49,68 +43,34 @@ Once a module is defined, it may be instantiated.
 Let's assume the above definition for `Buffer` has been given.
 We can use several buffers in a row to make a 4-bit shift register:
 
-.. code-block::
+.. literalinclude:: examples/tutorial_shift_reg.bitsy
+   :language: bitsy
+   :linenos:
 
-    pub mod ShiftReg
-        incoming cin  of Bit
-        outgoing cout of Bit
-        outgoing val  of Word<4>
+You can see the experssion `cat(buf3.out, buf2.out, buf1.out, buf0.out)` is used
+to concatenate the output of each of the buffers together.
+Since each of the four values is a single bit, the result is a `Word<4>`.
 
-        mod buf0 of Buffer
-        mod buf1 of Buffer
-        mod buf2 of Buffer
-        mod buf3 of Buffer
+You can see at a glance that because the module has four latch wires (`<=`),
+a value will take four cycles to get from `cin` to `cout`.
 
-        wire io.cout <= buf3.out
-        wire buf3.in <= buf2.out
-        wire buf2.in <= buf1.out
-        wire buf1.in <= buf0.out
-        wire buf0.in <= io.cin
-        wire io.val <= cat(buf3.val, buf2.val, buf1.val, buf0.val)
-    end
+External Modules
+----------------
+In Bitsy, you can declare modules whose behavior is determined by the simulator.
+These are called external modules.
+They are declared with the `ext` keyword, together with their list of ports.
 
-
-Extern Modules
---------------
-In Bitsy, externally-defined modules are called extern mods.
-They can be declared with the `extern mod` keyword, together with their list of pins.
-
-The rules for their simulation are supplied through a bus functional model.
+The following would be a declaration for an external module
+which might log the value presented on the port `in` on every cycle.
 
 .. code-block::
 
-   pub extern mod And
-        incoming a of Bit
-        incoming b of Bit
-        outgoing z of Bit
-    end
+   ext Monitor {
+        incoming in of Word<8>;
+    }
 
+These can be instantiated with the `mod` keyword just like a normal module.
 
-Parameters
-----------
-Modules and extern mods may be parameterized.
-The parameters are given in angle brackets next to the name of the module or extern mod.
-
-For example, a parameterized version of the buffer would be:
-
-.. code-block::
-
-    pub mod Buffer<S of Shape>
-        incoming in  of S
-        outgoing out of S
-
-        reg queue of S
-
-        wire queue <= io.in
-        wire io.out <= queue
-    end
-
-A parameterized version of the `And` extern mod could work on words of length n:
-
-.. code-block::
-
-   pub extern mod And<n of Nat>
-        incoming a of Word<n>
-        incoming b of Word<n>
-        outgoing z of Word<n>
-    end
+.. literalinclude:: examples/tutorial_ext.bitsy
+   :language: bitsy
+   :linenos:

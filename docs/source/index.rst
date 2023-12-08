@@ -6,12 +6,9 @@ The Bitsy Hardware Language
 
   getting-started
   modules
-  shapes/index
+  types/index
   expressions/index
-  interfaces
   principles
-  examples
-  nettle/index
 
 Bitsy is a modern hardware description language.
 
