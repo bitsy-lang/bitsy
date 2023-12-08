@@ -1,9 +1,12 @@
 [package]
 name = "bitsy"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+authors = ["Michael Maloney"]
 build = "build.rs"
 default-run = "bitsy"
+homepage = "https://bitsy-lang.org/"
+publish = false
 
 [build-dependencies]
 lalrpop = "0.20.0"
