@@ -36,16 +36,16 @@ fn buffer() {
         }
     ", None).unwrap();
 
-    let mut nettle = Sim::new(&buffer);
+    let mut bitsy = Sim::new(&buffer);
 
-    nettle.poke("top.in", true.into());
-    dbg!(&nettle.peek("top.r"));
-    assert_eq!(nettle.peek("top.r"), Value::X);
-    assert_eq!(nettle.peek("top.out"), Value::X);
+    bitsy.poke("top.in", true.into());
+    dbg!(&bitsy.peek("top.r"));
+    assert_eq!(bitsy.peek("top.r"), Value::X);
+    assert_eq!(bitsy.peek("top.out"), Value::X);
 
-    nettle.clock();
-    assert_eq!(nettle.peek("top.r"), true.into());
-    assert_eq!(nettle.peek("top.out"), true.into());
+    bitsy.clock();
+    assert_eq!(bitsy.peek("top.r"), true.into());
+    assert_eq!(bitsy.peek("top.out"), true.into());
 }
 
 #[test]
@@ -59,15 +59,15 @@ fn counter() {
         }
     ", None).unwrap();
 
-    let mut nettle = Sim::new(&counter);
+    let mut bitsy = Sim::new(&counter);
 
-    nettle.reset();
+    bitsy.reset();
 
     for i in 0..16 {
-        assert_eq!(nettle.peek("top.out"), Value::Word(4, i));
-        nettle.clock();
+        assert_eq!(bitsy.peek("top.out"), Value::Word(4, i));
+        bitsy.clock();
     }
-    assert_eq!(nettle.peek("top.out"), Value::Word(4, 0));
+    assert_eq!(bitsy.peek("top.out"), Value::Word(4, 0));
 }
 
 #[test]
@@ -87,13 +87,13 @@ fn triangle_numbers() {
         }
     ", None).unwrap();
 
-    let mut nettle = Sim::new(&top);
-    nettle.reset();
+    let mut bitsy = Sim::new(&top);
+    bitsy.reset();
 
     for i in 0..16 {
         let triange = (i * (i + 1)) / 2;
-        assert_eq!(nettle.peek("top.out"), Value::Word(32, triange), "Failed on iteration i = {i}");
-        nettle.clock();
+        assert_eq!(bitsy.peek("top.out"), Value::Word(32, triange), "Failed on iteration i = {i}");
+        bitsy.clock();
     }
 }
 
@@ -122,13 +122,13 @@ fn vip() {
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     exts.insert("top.vip".into(), monitor);
 
-    let mut nettle = Sim::new_with_exts(&top, exts);
+    let mut bitsy = Sim::new_with_exts(&top, exts);
 
-    nettle.reset();
-    nettle.clock();
-    nettle.clock();
-    nettle.clock();
-    nettle.clock();
+    bitsy.reset();
+    bitsy.clock();
+    bitsy.clock();
+    bitsy.clock();
+    bitsy.clock();
 }
 
 #[test]
@@ -146,12 +146,12 @@ fn ifs() {
         }
     ", None).unwrap();
 
-    let mut nettle = Sim::new(&top);
+    let mut bitsy = Sim::new(&top);
 
-    nettle.poke("top.in", true.into());
-    assert_eq!(nettle.peek("top.out"), Value::Word(8, 42));
-    nettle.poke("top.in", false.into());
-    assert_eq!(nettle.peek("top.out"), Value::Word(8, 100));
+    bitsy.poke("top.in", true.into());
+    assert_eq!(bitsy.peek("top.out"), Value::Word(8, 42));
+    bitsy.poke("top.in", false.into());
+    assert_eq!(bitsy.peek("top.out"), Value::Word(8, 100));
 }
 
 #[test]
@@ -198,8 +198,8 @@ fn test_eval() {
         }
     ", None).unwrap();
 
-    let mut nettle = Sim::new(&top);
-    nettle.reset();
+    let mut bitsy = Sim::new(&top);
+    bitsy.reset();
 
     let tests = vec![
         ("top.x", true.into()),
@@ -230,7 +230,7 @@ fn test_eval() {
 
     for (expr_str, v) in tests {
         let expr: Expr = expr_str.into();
-        assert_eq!(expr.eval(&nettle), v, "{expr:?} does not equal {v:?}");
+        assert_eq!(expr.eval(&bitsy), v, "{expr:?} does not equal {v:?}");
     }
 }
 
@@ -290,8 +290,8 @@ fn test_node() {
         }
     ", None).unwrap();
 
-    let nettle = Sim::new(&top);
-    assert_eq!(nettle.peek("top.n"), Value::Word(1, 1));
+    let bitsy = Sim::new(&top);
+    assert_eq!(bitsy.peek("top.n"), Value::Word(1, 1));
 }
 
 #[test]

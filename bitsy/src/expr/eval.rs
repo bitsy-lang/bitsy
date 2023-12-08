@@ -2,19 +2,19 @@ use super::*;
 use crate::sim::Sim;
 
 impl Expr {
-    pub fn eval(&self, nettle: &Sim) -> Value {
+    pub fn eval(&self, bitsy: &Sim) -> Value {
         match self {
-            Expr::Reference(_loc, path) => nettle.peek(path.clone()),
-            Expr::Net(_loc, netid) => nettle.peek_net(*netid),
+            Expr::Reference(_loc, path) => bitsy.peek(path.clone()),
+            Expr::Net(_loc, netid) => bitsy.peek_net(*netid),
             Expr::Lit(_loc, value) => value.clone(),
             Expr::UnOp(_loc, op, e) => {
-                match (op, e.eval(nettle)) {
+                match (op, e.eval(bitsy)) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
             },
             Expr::BinOp(_loc, op, e1, e2) => {
-                match (op, e1.eval(nettle), e2.eval(nettle)) {
+                match (op, e1.eval(bitsy), e2.eval(bitsy)) {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
                     (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
@@ -34,9 +34,9 @@ impl Expr {
                 }
             },
             Expr::If(_loc, cond, e1, e2) => {
-                let cond_v = cond.eval(nettle);
-                let v1 = e1.eval(nettle);
-                let v2 = e2.eval(nettle);
+                let cond_v = cond.eval(bitsy);
+                let v1 = e1.eval(bitsy);
+                let v2 = e2.eval(bitsy);
                 if cond_v.is_x() || v1.is_x() || v2.is_x() {
                     return Value::X;
                 }
@@ -47,9 +47,9 @@ impl Expr {
                 }
             },
             Expr::Mux(_loc, cond, e1, e2) => {
-                let cond_v = cond.eval(nettle);
-                let v1 = e1.eval(nettle);
-                let v2 = e2.eval(nettle);
+                let cond_v = cond.eval(bitsy);
+                let v1 = e1.eval(bitsy);
+                let v2 = e2.eval(bitsy);
                 if cond_v.is_x() || v1.is_x() || v2.is_x() {
                     return Value::X;
                 }
@@ -63,7 +63,7 @@ impl Expr {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 let mut wss: Vec<Value> = vec![];
-                for v in es.iter().map(|e| e.eval(nettle)).rev() {
+                for v in es.iter().map(|e| e.eval(bitsy)).rev() {
                     if let Value::X = v {
                         return Value::X;
                     } else if let Value::Word(width, val) = v {
@@ -82,7 +82,7 @@ impl Expr {
                 }
             },
             Expr::Sext(_loc, e, n) => {
-                match e.eval(nettle) {
+                match e.eval(bitsy) {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
                     Value::Word(w, x) => {
@@ -103,7 +103,7 @@ impl Expr {
                 }
             }
             Expr::ToWord(_loc, e) => {
-                let v = e.eval(nettle);
+                let v = e.eval(bitsy);
                 match v {
                     Value::X => Value::X,
                     Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name).unwrap(),
@@ -112,7 +112,7 @@ impl Expr {
             },
             Expr::Vec(_loc, es) => {
                 let mut vs = vec![];
-                for v in es.iter().map(|e| e.eval(nettle)) {
+                for v in es.iter().map(|e| e.eval(bitsy)) {
                     if let Value::X = v {
                         return Value::X;
                     } else {
@@ -122,7 +122,7 @@ impl Expr {
                 Value::Vec(vs)
             },
             Expr::Idx(_loc, e, i) => {
-                let value = e.eval(nettle);
+                let value = e.eval(bitsy);
                 if let Value::X = value {
                     Value::X
                 } else if let Value::Word(width, val) = value {
@@ -142,7 +142,7 @@ impl Expr {
                 }
             },
             Expr::IdxRange(_loc, e, j, i) => {
-                let value = e.eval(nettle);
+                let value = e.eval(bitsy);
                 if let Value::X = value {
                     Value::X
                 } else if let Value::Word(width, val) = value {
@@ -168,13 +168,13 @@ impl Expr {
                 }
             },
             Expr::IdxDyn(_loc, e, i) => {
-                let index = if let Value::Word(_width, val) = i.eval(nettle) {
+                let index = if let Value::Word(_width, val) = i.eval(bitsy) {
                     val
                 } else {
                     panic!("Invalid index: {i:?}");
                 };
 
-                let value = e.eval(nettle);
+                let value = e.eval(bitsy);
                 if let Value::Word(width, val) = value {
                     if index < val {
                         Value::Word(1, (val >> index) & 1)

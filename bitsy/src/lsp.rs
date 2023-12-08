@@ -1,8 +1,8 @@
 #![allow(unused, dead_code)]
 
 use serde_json::{Value, json};
-use nettle::Circuit;
-use nettle::{Loc, HasLoc, SourceInfo};
+use bitsy::Circuit;
+use bitsy::{Loc, HasLoc, SourceInfo};
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -14,7 +14,7 @@ use log::*;
 fn main() {
     init_logging();
     std::panic::set_hook(Box::new(panic_handler));
-    info!("Starting nettle-lsp");
+    info!("Starting bitsy-lsp");
 
     let (message_send, message_recv) = channel::<Value>();
 
@@ -109,7 +109,7 @@ fn init_logging() {
                 message
             ))
         })
-        .chain(fern::log_file("/home/tac-tics/nettle-lsp.txt").unwrap());
+        .chain(fern::log_file("/home/tac-tics/bitsy-lsp.txt").unwrap());
 
     let level = std::env::var("LEVEL").unwrap_or_default().to_string();
 
@@ -160,9 +160,9 @@ struct Buffer {
 
 impl Buffer {
     fn new(uri: &Uri, text: &str) -> Buffer {
-        let circuit = match nettle::parse_top(text, None) {
+        let circuit = match bitsy::parse_top(text, None) {
             Ok(circuit) => circuit,
-            Err(_e) => nettle::parse_top("mod Top {}", Some("Top")).unwrap(),
+            Err(_e) => bitsy::parse_top("mod Top {}", Some("Top")).unwrap(),
         };
 
         Buffer {
@@ -180,7 +180,7 @@ impl Buffer {
     fn send_diagnostics(&mut self) {
         let mut diagnostics = vec![];
 
-        self.circuit = match nettle::parse_top(&self.text, None) {
+        self.circuit = match bitsy::parse_top(&self.text, None) {
             Ok(circuit) => circuit,
             Err(errors) => {
                 info!("Parse Error: {errors:?}");

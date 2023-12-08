@@ -143,6 +143,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
+name = "bitsy"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "clap 4.4.11",
+ "ctrlc",
+ "fern",
+ "lalrpop",
+ "lalrpop-util",
+ "lazy_static",
+ "log",
+ "riscy",
+ "rustyline",
+ "serde_json",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -588,24 +606,6 @@ name = "memchr"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f665ee40bc4a3c5590afb1e9677db74a508659dfd71e126420da8274909a0167"
-
-[[package]]
-name = "nettle"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap 4.4.11",
- "ctrlc",
- "fern",
- "lalrpop",
- "lalrpop-util",
- "lazy_static",
- "log",
- "riscy",
- "rustyline",
- "serde_json",
-]
 
 [[package]]
 name = "new_debug_unreachable"

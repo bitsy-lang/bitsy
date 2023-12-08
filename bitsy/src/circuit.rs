@@ -13,7 +13,7 @@ use anyhow::anyhow;
 
 type Name = String;
 
-/// A Package is a parsed Nettle file.
+/// A Package is a parsed Bitsy file.
 /// It consists of a number of top-level declarations.
 ///
 /// After it is constructed, you need to call [`Package::resolve_references`]
@@ -261,7 +261,7 @@ pub enum Decl {
     TypeDef(Arc<TypeDef>),
 }
 
-/// The different kinds of [`Wire`]s in Nettle.
+/// The different kinds of [`Wire`]s in Bitsy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireType {
     /// Direct wire. Written `:=` in the syntax. Connects one terminal to another.
