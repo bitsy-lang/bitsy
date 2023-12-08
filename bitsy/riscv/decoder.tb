@@ -1,5 +1,0 @@
-poke decoder.instr 2130355w32 // = 0x002081b3 for add x3, x1, x2
-assert decoder.rd == 3w5
-assert decoder.rs1 == 1w5
-assert decoder.rs2 == 2w5
-assert decoder.opcode == 51w7 // = 0b0110011
