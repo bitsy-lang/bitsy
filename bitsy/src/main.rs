@@ -2,6 +2,8 @@
 use bitsy::*;
 use bitsy::sim::*;
 
+mod lsp;
+
 mod repl;
 mod testbench;
 use repl::*;
@@ -13,10 +15,13 @@ use std::collections::BTreeMap;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    filename: String,
+    filename: Option<String>,
 
     #[arg(short, long, default_value_t = false)]
     compile: bool,
+
+    #[arg(long, default_value_t = false)]
+    lsp: bool,
 
     #[arg(long)]
     tb: Option<String>,
@@ -30,7 +35,20 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let text = std::fs::read_to_string(&args.filename).unwrap().to_string();
+    if args.lsp {
+        lsp::run_lsp();
+        std::process::exit(0);
+    }
+
+    let filename: String = args.filename.unwrap_or_else(|| {
+        use clap::CommandFactory;
+        let mut cmd = Args::command();
+        eprintln!("{}", cmd.render_usage());
+        std::process::exit(1)
+    });
+
+
+    let text = std::fs::read_to_string(&filename).unwrap().to_string();
 
     let package = match bitsy::load_package_from_string(&text) {
         Ok(package) => package,
@@ -60,7 +78,7 @@ fn main() {
 
         package.emit_mlir();
     } else {
-        let testbench_filename = args.tb.or_else(|| testbench_for(&args.filename));
+        let testbench_filename = args.tb.or_else(|| testbench_for(&filename));
         let testbench = if let Some(tb_filename) = testbench_filename {
             println!("Using testbench file: {tb_filename}");
             let text = std::fs::read_to_string(tb_filename.clone()).unwrap();

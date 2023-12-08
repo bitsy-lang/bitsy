@@ -1,4 +1,5 @@
 #![allow(unused, dead_code)]
+// TODO Remove this.
 
 use serde_json::{Value, json};
 use bitsy::Package;
@@ -11,7 +12,7 @@ use std::io::BufRead;
 use std::io::{stdin, stdout};
 use log::*;
 
-fn main() {
+pub(crate) fn run_lsp() {
     init_logging();
     std::panic::set_hook(Box::new(panic_handler));
     info!("Starting bitsy-lsp");
