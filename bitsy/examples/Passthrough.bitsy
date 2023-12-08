@@ -1,6 +1,0 @@
-pub mod Passthrough<S of Shape>
-    incoming in  of S
-    incoming out of S
-
-    wire io.out <= io.in
-end
