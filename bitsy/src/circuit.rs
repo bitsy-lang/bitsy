@@ -1,4 +1,5 @@
 mod check;
+mod mlir;
 
 pub use check::CircuitError;
 
@@ -213,6 +214,39 @@ impl Component {
             Component::Incoming(_loc, _name, _typ) => true,
             Component::Outgoing(_loc, _name, _typ) => true,
             _ => false
+        }
+    }
+
+    pub fn is_incoming_port(&self) -> bool {
+        match self {
+            Component::Incoming(_loc, _name, _typ) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_outgoing_port(&self) -> bool {
+        match self {
+            Component::Outgoing(_loc, _name, _typ) => true,
+            _ => false
+        }
+    }
+
+    pub fn type_of(&self) -> Option<Type> {
+        match self {
+            Component::Node(_loc,_name, typ) => Some(typ.clone()),
+            Component::Reg(_loc,_name, typ, _reset) => Some(typ.clone()),
+            Component::Incoming(_loc,_name, typ) => Some(typ.clone()),
+            Component::Outgoing(_loc,_name, typ) => Some(typ.clone()),
+            Component::Mod(_loc,_name, _children, _wires, _whens) => None,
+            Component::ModInst(_loc,_name, _defname) => None,
+            Component::Ext(_loc,_name, _children) => None,
+        }
+    }
+
+    pub fn reset(&self) -> Option<Expr> {
+        match self {
+            Component::Reg(_loc, _name, _typ, reset) => Some(reset.clone()),
+            _ => None
         }
     }
 }

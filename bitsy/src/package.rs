@@ -208,7 +208,7 @@ impl Package {
         results
     }
 
-    fn type_of(&self, component: Arc<Component>) -> Option<Type> {
+    pub fn type_of(&self, component: Arc<Component>) -> Option<Type> {
         match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,

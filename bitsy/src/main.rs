@@ -15,6 +15,9 @@ use std::collections::BTreeMap;
 struct Args {
     filename: String,
 
+    #[arg(short, long, default_value_t = false)]
+    compile: bool,
+
     #[arg(long)]
     tb: Option<String>,
 
@@ -29,18 +32,6 @@ fn main() {
     let args = Args::parse();
     let text = std::fs::read_to_string(&args.filename).unwrap().to_string();
 
-    let testbench_filename = args.tb.or_else(|| testbench_for(&args.filename));
-    let testbench = if let Some(tb_filename) = testbench_filename {
-        println!("Using testbench file: {tb_filename}");
-        let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
-        let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
-        tb
-    } else {
-        println!("No testbench file");
-        let command = TestbenchCommand::Debug;
-        Testbench(None, vec![], vec![command])
-    };
-
     let package = match bitsy::load_package_from_string(&text) {
         Ok(package) => package,
         Err(errors) => {
@@ -52,30 +43,60 @@ fn main() {
         },
     };
 
-    let top_name = match args.top.or_else(|| testbench.0.clone()) {
-        Some(top_name) => top_name,
-        None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
-    };
+    if args.compile {
+        let top_name = match args.top {
+            Some(top_name) => top_name,
+            None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
+        };
 
-    let circuit = match package.top(&top_name) {
-        Ok(circuit) => circuit,
-        Err(error) => {
-            eprintln!("{error:?}");
-            eprintln!("Circuit has 1 errors.");
+        let circuit = match package.top(&top_name) {
+            Ok(circuit) => circuit,
+            Err(error) => {
+                eprintln!("{error:?}");
+                eprintln!("Circuit has 1 errors.");
+                std::process::exit(1);
+            },
+        };
+
+        package.emit_mlir();
+    } else {
+        let testbench_filename = args.tb.or_else(|| testbench_for(&args.filename));
+        let testbench = if let Some(tb_filename) = testbench_filename {
+            println!("Using testbench file: {tb_filename}");
+            let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
+            let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
+            tb
+        } else {
+            println!("No testbench file");
+            let command = TestbenchCommand::Debug;
+            Testbench(None, vec![], vec![command])
+        };
+
+        let top_name = match args.top.or_else(|| testbench.0.clone()) {
+            Some(top_name) => top_name,
+            None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
+        };
+
+        let circuit = match package.top(&top_name) {
+            Ok(circuit) => circuit,
+            Err(error) => {
+                eprintln!("{error:?}");
+                eprintln!("Circuit has 1 errors.");
+                std::process::exit(1);
+            },
+        };
+        if let Err(errors) = circuit.package().check() {
+            for (path, error) in &errors {
+                eprintln!("{path}: {error:?}");
+            }
+            eprintln!("Circuit has {} errors.", errors.len());
             std::process::exit(1);
-        },
-    };
-    if let Err(errors) = circuit.package().check() {
-        for (path, error) in &errors {
-            eprintln!("{path}: {error:?}");
         }
-        eprintln!("Circuit has {} errors.", errors.len());
-        std::process::exit(1);
-    }
 
-    let sim: Sim = make_sim(circuit.clone(), &testbench);
-    let mut repl = Repl::new(sim, circuit, testbench);
-    repl.run();
+        let sim: Sim = make_sim(circuit.clone(), &testbench);
+        let mut repl = Repl::new(sim, circuit, testbench);
+        repl.run();
+    }
 }
 
 fn testbench_for(filename: &str) -> Option<String> {
