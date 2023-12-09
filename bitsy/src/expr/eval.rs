@@ -3,22 +3,37 @@ use crate::sim::Sim;
 
 impl Expr {
     pub fn eval(&self, bitsy: &Sim) -> Value {
+        self.eval_with_ctx(bitsy, Context::empty())
+    }
+
+    fn eval_with_ctx(&self, bitsy: &Sim, ctx: Context<Path, Value>) -> Value {
         match self {
-            Expr::Reference(_loc, path) => bitsy.peek(path.clone()),
+            Expr::Reference(_loc, path) => {
+                if let Some(value) = ctx.lookup(path) {
+                    value.clone()
+                } else {
+                    bitsy.peek(path.clone())
+                }
+            }
             Expr::Net(_loc, netid) => bitsy.peek_net(*netid),
             Expr::Lit(_loc, value) => value.clone(),
             Expr::Ctor(_loc, name, es) => {
-                let values: Vec<Value> = es.iter().map(|e| e.eval(bitsy)).collect();
+                let values: Vec<Value> = es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())).collect();
                 Value::Ctor(name.to_string(), values)
             },
+            Expr::Let(_loc, name, e, b) => {
+                let v = e.eval_with_ctx(bitsy, ctx.clone());
+                dbg!(&v);
+                b.eval_with_ctx(bitsy, ctx.extend(name.clone().into(), v))
+            },
             Expr::UnOp(_loc, op, e) => {
-                match (op, e.eval(bitsy)) {
+                match (op, e.eval_with_ctx(bitsy, ctx.clone())) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
             },
             Expr::BinOp(_loc, op, e1, e2) => {
-                match (op, e1.eval(bitsy), e2.eval(bitsy)) {
+                match (op, e1.eval_with_ctx(bitsy, ctx.clone()), e2.eval_with_ctx(bitsy, ctx.clone())) {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
                     (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
@@ -38,9 +53,9 @@ impl Expr {
                 }
             },
             Expr::If(_loc, cond, e1, e2) => {
-                let cond_v = cond.eval(bitsy);
-                let v1 = e1.eval(bitsy);
-                let v2 = e2.eval(bitsy);
+                let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
+                let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
+                let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
                 if cond_v.is_x() || v1.is_x() || v2.is_x() {
                     return Value::X;
                 }
@@ -51,9 +66,9 @@ impl Expr {
                 }
             },
             Expr::Mux(_loc, cond, e1, e2) => {
-                let cond_v = cond.eval(bitsy);
-                let v1 = e1.eval(bitsy);
-                let v2 = e2.eval(bitsy);
+                let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
+                let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
+                let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
                 if cond_v.is_x() || v1.is_x() || v2.is_x() {
                     return Value::X;
                 }
@@ -67,7 +82,7 @@ impl Expr {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 let mut wss: Vec<Value> = vec![];
-                for v in es.iter().map(|e| e.eval(bitsy)).rev() {
+                for v in es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())).rev() {
                     if let Value::X = v {
                         return Value::X;
                     } else if let Value::Word(width, val) = v {
@@ -86,7 +101,7 @@ impl Expr {
                 }
             },
             Expr::Sext(_loc, e, n) => {
-                match e.eval(bitsy) {
+                match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
                     Value::Word(w, x) => {
@@ -108,7 +123,7 @@ impl Expr {
                 }
             }
             Expr::ToWord(_loc, e) => {
-                let v = e.eval(bitsy);
+                let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
                     Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name).unwrap(),
@@ -117,7 +132,7 @@ impl Expr {
             },
             Expr::Vec(_loc, es) => {
                 let mut vs = vec![];
-                for v in es.iter().map(|e| e.eval(bitsy)) {
+                for v in es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())) {
                     if let Value::X = v {
                         return Value::X;
                     } else {
@@ -127,7 +142,7 @@ impl Expr {
                 Value::Vec(vs)
             },
             Expr::Idx(_loc, e, i) => {
-                let value = e.eval(bitsy);
+                let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {
                     Value::X
                 } else if let Value::Word(width, val) = value {
@@ -147,7 +162,7 @@ impl Expr {
                 }
             },
             Expr::IdxRange(_loc, e, j, i) => {
-                let value = e.eval(bitsy);
+                let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {
                     Value::X
                 } else if let Value::Word(width, val) = value {
@@ -173,13 +188,13 @@ impl Expr {
                 }
             },
             Expr::IdxDyn(_loc, e, i) => {
-                let index = if let Value::Word(_width, val) = i.eval(bitsy) {
+                let index = if let Value::Word(_width, val) = i.eval_with_ctx(bitsy, ctx.clone()) {
                     val
                 } else {
                     panic!("Invalid index: {i:?}");
                 };
 
-                let value = e.eval(bitsy);
+                let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::Word(width, val) = value {
                     if index < val {
                         Value::Word(1, (val >> index) & 1)

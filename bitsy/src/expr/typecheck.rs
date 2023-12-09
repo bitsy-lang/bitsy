@@ -32,6 +32,13 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
                 }
             },
+            Expr::Let(_loc, name, e, b) => {
+                if let Some(typ) = e.typeinfer(ctx.clone()) {
+                    b.typecheck(type_expected, ctx.extend(name.clone().into(), typ))
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
+                }
+            },
             Expr::UnOp(_loc, _op, e) => e.typecheck(type_expected, ctx.clone()),
             Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.typecheck(type_expected, ctx.clone())?;

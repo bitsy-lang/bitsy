@@ -364,7 +364,8 @@ impl Sim {
 
     fn broadcast_update_constants(&mut self) {
         for Comb(target_net_id, expr) in self.sim_circuit.clone().combs.iter() {
-            if expr.is_constant() {
+            dbg!(&expr);
+            if dbg!(expr.is_constant()) {
                 let value = expr.eval(&self);
                 self.poke_net(*target_net_id, value);
             }

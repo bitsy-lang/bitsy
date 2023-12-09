@@ -109,7 +109,7 @@ impl Package {
         // resolve references in Exprs in Wires
         for moddef in self.moddefs() {
             for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
-                let func = |e: &Expr| {
+                let mut func = |e: &Expr| {
                     if let Expr::Lit(loc, Value::Enum(r, name)) = e {
                         if let Some(typedef) = self.typedef(r.name()) {
                             r.resolve_to(typedef).unwrap();
@@ -119,7 +119,7 @@ impl Package {
                         }
                     }
                 };
-                expr.with_subexprs(&func);
+                expr.with_subexprs(&mut func);
             }
         }
 

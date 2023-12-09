@@ -180,6 +180,7 @@ ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
     <e:ExprReference> => e,
     <e:ExprIf> => e,
+    <e:ExprLet> => e,
     <e:ExprHole> => e,
     "(" <e:Expr> ")" => e,
 }
@@ -202,6 +203,13 @@ ExprIf: Box<Expr> = {
         }
 
         Box::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
+    },
+}
+
+ExprLet: Box<Expr> = {
+    <ll:@L> "let" <x:Id> "=" <e:Expr>
+    "{" <b:Expr> "}" <rr:@R> => {
+        Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
     },
 }
 

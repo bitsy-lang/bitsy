@@ -3,7 +3,7 @@ mod eval;
 
 use super::*;
 use crate::sim::NetId;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub use typecheck::TypeError;
 
@@ -18,6 +18,8 @@ pub enum Expr {
     Lit(Loc, Value),
     /// Constructor (for `Valid<T>`)
     Ctor(Loc, String, Vec<Expr>),
+    /// Let binding. Eg, `let x = a + b in x + x`.
+    Let(Loc, String, Box<Expr>, Box<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
     UnOp(Loc, UnOp, Box<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
@@ -50,6 +52,7 @@ impl HasLoc for Expr {
             Expr::Reference(loc, _path) => loc.clone(),
             Expr::Lit(loc, _val) => loc.clone(),
             Expr::Ctor(loc, _name, _e) => loc.clone(),
+            Expr::Let(loc, _name, _e, _b) => loc.clone(),
             Expr::UnOp(loc, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _cond, _e1, _e2) => loc.clone(),
@@ -72,6 +75,7 @@ impl std::fmt::Debug for Expr {
             Expr::Net(_loc, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, path) => write!(f, "{path}"),
             Expr::Lit(_loc, val) => write!(f, "{val:?}"),
+            Expr::Let(_loc, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
             Expr::Ctor(_loc, name, e) => write!(f, "@{name}({e:?})"),
             Expr::UnOp(_loc, op, e) => {
                 let op_symbol = match op {
@@ -126,12 +130,12 @@ impl std::fmt::Debug for Expr {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum UnOp {
     Not,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
 pub enum BinOp {
     Add,
     AddCarry,
@@ -147,140 +151,74 @@ pub enum BinOp {
 
 impl Expr {
     /// Walk the expression tree in-order, calling `callback` for each subexpression.
-    pub fn with_subexprs(&self, callback: &dyn Fn(&Expr)) {
+    pub fn with_subexprs(&self, callback: &mut dyn FnMut(&Expr)) {
         match self {
             Expr::Reference(_loc, _path) => callback(self),
             Expr::Net(_loc, _netid) => callback(self),
             Expr::Lit(_loc, _value) => callback(self),
             Expr::Ctor(_loc, _name, es) => {
+                callback(self);
                 for e in es {
                     e.with_subexprs(callback);
                 }
+            },
+            Expr::Let(_loc, _name, e, b) => {
                 callback(self);
+                e.with_subexprs(callback);
+                b.with_subexprs(callback);
             },
             Expr::UnOp(_loc, _op, e) => {
-                e.with_subexprs(callback);
                 callback(self);
+                e.with_subexprs(callback);
             }
             Expr::BinOp(_loc, _op, e1, e2) => {
+                callback(self);
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
-                callback(self);
             },
             Expr::If(_loc, cond, e1, e2) => {
+                callback(self);
                 cond.with_subexprs(callback);
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
-                callback(self);
             },
             Expr::Mux(_loc, cond, e1, e2) => {
+                callback(self);
                 cond.with_subexprs(callback);
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
-                callback(self);
             },
             Expr::Cat(_loc, es) => {
+                callback(self);
                 for e in es {
                     e.with_subexprs(callback);
                 }
-                callback(self);
             },
             Expr::Sext(_loc, e, _n) => {
-                e.with_subexprs(callback);
                 callback(self);
+                e.with_subexprs(callback);
             },
             Expr::ToWord(_loc, e) => {
-                e.with_subexprs(callback);
                 callback(self);
+                e.with_subexprs(callback);
             },
             Expr::Vec(_loc, es) => {
+                callback(self);
                 for e in es {
                     e.with_subexprs(callback);
                 }
-                callback(self);
             },
             Expr::Idx(_loc, e, _i) => {
-                e.with_subexprs(callback);
                 callback(self);
+                e.with_subexprs(callback);
             },
             Expr::IdxRange(_loc, e, _j, _i) => {
-                e.with_subexprs(callback);
                 callback(self);
+                e.with_subexprs(callback);
             },
             Expr::IdxDyn(_loc, e, _i) => {
+                callback(self);
                 e.with_subexprs(callback);
-                callback(self);
-            },
-            Expr::Hole(_loc, _name) => {
-                callback(self);
-            },
-        }
-    }
-
-    /// Walk the expression tree in-order, calling `callback` for each subexpression.
-    pub fn with_subexprs_mut(&mut self, callback: &dyn Fn(&mut Expr)) {
-        match self {
-            Expr::Reference(_loc, _path) => callback(self),
-            Expr::Net(_loc, _netid) => callback(self),
-            Expr::Lit(_loc, _value) => callback(self),
-            Expr::Ctor(_loc, _name, es) => {
-                for e in es {
-                    e.with_subexprs_mut(callback);
-                }
-                callback(self);
-            },
-            Expr::UnOp(_loc, _op, e) => {
-                e.with_subexprs_mut(callback);
-                callback(&mut *self);
-            }
-            Expr::BinOp(_loc, _op, e1, e2) => {
-                e1.with_subexprs_mut(callback);
-                e2.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::If(_loc, cond, e1, e2) => {
-                cond.with_subexprs_mut(callback);
-                e1.with_subexprs_mut(callback);
-                e2.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::Mux(_loc, cond, e1, e2) => {
-                cond.with_subexprs_mut(callback);
-                e1.with_subexprs_mut(callback);
-                e2.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::Cat(_loc, es) => {
-                for e in es {
-                    e.with_subexprs_mut(callback);
-                }
-                callback(self);
-            },
-            Expr::Sext(_loc, e, _n) => {
-                e.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::ToWord(_loc, e) => {
-                e.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::Vec(_loc, es) => {
-                for e in es {
-                    e.with_subexprs_mut(callback);
-                }
-                callback(self);
-            },
-            Expr::Idx(_loc, e, _i) => {
-                e.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::IdxRange(_loc, e, _j, _i) => {
-                e.with_subexprs_mut(callback);
-                callback(self);
-            },
-            Expr::IdxDyn(_loc, e, _i) => {
-                e.with_subexprs_mut(callback);
-                callback(self);
             },
             Expr::Hole(_loc, _name) => {
                 callback(self);
@@ -290,14 +228,14 @@ impl Expr {
 
     pub fn paths(&self) -> Vec<Path> {
         let paths = std::cell::RefCell::new(vec![]);
-        let func = |e: &Expr| {
+        let mut func = |e: &Expr| {
             if let Expr::Reference(_loc, path) = e {
                 paths.borrow_mut().push(path.clone());
             } else if let Expr::Net(_loc, _netid) = e {
                 panic!("paths() only works on symbolic expressions.");
             }
         };
-        self.with_subexprs(&func);
+        self.with_subexprs(&mut func);
 
         let mut results = paths.into_inner();
         results.sort();
@@ -306,44 +244,67 @@ impl Expr {
     }
 
     pub fn is_constant(&self) -> bool {
-        match self {
-            Expr::Reference(_loc, _path) => false,
-            Expr::Net(_loc, _netid) => false,
-            Expr::Lit(_loc, _value) => true,
-            Expr::Ctor(_loc, _name, es) => es.iter().all(|e| e.is_constant()),
-            Expr::UnOp(_loc, _op, e) => e.is_constant(),
-            Expr::BinOp(_loc, _op, e1, e2) => e1.is_constant() && e2.is_constant(),
-            Expr::If(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
-            Expr::Mux(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
-            Expr::Cat(_loc, es) => es.iter().all(|e| e.is_constant()),
-            Expr::ToWord(_loc, e) => e.is_constant(),
-            Expr::Vec(_loc, es) => es.iter().all(|e| e.is_constant()),
-            Expr::Sext(_loc, e, _n) => e.is_constant(),
-            Expr::Idx(_loc, e, _i) => e.is_constant(),
-            Expr::IdxRange(_loc, e, _j, _i) => e.is_constant(),
-            Expr::IdxDyn(_loc, e, i) => e.is_constant() && i.is_constant(),
-            Expr::Hole(_loc, _name) => false,
-        }
+        self.free_vars().is_empty()
     }
 
-    /// Replace all references (see [`Expr::Reference`]) with nets (see [`Expr::Net`])
-    /// to get it ready for simulation.
-    pub fn references_to_nets(mut self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
-        // TODO shouldn't this just take self and not &mut self?
-        let func = |e: &mut Expr| {
-            match &e {
-                Expr::Reference(loc, path) => {
-                    if let Some(net_id) = net_id_by_path.get(&path) {
-                        *e = Expr::Net(loc.clone(), *net_id);
-                    } else {
-                        panic!("No net for {path}");
-                    }
-                },
-                _ => (),
-            }
-        };
-        self.with_subexprs_mut(&func);
-        self
+    pub fn free_vars(&self) -> BTreeSet<Path> {
+        match self {
+            Expr::Reference(_loc, path) => vec![path.clone()].iter().cloned().collect(),
+            Expr::Net(_loc, _netid) => BTreeSet::new(),
+            Expr::Lit(_loc, _value) => BTreeSet::new(),
+            Expr::Ctor(_loc, _name, es) => {
+                let mut result = BTreeSet::new();
+                for e in es {
+                    result.extend(e.free_vars())
+                }
+                result
+            },
+            Expr::Let(_loc, x, e, b) => {
+                let mut result = b.free_vars();
+                result.remove(&x.to_string().into());
+                result.union(&e.free_vars()).cloned().collect()
+            },
+            Expr::UnOp(_loc, _op, e) => e.free_vars(),
+            Expr::BinOp(_loc, _op, e1, e2) => e1.free_vars().union(&e2.free_vars()).cloned().collect(),
+            Expr::If(_loc, cond, e1, e2) => {
+                cond.free_vars()
+                    .union(&e1.free_vars())
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .union(&e2.free_vars())
+                    .cloned()
+                    .collect()
+            },
+            Expr::Mux(_loc, cond, e1, e2) => {
+                cond.free_vars()
+                    .union(&e1.free_vars())
+                    .cloned()
+                    .collect::<BTreeSet<_>>()
+                    .union(&e2.free_vars())
+                    .cloned()
+                    .collect()
+            },
+            Expr::Cat(_loc, es) => {
+                let mut result = BTreeSet::new();
+                for e in es {
+                    result.extend(e.free_vars())
+                }
+                result
+            },
+            Expr::ToWord(_loc, e) => e.free_vars(),
+            Expr::Vec(_loc, es) => {
+                let mut result = BTreeSet::new();
+                for e in es {
+                    result.extend(e.free_vars())
+                }
+                result
+            },
+            Expr::Sext(_loc, e, _n) => e.free_vars(),
+            Expr::Idx(_loc, e, _i) => e.free_vars(),
+            Expr::IdxRange(_loc, e, _j, _i) => e.free_vars(),
+            Expr::IdxDyn(_loc, e, i) => e.free_vars().union(&i.free_vars()).cloned().collect(),
+            Expr::Hole(_loc, _name) => BTreeSet::new(),
+        }
     }
 
     pub fn depends_on(&self, path: Path) -> bool {
@@ -352,10 +313,11 @@ impl Expr {
 
     pub fn depends_on_net(&self, net_id: NetId) -> bool {
         match self {
-            Expr::Reference(_loc, _path) => panic!("depends_on_net() only works on net expressions."),
+            Expr::Reference(_loc, _path) => false,
             Expr::Net(_loc, other_netid) => net_id == *other_netid,
             Expr::Lit(_loc, _value) => false,
             Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Let(_loc, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
             Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
@@ -371,16 +333,152 @@ impl Expr {
         }
     }
 
-    pub fn rebase(mut self, current_path: Path) -> Expr {
-        // TODO shouldn't this just take self and not &mut self?
-        let func = |e: &mut Expr| {
-            match &e {
-                Expr::Reference(loc, path) => *e = Expr::Reference(loc.clone(), current_path.join(path.clone())),
-                Expr::Net(_loc, _netid) => panic!("rebase() only works on symbolic expressions."),
-                _ => (),
-            }
-        };
-        self.with_subexprs_mut(&func);
-        self
+    pub fn rebase(&self, current_path: Path) -> Expr {
+        self.rebase_rec(current_path, &BTreeSet::new())
+    }
+
+    fn rebase_rec(&self, current_path: Path, shadowed: &BTreeSet<Path>) -> Expr {
+        match self {
+            Expr::Reference(loc, path) => {
+                if !shadowed.contains(path) {
+                    Expr::Reference(loc.clone(), current_path.join(path.clone()))
+                } else {
+                    self.clone()
+                }
+            },
+            Expr::Net(_loc, _net_id) => panic!("rebase() only works on reference expressions."),
+            Expr::Lit(_loc, _value) => self.clone(),
+            Expr::Ctor(loc, name, es) => Expr::Ctor(loc.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
+            Expr::Let(loc, name, e, b) => {
+                let new_e = Box::new(e.rebase_rec(current_path.clone(), shadowed));
+                let mut new_shadowed = shadowed.clone();
+                new_shadowed.insert(name.clone().into());
+                let new_b = Box::new(b.rebase_rec(current_path, &new_shadowed));
+                Expr::Let(loc.clone(), name.clone(), new_e, new_b)
+            },
+            Expr::UnOp(loc, op, e) => Expr::UnOp(loc.clone(), *op, Box::new(e.rebase_rec(current_path, shadowed))),
+            Expr::BinOp(loc, op, e1, e2) => {
+                Expr::BinOp(
+                    loc.clone(),
+                    *op,
+                    Box::new(e1.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(e2.rebase_rec(current_path, shadowed)),
+                )
+            },
+            Expr::If(loc, cond, e1, e2) => {
+                Expr::If(
+                    loc.clone(),
+                    Box::new(cond.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(e1.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(e2.rebase_rec(current_path, shadowed)),
+                )
+            },
+            Expr::Mux(loc, cond, e1, e2) => {
+                Expr::Mux(
+                    loc.clone(),
+                    Box::new(cond.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(e1.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(e2.rebase_rec(current_path, shadowed)),
+                )
+            },
+            Expr::Cat(loc, es) => {
+                Expr::Cat(
+                    loc.clone(),
+                    es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect(),
+                )
+            },
+            Expr::Sext(loc, e, n) => Expr::Sext(loc.clone(), Box::new(e.rebase_rec(current_path, shadowed)), *n),
+            Expr::ToWord(loc, e) => Expr::ToWord(loc.clone(), Box::new(e.rebase_rec(current_path, shadowed))),
+            Expr::Vec(loc, es) => Expr::Vec(loc.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
+            Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), Box::new(e.rebase_rec(current_path, shadowed)), *i),
+            Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), Box::new(e.rebase_rec(current_path, shadowed)), *j, *i),
+            Expr::IdxDyn(loc, e, i) => {
+                Expr::IdxDyn(
+                    loc.clone(),
+                    Box::new(e.rebase_rec(current_path.clone(), shadowed)),
+                    Box::new(i.rebase_rec(current_path, shadowed)),
+                )
+            },
+            Expr::Hole(loc, name) => Expr::Hole(loc.clone(), name.clone()),
+        }
+    }
+
+    /// Replace all references (see [`Expr::Reference`]) with nets (see [`Expr::Net`])
+    /// to get it ready for simulation.
+    pub fn references_to_nets(&self, net_id_by_path: &BTreeMap<Path, NetId>) -> Expr {
+        self.references_to_nets_rec(net_id_by_path, &BTreeSet::new())
+    }
+
+    fn references_to_nets_rec(&self, net_id_by_path: &BTreeMap<Path, NetId>, shadowed: &BTreeSet<Path>) -> Expr {
+        match self {
+            Expr::Reference(loc, path) => {
+                if !shadowed.contains(path) {
+                    Expr::Net(loc.clone(), net_id_by_path[path])
+                } else {
+                    self.clone()
+                }
+            },
+            Expr::Net(_loc, _net_id) => panic!("references_to_nets() only works on reference expressions."),
+            Expr::Lit(_loc, _value) => self.clone(),
+            Expr::Ctor(loc, name, es) => {
+                Expr::Ctor(
+                    loc.clone(),
+                    name.clone(),
+                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
+                )
+
+            },
+            Expr::Let(loc, name, e, b) => {
+                let new_e = Box::new(e.references_to_nets_rec(net_id_by_path, shadowed));
+                let mut new_shadowed = shadowed.clone();
+                new_shadowed.insert(name.clone().into());
+                let new_b = Box::new(b.references_to_nets_rec(net_id_by_path, &new_shadowed));
+                Expr::Let(loc.clone(), name.clone(), new_e, new_b)
+            },
+            Expr::UnOp(loc, op, e) => Expr::UnOp(loc.clone(), *op, Box::new(e.references_to_nets_rec(net_id_by_path, shadowed))),
+            Expr::BinOp(loc, op, e1, e2) => {
+                Expr::BinOp(
+                    loc.clone(),
+                    *op,
+                    Box::new(e1.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(e2.references_to_nets_rec(net_id_by_path, shadowed)),
+                )
+            },
+            Expr::If(loc, cond, e1, e2) => {
+                Expr::If(
+                    loc.clone(),
+                    Box::new(cond.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(e1.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(e2.references_to_nets_rec(net_id_by_path, shadowed)),
+                )
+            },
+            Expr::Mux(loc, cond, e1, e2) => {
+                Expr::Mux(
+                    loc.clone(),
+                    Box::new(cond.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(e1.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(e2.references_to_nets_rec(net_id_by_path, shadowed)),
+                )
+            },
+            Expr::Cat(loc, es) => {
+                Expr::Cat(
+                    loc.clone(),
+                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
+                )
+            },
+            Expr::Sext(loc, e, n) => Expr::Sext(loc.clone(), Box::new(e.references_to_nets_rec(net_id_by_path, shadowed)), *n),
+            Expr::ToWord(loc, e) => Expr::ToWord(loc.clone(), Box::new(e.references_to_nets_rec(net_id_by_path, shadowed))),
+            Expr::Vec(loc, es) => Expr::Vec(loc.clone(), es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect()),
+            Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), Box::new(e.references_to_nets_rec(net_id_by_path, shadowed)), *i),
+            Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), Box::new(e.references_to_nets_rec(net_id_by_path, shadowed)), *j, *i),
+            Expr::IdxDyn(loc, e, i) => {
+                Expr::IdxDyn(
+                    loc.clone(),
+                    Box::new(e.references_to_nets_rec(net_id_by_path, shadowed)),
+                    Box::new(i.references_to_nets_rec(net_id_by_path, shadowed)),
+                )
+            },
+            Expr::Hole(loc, name) => Expr::Hole(loc.clone(), name.clone()),
+        }
     }
 }
