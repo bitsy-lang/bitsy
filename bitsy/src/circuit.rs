@@ -231,7 +231,7 @@ impl Component {
         }
     }
 
-    pub fn type_of(&self) -> Option<Type> {
+    pub fn type_of(&self) -> Option<Arc<Type>> {
         match self {
             Component::Node(_loc,_name, typ) => Some(typ.clone()),
             Component::Reg(_loc,_name, typ, _reset) => Some(typ.clone()),

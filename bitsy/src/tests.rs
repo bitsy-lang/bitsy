@@ -2,6 +2,7 @@ use super::*;
 use crate::sim::Sim;
 
 use std::collections::{BTreeSet, BTreeMap};
+use std::sync::Arc;
 
 #[test]
 fn path_depends() {
@@ -333,16 +334,16 @@ fn test_check() {
 #[test]
 fn typeinfer() {
     let tests = vec![
-        ("1w8", Context::empty(), Some(Type::Word(8))),
-        ("7w3", Context::empty(), Some(Type::Word(3))),
+        ("1w8", Context::empty(), Some(Type::word(8))),
+        ("7w3", Context::empty(), Some(Type::word(3))),
         ("?foo", Context::empty(), None),
-        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Some(Type::Word(2))),
-        ("1w4 + 1w4", Context::empty(), Some(Type::Word(4))),
-        ("!1w4", Context::empty(), Some(Type::Word(4))),
-        ("1w4[0]", Context::empty(), Some(Type::Word(1))),
-        ("0w4[0]", Context::empty(), Some(Type::Word(1))),
-        ("2w4[2..0]", Context::empty(), Some(Type::Word(2))),
-        ("2w4[4..0]", Context::empty(), Some(Type::Word(4))),
+        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Some(Type::word(2))),
+        ("1w4 + 1w4", Context::empty(), Some(Type::word(4))),
+        ("!1w4", Context::empty(), Some(Type::word(4))),
+        ("1w4[0]", Context::empty(), Some(Type::word(1))),
+        ("0w4[0]", Context::empty(), Some(Type::word(1))),
+        ("2w4[2..0]", Context::empty(), Some(Type::word(2))),
+        ("2w4[4..0]", Context::empty(), Some(Type::word(4))),
         ("2w4[5..0]", Context::empty(), None),
         /*
         ("(top.a + top.b)", vec!["top.a", "top.b"]),
@@ -356,7 +357,7 @@ fn typeinfer() {
     ];
 
     for (expr_str, ctx, type_expected) in tests {
-        let expr: Expr = expr_str.into();
+        let expr: Arc<Expr> = Arc::new(expr_str.into());
         let type_actual = expr.typeinfer(ctx);
         assert!(
             type_actual == type_expected,
@@ -368,25 +369,25 @@ fn typeinfer() {
 #[test]
 fn typecheck() {
     let test_err = vec![
-        ("x", Context::empty(), Type::Word(1)),
-        ("x", Context::from(vec![("x".into(), Type::Word(8))]), Type::Word(1)),
-        ("1w8", Context::empty(), Type::Word(7)),
-        ("8w3", Context::empty(), Type::Word(3)),
-        ("if 0w2 { 0w2 } else { 0w2 }", Context::empty(), Type::Word(2)),
-        ("if 0w1 { 0w3 } else { 0w2 }", Context::empty(), Type::Word(2)),
+        ("x", Context::empty(), Type::word(1)),
+        ("x", Context::from(vec![("x".into(), Type::word(8))]), Type::word(1)),
+        ("1w8", Context::empty(), Type::word(7)),
+        ("8w3", Context::empty(), Type::word(3)),
+        ("if 0w2 { 0w2 } else { 0w2 }", Context::empty(), Type::word(2)),
+        ("if 0w1 { 0w3 } else { 0w2 }", Context::empty(), Type::word(2)),
     ];
 
     for (expr_str, ctx, type_expected) in test_err {
-        let expr: Expr = expr_str.into();
-        assert!(expr.typecheck(&type_expected, ctx).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
+        let expr: Arc<Expr> = Arc::new(expr_str.into());
+        assert!(expr.typecheck(type_expected, ctx).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
     }
 
     let test_ok = vec![
-        ("1w8", Context::empty(), Type::Word(8)),
-        ("7w3", Context::empty(), Type::Word(3)),
-        ("?foo", Context::empty(), Type::Word(3)),
-        ("?foo", Context::empty(), Type::Word(8)),
-        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Type::Word(2)),
+        ("1w8", Context::empty(), Type::word(8)),
+        ("7w3", Context::empty(), Type::word(3)),
+        ("?foo", Context::empty(), Type::word(3)),
+        ("?foo", Context::empty(), Type::word(8)),
+        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Type::word(2)),
         /*
         ("(top.a + top.b)", vec!["top.a", "top.b"]),
         ("(top.b - top.a)", vec!["top.a", "top.b"]),
@@ -399,8 +400,8 @@ fn typecheck() {
     ];
 
     for (expr_str, ctx, type_expected) in test_ok {
-        let expr: Expr = expr_str.into();
-        assert!(expr.typecheck(&type_expected, ctx).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
+        let expr: Arc<Expr> = Arc::new(expr_str.into());
+        assert!(expr.typecheck(type_expected, ctx).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
     }
 }
 

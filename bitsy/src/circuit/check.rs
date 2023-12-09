@@ -91,7 +91,7 @@ impl Package {
                 continue;
             };
 
-            match expr.typecheck(&target_typ, ctx.clone()) {
+            match expr.typecheck(target_typ, ctx.clone()) {
                 Err(e) => errors.push(CircuitError::TypeError(e)),
                 Ok(()) => (),
             }

@@ -10,10 +10,10 @@ impl Package {
     }
 
     fn emit_mlir_moddef(&self, moddef: Arc<Component>) {
-        let mut ports: Vec<(bool, String, Type)> = vec![];
+        let mut ports: Vec<(bool, String, Arc<Type>)> = vec![];
         let mut output_ports: Vec<String> = vec![];
         let mut output_port_ssas: BTreeMap<String, String> = BTreeMap::new();
-        let mut output_port_types: Vec<Type> = vec![];
+        let mut output_port_types: Vec<Arc<Type>> = vec![];
 
         for (_path, port) in moddef.port_paths() {
             let name = port.name().to_string();
@@ -63,7 +63,7 @@ impl Package {
         println!("}}");
     }
 
-    fn emit_mlir_moddef_portlist(&self, ports: &[(bool, String, Type)]) {
+    fn emit_mlir_moddef_portlist(&self, ports: &[(bool, String, Arc<Type>)]) {
         println!("    in %_clock : !seq.clock,");
         println!("    in %_reset : i1,");
         for (i, (is_input, name, typ)) in ports.iter().enumerate() {
@@ -83,7 +83,7 @@ impl Package {
 }
 
 impl Expr {
-    fn emit_mlir(&self, prefix: usize, ctx: Context<Path, Type>) -> String {
+    fn emit_mlir(&self, prefix: usize, ctx: Context<Path, Arc<Type>>) -> String {
         let (name, op) = match self {
             Expr::Reference(_loc, name) => {
                 let typ = ctx.lookup(name).unwrap();
@@ -92,13 +92,13 @@ impl Expr {
             },
             Expr::Lit(_loc, v) => {
                 let (v_str, v_typ) = match v {
-                    Value::Word(n, k) => (format!("{k}"), type_to_mlir(Type::Word(*n))),
+                    Value::Word(n, k) => (format!("{k}"), type_to_mlir(Arc::new(Type::Word(*n)))),
                     _ => panic!(),
                 };
                 (format!("%tmp_{prefix}_lit"), format!("hw.constant {v_str} : {v_typ}"))
             },
             Expr::BinOp(_loc, BinOp::Add, e1, e2) => {
-                let typ = Type::Word(8); // TODO
+                let typ = Arc::new(Type::Word(8)); // TODO
                 let typ_name = type_to_mlir(typ);
                 let e1_ssa = e1.emit_mlir(prefix, ctx.clone());
                 let e2_ssa = e2.emit_mlir(prefix, ctx.clone());
@@ -112,8 +112,8 @@ impl Expr {
     }
 }
 
-fn type_to_mlir(typ: Type) -> String {
-    match typ {
+fn type_to_mlir(typ: Arc<Type>) -> String {
+    match &*typ {
         Type::Word(n) => format!("i{n}"),
         _ => panic!(),
     }

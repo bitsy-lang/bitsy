@@ -247,11 +247,11 @@ ExprReference: Arc<Expr> = {
      <ll:@L> <path:Path> <rr:@R> => Arc::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
 }
 
-Type: Type = {
-    "Word" "<" <n:Nat> ">" => Type::Word(n),
-    "Valid" "<" <typ:Type> ">" => Type::Valid(Box::new(typ)),
-    <id:Id> => Type::TypeDef(id.into()),
-    "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
+Type: Arc<Type> = {
+    "Word" "<" <n:Nat> ">" => Arc::new(Type::Word(n)),
+    "Valid" "<" <typ:Type> ">" => Arc::new(Type::Valid(typ.clone())),
+    <id:Id> => Arc::new(Type::TypeDef(id.into())),
+    "Vec" "<" <typ:Type> "," <n:Nat> ">" => Arc::new(Type::Vec(typ.clone(), n)),
 }
 
 Value: Value = {

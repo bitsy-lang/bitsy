@@ -138,20 +138,20 @@ impl Package {
                     Component::Mod(_loc, _name, _children, _wires, _whens) => (),
                     Component::ModInst(_loc, _name, _moddef) => (),
                     Component::Ext(_loc, _name, _children) => (),
-                    Component::Node(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ),
-                    Component::Reg(_loc, _name, typ, _reset) => self.resolve_references_type(typ),
+                    Component::Node(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
+                    Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
+                    Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
+                    Component::Reg(_loc, _name, typ, _reset) => self.resolve_references_type(typ.clone()),
                 }
             }
         }
     }
 
-    fn resolve_references_type(&self, typ: &Type) {
-        match typ {
+    fn resolve_references_type(&self, typ: Arc<Type>) {
+        match &*typ {
             Type::Word(_width) => (),
-            Type::Valid(typ) => self.resolve_references_type(typ),
-            Type::Vec(typ, _len) => self.resolve_references_type(typ),
+            Type::Valid(typ) => self.resolve_references_type(typ.clone()),
+            Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
             Type::TypeDef(typedef) => {
                 if let Some(resolved_typedef) = self.typedef(typedef.name()) {
                     typedef.resolve_to(resolved_typedef).unwrap();
@@ -163,7 +163,7 @@ impl Package {
     }
 
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
-    pub fn context_for(&self, component: Arc<Component>) -> anyhow::Result<Context<Path, Type>> {
+    pub fn context_for(&self, component: Arc<Component>) -> anyhow::Result<Context<Path, Arc<Type>>> {
         // TODO Remove this anyhow
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
@@ -209,7 +209,7 @@ impl Package {
         results
     }
 
-    pub fn type_of(&self, component: Arc<Component>) -> Option<Type> {
+    pub fn type_of(&self, component: Arc<Component>) -> Option<Arc<Type>> {
         match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,
@@ -281,10 +281,10 @@ pub enum Component {
     Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
     ModInst(Loc, Name, Reference<Component>),
     Ext(Loc, Name, Vec<Arc<Component>>),
-    Incoming(Loc, Name, Type),
-    Outgoing(Loc, Name, Type),
-    Node(Loc, Name, Type),
-    Reg(Loc, Name, Type, Arc<Expr>),
+    Incoming(Loc, Name, Arc<Type>),
+    Outgoing(Loc, Name, Arc<Type>),
+    Node(Loc, Name, Arc<Type>),
+    Reg(Loc, Name, Arc<Type>, Arc<Expr>),
 }
 
 impl HasLoc for Wire {

@@ -1,5 +1,6 @@
 use super::*;
 use crate::reference::Reference;
+use std::sync::Arc;
 
 /// The bitwidth of a [`Type::Word`].
 pub type Width = u64;
@@ -13,14 +14,26 @@ pub enum Type {
     /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
     Word(Width),
     /// A n-element vector. Written `Vec<T, n>`.
-    Vec(Box<Type>, Length),
+    Vec(Arc<Type>, Length),
     /// An optional value. Written `Valid<T>`.
-    Valid(Box<Type>),
+    Valid(Arc<Type>),
     /// A reference to a user-defined `enum`.
     TypeDef(Reference<TypeDef>),
 }
 
 impl Type {
+    pub fn word(w: Width) -> Arc<Type> {
+        Arc::new(Type::Word(w))
+    }
+
+    pub fn vec(typ: Arc<Type>, n: Length) -> Arc<Type> {
+        Arc::new(Type::Vec(typ, n))
+    }
+
+    pub fn type_def(typedef: Reference<TypeDef>) -> Arc<Type> {
+        Arc::new(Type::TypeDef(typedef))
+    }
+
     pub fn bitwidth(&self) -> Width {
         match self {
             Type::Word(n) => *n,
