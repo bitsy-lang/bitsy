@@ -258,13 +258,13 @@ pub enum WireType {
 
 /// [`Wire`]s drive the value of port, node, or register.
 #[derive(Debug, Clone)]
-pub struct Wire(pub Loc, pub Path, pub Expr, pub WireType);
+pub struct Wire(pub Loc, pub Path, pub Arc<Expr>, pub WireType);
 
 #[derive(Debug, Clone)]
-pub struct When(pub Expr, pub Vec<Wire>);
+pub struct When(pub Arc<Expr>, pub Vec<Wire>);
 
 impl Wire {
-    pub fn new(loc: Loc, target: Path, expr: Expr, typ: WireType) -> Wire {
+    pub fn new(loc: Loc, target: Path, expr: Arc<Expr>, typ: WireType) -> Wire {
         Wire(loc, target, expr, typ)
     }
 
@@ -284,7 +284,7 @@ pub enum Component {
     Incoming(Loc, Name, Type),
     Outgoing(Loc, Name, Type),
     Node(Loc, Name, Type),
-    Reg(Loc, Name, Type, Expr),
+    Reg(Loc, Name, Type, Arc<Expr>),
 }
 
 impl HasLoc for Wire {

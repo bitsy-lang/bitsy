@@ -3,7 +3,7 @@ use crate::types::*;
 
 impl Expr {
     #[allow(unused_variables)] // TODO remove this
-    pub fn typecheck(&self, type_expected: &Type, ctx: Context<Path, Type>) -> Result<(), TypeError> {
+    pub fn typecheck(self: &Arc<Self>, type_expected: &Type, ctx: Context<Path, Type>) -> Result<(), TypeError> {
         if let Some(type_actual) = self.typeinfer(ctx.clone()) {
             if &type_actual == type_expected {
                 return Ok(());
@@ -12,7 +12,7 @@ impl Expr {
             }
         }
 
-        match self {
+        match &**self {
             Expr::Reference(_loc, path) => Err(TypeError::UndefinedReference(self.clone())),
             Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
             Expr::Lit(_loc, Value::Word(w, n)) if n >> w != 0 =>
@@ -109,8 +109,8 @@ impl Expr {
     }
 
     #[allow(unused_variables)] // TODO remove this
-    pub fn typeinfer(&self, ctx: Context<Path, Type>) -> Option<Type> {
-        match self {
+    pub fn typeinfer(self: &Arc<Self>, ctx: Context<Path, Type>) -> Option<Type> {
+        match &**self {
             Expr::Reference(_loc, path) => ctx.lookup(path),
             Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
             Expr::Lit(_loc, value) => match value {
@@ -214,11 +214,11 @@ impl Expr {
 
 #[derive(Clone, Debug)]
 pub enum TypeError {
-    UndefinedReference(Expr),
-    NotExpectedType(Type, Type, Expr),
-    InvalidLit(Expr),
-    CantInferType(Expr),
-    Other(Expr, String),
+    UndefinedReference(Arc<Expr>),
+    NotExpectedType(Type, Type, Arc<Expr>),
+    InvalidLit(Arc<Expr>),
+    CantInferType(Arc<Expr>),
+    Other(Arc<Expr>, String),
 }
 
 impl HasLoc for TypeError {

@@ -15,7 +15,7 @@ pub type RegId = usize;
 pub struct RegInfo {
     set_net_id: NetId,
     val_net_id: NetId,
-    reset: Expr,
+    reset: Arc<Expr>,
 }
 
 #[derive(Debug)]
@@ -104,7 +104,7 @@ fn make_combs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<
             (target_net_id, expr.references_to_nets(&net_id_by_path), wiretype)
         })
         .filter(|(target_net_id, expr, _wiretype)| {
-            if let Expr::Net(_loc, net_id) = expr {
+            if let Expr::Net(_loc, net_id) = &**expr {
                 target_net_id != net_id
             } else {
                 true
@@ -428,7 +428,7 @@ impl Sim {
 }
 
 #[derive(Debug, Clone)]
-pub struct Comb(NetId, Expr);
+pub struct Comb(NetId, Arc<Expr>);
 
 impl Comb {
     pub fn depends_on(&self, net_id: NetId) -> bool {
@@ -458,7 +458,7 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
             WireType::Latch => target.set(),
             WireType::Proc => target.set(),
         };
-        if let Expr::Reference(_loc, driver) = expr {
+        if let Expr::Reference(_loc, driver) = &*expr {
             immediate_driver_for.insert(target_terminal.clone(), driver.clone());
          }
     }

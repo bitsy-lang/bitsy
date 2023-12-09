@@ -66,6 +66,6 @@ fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Pa
 impl From<&str> for Expr {
     fn from(expr: &str) -> Expr {
         let source_info = SourceInfo::from_string(expr);
-        *grammar::ExprParser::new().parse(&source_info, expr).unwrap()
+        Expr::clone(&grammar::ExprParser::new().parse(&source_info, expr).unwrap())
     }
 }

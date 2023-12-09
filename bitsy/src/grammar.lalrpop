@@ -91,7 +91,7 @@ ModDecl: ModDecl  = {
     <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Incoming(Loc::from(source_info, ll, rr), id, typ))),
     <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ))),
     <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Node(Loc::from(source_info, ll, rr), id, typ))),
-    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, *reset_val.map(|opt| opt.1).unwrap_or(Box::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1).unwrap_or(Arc::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:ModInst> => ModDecl::Component(m),
@@ -99,84 +99,84 @@ ModDecl: ModDecl  = {
 }
 
 Wire: Wire = {
-    <ll:@L> <reference:Reference> ":=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Direct),
-    <ll:@L> <reference:Reference> "<=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Latch),
-    <ll:@L> <reference:Reference> "<=!" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, *e, WireType::Proc),
+    <ll:@L> <reference:Reference> ":=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, e, WireType::Direct),
+    <ll:@L> <reference:Reference> "<=" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, e, WireType::Latch),
+    <ll:@L> <reference:Reference> "<=!" <e:Expr> ";" <rr:@R> => Wire::new(Loc::from(source_info, ll, rr), reference, e, WireType::Proc),
 }
 
 When: When = {
     "when" <e:Expr> "{"
         <wires:Wire*>
-    "}" => When(*e, wires),
+    "}" => When(e, wires),
 }
 
 
-pub Expr: Box<Expr> = {
+pub Expr: Arc<Expr> = {
     <e:ExprOr> => e,
 }
 
-ExprOr: Box<Expr> = {
-    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
-    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
+ExprOr: Arc<Expr> = {
+    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
     <e:ExprAnd> => e,
 }
 
-ExprAnd: Box<Expr> = {
-    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
+ExprAnd: Arc<Expr> = {
+    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
     <e:ExprNot> => e,
 }
 
-ExprNot: Box<Expr> = {
-    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
+ExprNot: Arc<Expr> = {
+    <ll:@L> "!" <e:ExprEq> <rr:@R> => Arc::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
     <e:ExprEq> => e,
 }
 
-ExprEq: Box<Expr> = {
-    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
-    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
+ExprEq: Arc<Expr> = {
+    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
+    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
-ExprAdd: Box<Expr> = {
-    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
-    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
-    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
+ExprAdd: Arc<Expr> = {
+    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
+    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
     <e:ExprCall> => e,
 }
 
-ExprCall: Box<Expr> = {
+ExprCall: Arc<Expr> = {
     <ll:@L> "cat" "(" <e1:Expr> <ess:("," Expr)+> ")" <rr:@R> => {
-        let mut es = vec![*e1];
+        let mut es = vec![e1];
         for (_, e) in ess {
-            es.push(*e);
+            es.push(e);
         }
-        Box::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
+        Arc::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
     },
-    <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Box::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Valid".to_string(), vec![*e])),
-    <ll:@L> "@Invalid" <rr:@R> => Box::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Invalid".to_string(), vec![])),
-    <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Box::new(Expr::Mux(Loc::from(source_info, ll, rr), cond, e1, e2)),
-    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
-    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![*e; n as usize])),
-    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Box::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
+    <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Valid".to_string(), vec![e])),
+    <ll:@L> "@Invalid" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Invalid".to_string(), vec![])),
+    <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Arc::new(Expr::Mux(Loc::from(source_info, ll, rr), cond, e1, e2)),
+    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Arc::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
+    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
+    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
+    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![e; n as usize])),
+    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Arc::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Arc::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
     <e:ExprBase> => e,
 }
 
-ExprList: Vec<Expr> = {
+ExprList: Vec<Arc<Expr>> = {
     "" => vec![],
-    <e:Expr> => vec![*e],
+    <e:Expr> => vec![e],
     <e:Expr> "," <es:ExprList> => {
-        let mut results = vec![*e];
+        let mut results = vec![e];
         results.extend(es.into_iter());
         results
     },
 }
 
-ExprBase: Box<Expr> = {
+ExprBase: Arc<Expr> = {
     <e:ExprLit> => e,
     <e:ExprReference> => e,
     <e:ExprIf> => e,
@@ -186,11 +186,11 @@ ExprBase: Box<Expr> = {
     "(" <e:Expr> ")" => e,
 }
 
-ExprHole: Box<Expr> = {
-    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
+ExprHole: Arc<Expr> = {
+    <ll:@L> "?" <name:Id?> <rr:@R> => Arc::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
 }
 
-ExprIf: Box<Expr> = {
+ExprIf: Arc<Expr> = {
     <ll:@L> "if" <cond:Expr> "{"
         <e1:Expr>
     <elseifs:("}" "else" "if" Expr "{" Expr)*>
@@ -200,25 +200,25 @@ ExprIf: Box<Expr> = {
         let mut result = elseexpr;
 
         for (_, _, _, elseif_cond, _, elseif_body) in elseifs.into_iter().rev() {
-            result = Box::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
+            result = Arc::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
         }
 
-        Box::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
+        Arc::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
     },
 }
 
-ExprLet: Box<Expr> = {
+ExprLet: Arc<Expr> = {
     <ll:@L> "let" <x:Id> "=" <e:Expr>
     "{" <b:Expr> "}" <rr:@R> => {
-        Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
+        Arc::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
     },
 }
 
-ExprMatch: Box<Expr> = {
+ExprMatch: Arc<Expr> = {
     <ll:@L> "match" <e:Expr> "{"
         <arms:MatchArm*>
     "}" <rr:@R> => {
-        Box::new(Expr::Match(Loc::from(source_info, ll, rr), e, arms))
+        Arc::new(Expr::Match(Loc::from(source_info, ll, rr), e, arms))
     },
 }
 
@@ -237,14 +237,14 @@ Pat: Pat = {
     "otherwise" => Pat::Otherwise,
 }
 
-ExprLit: Box<Expr> = {
+ExprLit: Arc<Expr> = {
     <ll:@L> <v:Value> <rr:@R> => {
-        Box::new(Expr::Lit(Loc::from(source_info, ll, rr), v))
+        Arc::new(Expr::Lit(Loc::from(source_info, ll, rr), v))
     },
 }
 
-ExprReference: Box<Expr> = {
-     <ll:@L> <path:Path> <rr:@R> => Box::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
+ExprReference: Arc<Expr> = {
+     <ll:@L> <path:Path> <rr:@R> => Arc::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
 }
 
 Type: Type = {
