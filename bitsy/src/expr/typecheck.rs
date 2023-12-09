@@ -39,6 +39,7 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
                 }
             },
+            Expr::Match(_loc, _e, arms) => todo!(),
             Expr::UnOp(_loc, _op, e) => e.typecheck(type_expected, ctx.clone()),
             Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.typecheck(type_expected, ctx.clone())?;

@@ -26,6 +26,8 @@ pub enum Expr {
     BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
     /// An `if` expression.
     If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    /// A `match` expression.
+    Match(Loc, Box<Expr>, Vec<MatchArm>),
     /// A multiplexer. Eg, `mux(cond, a, b)`.
     Mux(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
     /// A concatenate expression. Eg, `cat(foo, 0w1)`.
@@ -45,6 +47,16 @@ pub enum Expr {
     Hole(Loc, Option<String>),
 }
 
+#[derive(Clone)]
+pub struct MatchArm(pub Pat, pub Box<Expr>);
+
+#[derive(Clone)]
+pub enum Pat {
+    At(String, Vec<Pat>),
+    Bind(String),
+    Otherwise,
+}
+
 impl HasLoc for Expr {
     fn loc(&self) -> Loc {
         match self {
@@ -56,6 +68,7 @@ impl HasLoc for Expr {
             Expr::UnOp(loc, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _cond, _e1, _e2) => loc.clone(),
+            Expr::Match(loc, _e, _arms) => loc.clone(),
             Expr::Mux(loc, _cond, _e1, _e2) => loc.clone(),
             Expr::Cat(loc, _es) => loc.clone(),
             Expr::Sext(loc, _e, _n) => loc.clone(),
@@ -100,6 +113,9 @@ impl std::fmt::Debug for Expr {
             },
             Expr::If(_loc, cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
+            },
+            Expr::Match(_loc, e, arms) => {
+                write!(f, "match {e:?} {{ ... }}") // TODO
             },
             Expr::Mux(_loc, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
             Expr::Cat(_loc, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
@@ -182,6 +198,13 @@ impl Expr {
                 e1.with_subexprs(callback);
                 e2.with_subexprs(callback);
             },
+            Expr::Match(_loc, e, arms) => {
+                callback(self);
+                callback(e);
+                for MatchArm(_pat, arm_e) in arms {
+                    arm_e.with_subexprs(callback);
+                }
+            }
             Expr::Mux(_loc, cond, e1, e2) => {
                 callback(self);
                 cond.with_subexprs(callback);
@@ -275,6 +298,9 @@ impl Expr {
                     .cloned()
                     .collect()
             },
+            Expr::Match(_loc, _e, arms) => {
+                todo!()
+            },
             Expr::Mux(_loc, cond, e1, e2) => {
                 cond.free_vars()
                     .union(&e1.free_vars())
@@ -318,6 +344,7 @@ impl Expr {
             Expr::Lit(_loc, _value) => false,
             Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Let(_loc, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
+            Expr::Match(_loc, e, arms) => e.depends_on_net(net_id) || arms.iter().any(|MatchArm(_pat, arm_e)| arm_e.depends_on_net(net_id)),
             Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
@@ -356,6 +383,7 @@ impl Expr {
                 let new_b = Box::new(b.rebase_rec(current_path, &new_shadowed));
                 Expr::Let(loc.clone(), name.clone(), new_e, new_b)
             },
+            Expr::Match(_loc, _e, arms) => todo!(),
             Expr::UnOp(loc, op, e) => Expr::UnOp(loc.clone(), *op, Box::new(e.rebase_rec(current_path, shadowed))),
             Expr::BinOp(loc, op, e1, e2) => {
                 Expr::BinOp(
@@ -452,6 +480,7 @@ impl Expr {
                     Box::new(e2.references_to_nets_rec(net_id_by_path, shadowed)),
                 )
             },
+            Expr::Match(_loc, _e, arms) => todo!(),
             Expr::Mux(loc, cond, e1, e2) => {
                 Expr::Mux(
                     loc.clone(),
