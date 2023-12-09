@@ -79,7 +79,10 @@ fn main() {
         package.emit_mlir();
     } else {
         let testbench_filename = args.tb.or_else(|| testbench_for(&filename));
-        let testbench = if let Some(tb_filename) = testbench_filename {
+        let testbench = if args.debug {
+            let command = TestbenchCommand::Debug;
+            Testbench(None, vec![], vec![command])
+        } else if let Some(tb_filename) = testbench_filename {
             println!("Using testbench file: {tb_filename}");
             let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
             let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
