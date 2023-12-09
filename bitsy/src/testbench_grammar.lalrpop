@@ -66,6 +66,7 @@ pub Str: String = {
 }
 
 pub Id: String = {
+    "top" => "top".to_string(),
     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
 }
 
