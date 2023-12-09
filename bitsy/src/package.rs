@@ -150,6 +150,7 @@ impl Package {
     fn resolve_references_type(&self, typ: &Type) {
         match typ {
             Type::Word(_width) => (),
+            Type::Valid(typ) => self.resolve_references_type(typ),
             Type::Vec(typ, _len) => self.resolve_references_type(typ),
             Type::TypeDef(typedef) => {
                 if let Some(resolved_typedef) = self.typedef(typedef.name()) {

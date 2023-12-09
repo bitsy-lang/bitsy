@@ -7,6 +7,10 @@ impl Expr {
             Expr::Reference(_loc, path) => bitsy.peek(path.clone()),
             Expr::Net(_loc, netid) => bitsy.peek_net(*netid),
             Expr::Lit(_loc, value) => value.clone(),
+            Expr::Ctor(_loc, name, es) => {
+                let values: Vec<Value> = es.iter().map(|e| e.eval(bitsy)).collect();
+                Value::Ctor(name.to_string(), values)
+            },
             Expr::UnOp(_loc, op, e) => {
                 match (op, e.eval(bitsy)) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
@@ -100,6 +104,7 @@ impl Expr {
                     },
                     Value::Vec(_vs) => panic!("Can't sext a Vec"),
                     Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
+                    _ => panic!("Can't sext {self:?}"),
                 }
             }
             Expr::ToWord(_loc, e) => {

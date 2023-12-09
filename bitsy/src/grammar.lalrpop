@@ -153,6 +153,8 @@ ExprCall: Box<Expr> = {
         }
         Box::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
     },
+    <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Box::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Valid".to_string(), vec![*e])),
+    <ll:@L> "@Invalid" <rr:@R> => Box::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Invalid".to_string(), vec![])),
     <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Box::new(Expr::Mux(Loc::from(source_info, ll, rr), cond, e1, e2)),
     <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Box::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
     <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Box::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
@@ -215,6 +217,7 @@ ExprReference: Box<Expr> = {
 
 Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
+    "Valid" "<" <typ:Type> ">" => Type::Valid(Box::new(typ)),
     <id:Id> => Type::TypeDef(id.into()),
     "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
 }

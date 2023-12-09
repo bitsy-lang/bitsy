@@ -11,6 +11,8 @@ pub enum Value {
     Word(Width, u64),
     /// An element of `Vec<T, n>`.
     Vec(Vec<Value>),
+    /// An element of `Valid<T>`.
+    Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
     Enum(Reference<TypeDef>, String),
 }
@@ -30,6 +32,7 @@ impl Value {
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
             Value::Vec(_vs) => panic!(),
             Value::Enum(_typedef, _name) => panic!(),
+            Value::Ctor(_ctor, _e) => None,
         }
     }
 
@@ -49,16 +52,6 @@ fn value_to_usize() {
     assert_eq!(v.to_u64(), Some(7));
     let v: Value = Value::Word(2, 7);
     assert_eq!(v.to_u64(), Some(3));
-}
-
-impl std::fmt::Debug for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Type::Word(n) => write!(f, "Word<{n}>"),
-            Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
-            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
-        }
-    }
 }
 
 impl From<bool> for Value {
@@ -116,6 +109,21 @@ impl std::fmt::Debug for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Ctor(ctor, vs) => {
+                write!(f, "@{ctor}")?;
+                if vs.len() > 0 {
+                    write!(f, "(")?;
+                    for (i, v) in vs.iter().enumerate() {
+                        write!(f, "{v:?}")?;
+                        if i + 1 < vs.len() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
+            },
         }
     }
 }
@@ -137,6 +145,21 @@ impl std::fmt::Display for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Ctor(ctor, vs) => {
+                write!(f, "@{ctor}")?;
+                if vs.len() > 0 {
+                    write!(f, "(")?;
+                    for (i, v) in vs.iter().enumerate() {
+                        write!(f, "{v:?}")?;
+                        if i + 1 < vs.len() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
+            },
         }
     }
 }
@@ -158,6 +181,21 @@ impl std::fmt::LowerHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Ctor(ctor, vs) => {
+                write!(f, "@{ctor}")?;
+                if vs.len() > 0 {
+                    write!(f, "(")?;
+                    for (i, v) in vs.iter().enumerate() {
+                        write!(f, "{v:?}")?;
+                        if i + 1 < vs.len() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
+            },
         }
     }
 }
@@ -179,6 +217,21 @@ impl std::fmt::UpperHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Ctor(ctor, vs) => {
+                write!(f, "@{ctor}")?;
+                if vs.len() > 0 {
+                    write!(f, "(")?;
+                    for (i, v) in vs.iter().enumerate() {
+                        write!(f, "{v:?}")?;
+                        if i + 1 < vs.len() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
+            },
         }
     }
 }
@@ -200,6 +253,21 @@ impl std::fmt::Binary for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Ctor(ctor, vs) => {
+                write!(f, "@{ctor}")?;
+                if vs.len() > 0 {
+                    write!(f, "(")?;
+                    for (i, v) in vs.iter().enumerate() {
+                        write!(f, "{v:?}")?;
+                        if i + 1 < vs.len() {
+                            write!(f, ", ")?;
+                        }
+                    }
+                    write!(f, ")")
+                } else {
+                    Ok(())
+                }
+            },
         }
     }
 }

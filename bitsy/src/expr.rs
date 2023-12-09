@@ -16,6 +16,8 @@ pub enum Expr {
     Net(Loc, NetId),
     /// A literal value.
     Lit(Loc, Value),
+    /// Constructor (for `Valid<T>`)
+    Ctor(Loc, String, Vec<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
     UnOp(Loc, UnOp, Box<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
@@ -47,6 +49,7 @@ impl HasLoc for Expr {
             Expr::Net(loc, _netid) => loc.clone(),
             Expr::Reference(loc, _path) => loc.clone(),
             Expr::Lit(loc, _val) => loc.clone(),
+            Expr::Ctor(loc, _name, _e) => loc.clone(),
             Expr::UnOp(loc, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _cond, _e1, _e2) => loc.clone(),
@@ -69,6 +72,7 @@ impl std::fmt::Debug for Expr {
             Expr::Net(_loc, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, path) => write!(f, "{path}"),
             Expr::Lit(_loc, val) => write!(f, "{val:?}"),
+            Expr::Ctor(_loc, name, e) => write!(f, "@{name}({e:?})"),
             Expr::UnOp(_loc, op, e) => {
                 let op_symbol = match op {
                     UnOp::Not => "!",
@@ -148,6 +152,12 @@ impl Expr {
             Expr::Reference(_loc, _path) => callback(self),
             Expr::Net(_loc, _netid) => callback(self),
             Expr::Lit(_loc, _value) => callback(self),
+            Expr::Ctor(_loc, _name, es) => {
+                for e in es {
+                    e.with_subexprs(callback);
+                }
+                callback(self);
+            },
             Expr::UnOp(_loc, _op, e) => {
                 e.with_subexprs(callback);
                 callback(self);
@@ -213,6 +223,12 @@ impl Expr {
             Expr::Reference(_loc, _path) => callback(self),
             Expr::Net(_loc, _netid) => callback(self),
             Expr::Lit(_loc, _value) => callback(self),
+            Expr::Ctor(_loc, _name, es) => {
+                for e in es {
+                    e.with_subexprs_mut(callback);
+                }
+                callback(self);
+            },
             Expr::UnOp(_loc, _op, e) => {
                 e.with_subexprs_mut(callback);
                 callback(&mut *self);
@@ -294,6 +310,7 @@ impl Expr {
             Expr::Reference(_loc, _path) => false,
             Expr::Net(_loc, _netid) => false,
             Expr::Lit(_loc, _value) => true,
+            Expr::Ctor(_loc, _name, es) => es.iter().all(|e| e.is_constant()),
             Expr::UnOp(_loc, _op, e) => e.is_constant(),
             Expr::BinOp(_loc, _op, e1, e2) => e1.is_constant() && e2.is_constant(),
             Expr::If(_loc, cond, e1, e2) => cond.is_constant() && e1.is_constant() && e2.is_constant(),
@@ -338,6 +355,7 @@ impl Expr {
             Expr::Reference(_loc, _path) => panic!("depends_on_net() only works on net expressions."),
             Expr::Net(_loc, other_netid) => net_id == *other_netid,
             Expr::Lit(_loc, _value) => false,
+            Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::UnOp(_loc, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(_loc, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),

@@ -38,8 +38,25 @@ fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Pa
             let message = format!("Parse error: Expected one of {}", expected.join(" "));
             return Err(vec![CircuitError::ParseError(loc, message)]);
         },
-        _ => {
+        Err(ParseError::InvalidToken { location }) => {
+            let loc = Loc::from(&source_info, location, location + 1);
             let message = format!("Parse error");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::ExtraToken { token }) => {
+            let start_idx = token.0;
+            let end_idx = token.2;
+            let loc = Loc::from(&source_info, start_idx, end_idx);
+            let message = format!("Parse error: extra token: {token:?}");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::UnrecognizedEof { location, expected }) => {
+            let loc = Loc::from(&source_info, location, location + 1);
+            let message = format!("Parse error: Unexpected end of file: Expected {expected:?}");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::User { error }) => {
+            let message = format!("Parse error: {error:?}");
             return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
         },
     };

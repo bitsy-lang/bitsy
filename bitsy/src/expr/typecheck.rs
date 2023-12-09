@@ -18,6 +18,20 @@ impl Expr {
             Expr::Lit(_loc, Value::Word(w, n)) if n >> w != 0 =>
                 Err(TypeError::InvalidLit(self.clone())),
             Expr::Lit(_loc, _) => unreachable!(),
+            Expr::Ctor(loc, name, es) => {
+                // TODO
+                if let Type::Valid(typ) = type_expected {
+                    if es.len() == 1 {
+                        es[0].typecheck(typ, ctx.clone())
+                    } else if es.len() > 1 {
+                        Err(TypeError::Other(self.clone(), format!("Error")))
+                    } else {
+                        Ok(())
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
+                }
+            },
             Expr::UnOp(_loc, _op, e) => e.typecheck(type_expected, ctx.clone()),
             Expr::BinOp(_loc, _op, e1, e2) => {
                 e1.typecheck(type_expected, ctx.clone())?;
@@ -95,7 +109,7 @@ impl Expr {
                 Value::Word(_w, _n) => None,
                 Value::Vec(_es) => None,
                 Value::Enum(typedef, _name) => Some(Type::TypeDef(typedef.clone())),
-                Value::X => None,
+                _ => None,
             },
             Expr::UnOp(_loc, _op, e) => e.typeinfer(ctx.clone()),
             Expr::BinOp(_loc, BinOp::AddCarry, e1, e2) => {
@@ -184,6 +198,7 @@ impl Expr {
             },
             Expr::IdxDyn(_loc, e, i) => None,
             Expr::Hole(_loc, opt_name) => None,
+            _ => None,
         }
     }
 }
@@ -201,7 +216,7 @@ impl HasLoc for TypeError {
     fn loc(&self) -> Loc {
         match self {
             TypeError::UndefinedReference(e) => e.loc(),
-            TypeError::NotExpectedType(_type_expected, _type_actual , e) => e.loc(),
+            TypeError::NotExpectedType(_type_expected, _type_actual, e) => e.loc(),
             TypeError::InvalidLit(e) => e.loc(),
             TypeError::CantInferType(e) => e.loc(),
             TypeError::Other(e, _msg) => e.loc(),

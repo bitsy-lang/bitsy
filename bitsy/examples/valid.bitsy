@@ -1,0 +1,12 @@
+mod Top {
+    outgoing out of Valid<Word<2>>;
+
+    reg counter of Word<3> reset 0w3;
+    counter <= counter + 1w3;
+
+    out := if !counter[2] {
+        @Valid(counter[2..0])
+    } else {
+        @Invalid
+    };
+}
