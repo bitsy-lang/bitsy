@@ -15,9 +15,20 @@ impl Expr {
         match &**self {
             Expr::Reference(_loc, path) => Err(TypeError::UndefinedReference(self.clone())),
             Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
-            Expr::Lit(_loc, Value::Word(w, n)) if n >> w != 0 =>
-                Err(TypeError::InvalidLit(self.clone())),
-            Expr::Lit(_loc, _) => unreachable!(),
+            Expr::Word(_loc, w, n) if n >> w != 0 =>
+                Err(TypeError::InvalidWord(self.clone())),
+            Expr::Word(_loc, _width, _) => unreachable!(),
+            Expr::Enum(_loc, typedef, _name) => {
+                if let Type::TypeDef(typedef_expected) = &*type_expected {
+                    if typedef_expected == typedef {
+                        Ok(())
+                    } else {
+                        Err(TypeError::Other(self.clone(), format!("Type Error")))
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Type Error")))
+                }
+            },
             Expr::Ctor(loc, name, es) => {
                 // TODO
                 if let Type::Valid(typ) = &*type_expected {
@@ -116,13 +127,12 @@ impl Expr {
         match &**self {
             Expr::Reference(_loc, path) => ctx.lookup(path),
             Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
-            Expr::Lit(_loc, value) => match value {
-                Value::Word(w, n) if n >> w == 0 => Some(Type::word(*w)),
-                Value::Word(_w, _n) => None,
-                Value::Vec(_es) => None,
-                Value::Enum(typedef, _name) => Some(Type::type_def(typedef.clone())),
-                _ => None,
+            Expr::Word(_loc, w, n) => if n >> w == 0 {
+                Some(Type::word(*w))
+            } else {
+                None
             },
+            Expr::Enum(_loc, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
             Expr::UnOp(_loc, _op, e) => e.typeinfer(ctx.clone()),
             Expr::BinOp(_loc, BinOp::AddCarry, e1, e2) => {
                 let typ1 = e1.typeinfer(ctx.clone())?;
@@ -219,7 +229,7 @@ impl Expr {
 pub enum TypeError {
     UndefinedReference(Arc<Expr>),
     NotExpectedType(Arc<Type>, Arc<Type>, Arc<Expr>),
-    InvalidLit(Arc<Expr>),
+    InvalidWord(Arc<Expr>),
     CantInferType(Arc<Expr>),
     Other(Arc<Expr>, String),
 }
@@ -229,7 +239,7 @@ impl HasLoc for TypeError {
         match self {
             TypeError::UndefinedReference(e) => e.loc(),
             TypeError::NotExpectedType(_type_expected, _type_actual, e) => e.loc(),
-            TypeError::InvalidLit(e) => e.loc(),
+            TypeError::InvalidWord(e) => e.loc(),
             TypeError::CantInferType(e) => e.loc(),
             TypeError::Other(e, _msg) => e.loc(),
         }
@@ -241,7 +251,7 @@ impl std::fmt::Display for TypeError {
         match self {
             TypeError::UndefinedReference(expr) => write!(f, "Undefiend reference: {expr:?}"),
             TypeError::NotExpectedType(type_expected, type_actual, expr) => write!(f, "Not expected type: {expr:?} has type {type_actual:?} but expected {type_expected:?}."),
-            TypeError::InvalidLit(expr) => write!(f, "Invalid literal: {expr:?}"),
+            TypeError::InvalidWord(expr) => write!(f, "Invalid literal: {expr:?}"),
             TypeError::CantInferType(expr) => write!(f, "Can't infer type: {expr:?}"),
             TypeError::Other(_expr, _string) => write!(f, "{self:?}"),
         }

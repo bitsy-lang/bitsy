@@ -11,7 +11,7 @@ pub enum Component {
     Incoming(Loc, Name, Arc<Type>),
     Outgoing(Loc, Name, Arc<Type>),
     Node(Loc, Name, Arc<Type>),
-    Reg(Loc, Name, Arc<Type>, Arc<Expr>),
+    Reg(Loc, Name, Arc<Type>, Option<Arc<Expr>>),
 }
 
 impl Component {
@@ -137,7 +137,7 @@ impl Component {
 
     pub fn reset(&self) -> Option<Arc<Expr>> {
         match self {
-            Component::Reg(_loc, _name, _typ, reset) => Some(reset.clone()),
+            Component::Reg(_loc, _name, _typ, reset) => reset.clone(),
             _ => None
         }
     }

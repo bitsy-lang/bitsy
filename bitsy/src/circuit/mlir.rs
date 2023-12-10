@@ -90,11 +90,8 @@ impl Expr {
                 let typ_name = type_to_mlir(typ);
                 (format!("%tmp_{prefix}_reference"), format!("comb.add %{name} : {typ_name}"))
             },
-            Expr::Lit(_loc, v) => {
-                let (v_str, v_typ) = match v {
-                    Value::Word(n, k) => (format!("{k}"), type_to_mlir(Arc::new(Type::Word(*n)))),
-                    _ => panic!(),
-                };
+            Expr::Word(_loc, w, n) => {
+                let (v_str, v_typ) = (format!("{n}"), type_to_mlir(Arc::new(Type::Word(*w))));
                 (format!("%tmp_{prefix}_lit"), format!("hw.constant {v_str} : {v_typ}"))
             },
             Expr::BinOp(_loc, BinOp::Add, e1, e2) => {

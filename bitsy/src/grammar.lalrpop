@@ -91,7 +91,7 @@ ModDecl: ModDecl  = {
     <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Incoming(Loc::from(source_info, ll, rr), id, typ))),
     <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ))),
     <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Node(Loc::from(source_info, ll, rr), id, typ))),
-    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1).unwrap_or(Arc::new(Expr::Lit(Loc::from(source_info, 0, 0), Value::X)))))),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Arc::new(Component::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1)))),
     <when:When> => ModDecl::When(when),
     <m:Mod> => ModDecl::Component(m),
     <m:ModInst> => ModDecl::Component(m),
@@ -238,8 +238,14 @@ Pat: Pat = {
 }
 
 ExprLit: Arc<Expr> = {
-    <ll:@L> <v:Value> <rr:@R> => {
-        Arc::new(Expr::Lit(Loc::from(source_info, ll, rr), v))
+    <ll:@L> <typename:Id> "::" <name:Id> <rr:@R> =>
+        Arc::new(Expr::Enum(Loc::from(source_info, ll, rr), typename.into(), name.to_string())),
+
+    <ll:@L> <lit:r"[0-9]+w[0-9]+"> <rr:@R> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = parts[0].parse().unwrap();
+        let width = parts[1].parse().unwrap();
+        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), width, v))
     },
 }
 

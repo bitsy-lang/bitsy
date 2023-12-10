@@ -93,7 +93,7 @@ impl Circuit {
     /// Given a [`Path`], if it is a [`Component::Reg`], return its reset value.
     pub fn reset_for_reg(&self, path: Path) -> Option<Arc<Expr>> {
         if let Component::Reg(_loc, _name, _typ, reset) = &*self.component(path)? {
-            Some(reset.clone())
+            reset.clone()
         } else {
             None
         }

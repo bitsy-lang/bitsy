@@ -1,3 +1,4 @@
+use reference::Reference;
 mod typecheck;
 mod eval;
 
@@ -15,8 +16,10 @@ pub enum Expr {
     Reference(Loc, Path),
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
     Net(Loc, NetId),
-    /// A literal value.
-    Lit(Loc, Value),
+    /// A literal Word.
+    Word(Loc, Width, u64),
+    /// A literal enum value.
+    Enum(Loc, Reference<TypeDef>, String),
     /// Constructor (for `Valid<T>`)
     Ctor(Loc, String, Vec<Arc<Expr>>),
     /// Let binding. Eg, `let x = a + b in x + x`.
@@ -63,7 +66,8 @@ impl HasLoc for Expr {
         match self {
             Expr::Net(loc, _netid) => loc.clone(),
             Expr::Reference(loc, _path) => loc.clone(),
-            Expr::Lit(loc, _val) => loc.clone(),
+            Expr::Word(loc, _width, _val) => loc.clone(),
+            Expr::Enum(loc, _typedef, _name) => loc.clone(),
             Expr::Ctor(loc, _name, _e) => loc.clone(),
             Expr::Let(loc, _name, _e, _b) => loc.clone(),
             Expr::UnOp(loc, _op, _e) => loc.clone(),
@@ -95,7 +99,8 @@ impl std::fmt::Debug for Expr {
         match self {
             Expr::Net(_loc, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, path) => write!(f, "{path}"),
-            Expr::Lit(_loc, val) => write!(f, "{val:?}"),
+            Expr::Word(_loc, width, val) => write!(f, "{val}w{width}"),
+            Expr::Enum(_loc, typedef, name) => write!(f, "{typedef:?}::{name}"),
             Expr::Let(_loc, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
             Expr::Ctor(_loc, name, e) => write!(f, "@{name}({e:?})"),
             Expr::UnOp(_loc, op, e) => {
@@ -179,7 +184,8 @@ impl Expr {
         match self {
             Expr::Reference(_loc, _path) => callback(self),
             Expr::Net(_loc, _netid) => callback(self),
-            Expr::Lit(_loc, _value) => callback(self),
+            Expr::Word(_loc, _width, _value) => callback(self),
+            Expr::Enum(_loc, _typedef, _name) => callback(self),
             Expr::Ctor(_loc, _name, es) => {
                 callback(self);
                 for e in es {
@@ -282,7 +288,8 @@ impl Expr {
         match self {
             Expr::Reference(_loc, path) => vec![path.clone()].iter().cloned().collect(),
             Expr::Net(_loc, _netid) => BTreeSet::new(),
-            Expr::Lit(_loc, _value) => BTreeSet::new(),
+            Expr::Word(_loc, _width, _value) => BTreeSet::new(),
+            Expr::Enum(_loc, _typedef, _name) => BTreeSet::new(),
             Expr::Ctor(_loc, _name, es) => {
                 let mut result = BTreeSet::new();
                 for e in es {
@@ -349,7 +356,8 @@ impl Expr {
         match self {
             Expr::Reference(_loc, _path) => false,
             Expr::Net(_loc, other_netid) => net_id == *other_netid,
-            Expr::Lit(_loc, _value) => false,
+            Expr::Word(_loc, _width, _value) => false,
+            Expr::Enum(_loc, _typedef, _name) => false,
             Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Let(_loc, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
             Expr::Match(_loc, e, arms) => e.depends_on_net(net_id) || arms.iter().any(|MatchArm(_pat, arm_e)| arm_e.depends_on_net(net_id)),
@@ -382,7 +390,8 @@ impl Expr {
                 }
             },
             Expr::Net(_loc, _net_id) => panic!("rebase() only works on reference expressions."),
-            Expr::Lit(_loc, _value) => self.clone(),
+            Expr::Word(_loc, _width, _value) => self.clone(),
+            Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => Expr::Ctor(loc.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
             Expr::Let(loc, name, e, b) => {
                 let new_e = e.rebase_rec(current_path.clone(), shadowed);
@@ -455,7 +464,8 @@ impl Expr {
                 }
             },
             Expr::Net(_loc, _net_id) => panic!("references_to_nets() only works on reference expressions."),
-            Expr::Lit(_loc, _value) => self.clone(),
+            Expr::Word(_loc, _width, _value) => self.clone(),
+            Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => {
                 Expr::Ctor(
                     loc.clone(),

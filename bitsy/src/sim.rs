@@ -15,7 +15,7 @@ pub type RegId = usize;
 pub struct RegInfo {
     set_net_id: NetId,
     val_net_id: NetId,
-    reset: Arc<Expr>,
+    reset: Option<Arc<Expr>>,
 }
 
 #[derive(Debug)]
@@ -72,7 +72,7 @@ fn make_regs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<R
         .map(|path| {
             let set_net_id = net_id_by_path[&path.set()];
             let val_net_id = net_id_by_path[&path.clone()];
-            let reset = circuit.reset_for_reg(path).unwrap();
+            let reset = circuit.reset_for_reg(path);
 
             RegInfo {
                 set_net_id,
@@ -407,7 +407,9 @@ impl Sim {
 
     pub fn reset(&mut self) {
         for reginfo in &self.sim_circuit.clone().regs {
-            self.poke_net(reginfo.val_net_id, reginfo.reset.eval(&self));
+            if let Some(reset) = &reginfo.reset {
+                self.poke_net(reginfo.val_net_id, reset.eval(&self));
+            }
         }
 
         for ext in &mut self.exts {
