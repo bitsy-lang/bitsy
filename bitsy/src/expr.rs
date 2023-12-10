@@ -6,8 +6,6 @@ use crate::sim::NetId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-pub use typecheck::TypeError;
-
 /// An expression.
 #[derive(Clone)]
 pub enum Expr {

@@ -1,8 +1,6 @@
 mod check;
 mod mlir;
 
-pub use check::CircuitError;
-
 use super::*;
 use std::collections::BTreeSet;
 use std::sync::Arc;

@@ -9,6 +9,7 @@ mod expr;
 mod path;
 mod context;
 mod loc;
+mod error;
 #[cfg(test)]
 mod tests;
 
@@ -21,3 +22,4 @@ pub use expr::*;
 pub use path::*;
 pub use context::*;
 pub use loc::*;
+pub use error::*;

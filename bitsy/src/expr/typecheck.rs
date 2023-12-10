@@ -224,36 +224,3 @@ impl Expr {
         }
     }
 }
-
-#[derive(Clone, Debug)]
-pub enum TypeError {
-    UndefinedReference(Arc<Expr>),
-    NotExpectedType(Arc<Type>, Arc<Type>, Arc<Expr>),
-    InvalidWord(Arc<Expr>),
-    CantInferType(Arc<Expr>),
-    Other(Arc<Expr>, String),
-}
-
-impl HasLoc for TypeError {
-    fn loc(&self) -> Loc {
-        match self {
-            TypeError::UndefinedReference(e) => e.loc(),
-            TypeError::NotExpectedType(_type_expected, _type_actual, e) => e.loc(),
-            TypeError::InvalidWord(e) => e.loc(),
-            TypeError::CantInferType(e) => e.loc(),
-            TypeError::Other(e, _msg) => e.loc(),
-        }
-    }
-}
-
-impl std::fmt::Display for TypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            TypeError::UndefinedReference(expr) => write!(f, "Undefiend reference: {expr:?}"),
-            TypeError::NotExpectedType(type_expected, type_actual, expr) => write!(f, "Not expected type: {expr:?} has type {type_actual:?} but expected {type_expected:?}."),
-            TypeError::InvalidWord(expr) => write!(f, "Invalid literal: {expr:?}"),
-            TypeError::CantInferType(expr) => write!(f, "Can't infer type: {expr:?}"),
-            TypeError::Other(_expr, _string) => write!(f, "{self:?}"),
-        }
-    }
-}

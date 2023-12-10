@@ -1,3 +1,6 @@
+use crate::Path;
+use crate::Expr;
+use crate::load_package_from_string;
 use crate::sim::{Sim, Value};
 use crate::sim::ext::ExtInstance;
 use crate::sim::ext::monitor::Monitor;

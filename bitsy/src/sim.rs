@@ -1,5 +1,7 @@
 use super::*;
 
+#[cfg(test)]
+mod tests;
 mod value;
 mod eval;
 pub mod ext;
