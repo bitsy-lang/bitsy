@@ -9,7 +9,7 @@ SOURCEDIR     = source
 BUILDDIR      = build
 EXAMPLES      = $(wildcard ../nettle/examples/*.bitsy)
 
-auto: examples $(EXAMPLES)
+auto: examples $(EXAMPLES) typesystem.pdf
 	mkdir -p ./source/examples/
 	cp ../bitsy/examples/*.bitsy ./source/examples/
 	poetry run make html
@@ -22,3 +22,9 @@ html: Makefile
 clean:
 	rm -rf ./source/examples
 	rm -rf $(BUILDDIR)
+	rm -rf ./latexbuild/
+
+%.pdf: %.tex
+	mkdir -p ./latexbuild/
+	pdflatex -output-directory=./latexbuild/ $<
+	cp ./latexbuild/$@ $(BUILDDIR)/html/

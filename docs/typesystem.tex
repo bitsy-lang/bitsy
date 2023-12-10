@@ -1,0 +1,90 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+% Define typographical commands for typing judgments
+\newcommand{\judgment}[2]{\ensuremath{#1 \vdash #2}}
+\newcommand{\oftype}[2]{\ensuremath{#1 : #2}}
+
+\newcommand{\word}[1]{\text{Word}\langle #1 \rangle}
+\newcommand{\vect}[2]{\text{Vec}\langle #1, #2 \rangle}
+\newcommand{\valid}[1]{\text{Valid}\langle #1 \rangle}
+
+\begin{document}
+
+\title{Bitsy Type System}
+\author{Michael Maloney}
+\maketitle
+
+\section{Bitsy Language}
+Bitsy is a hardware description language with a principled type system founded on type theory.
+
+\subsection{Syntax}
+
+\begin{align*}
+    &e &::= &\quad x \quad &(\text{paths}) \\
+    &&| &\quad v \quad &(\text{literals}) \\
+    &&| &\quad [e_0, \dots, e_{n-1}] \quad &(\text{vectors}) \\
+    &&| &\quad @\text{Valid}(e) \quad &(\text{valid } e) \\
+    &&| &\quad @\text{Invalid} \quad &(\text{invalid}) \\
+    && \dots
+\end{align*}
+
+\begin{align*}
+    &T &::= &\quad \word{n} \quad &(\text{n-bit integers}) \\
+    &&| &\quad \vect{T}{n} \quad &(\text{vectors of length } n) \\
+    &&| &\quad \valid{T} \quad &(\text{possibly invalid } T) \\
+\end{align*}
+
+\subsection{Typing Rules}
+
+\begin{align*}
+    \frac{
+        x : T \in \Gamma
+    }{
+        \judgment{\Gamma}{x \uparrow T}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{x_i \downarrow T}
+    }{
+        \judgment{\Gamma}{[x_0, \dots, x_{n-1}]  \downarrow T}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow S} \quad
+        \judgment{\Gamma, e : S}{b \downarrow T}
+    }{
+        \judgment{\Gamma}{\text{let} x = e \{ b \} \downarrow T}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{x \downarrow \word{n}} \quad
+        \judgment{\Gamma}{y \downarrow \word{n}}
+    }{
+        \judgment{\Gamma}{x + y \downarrow \word{n}}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{c \downarrow \word{1}} \quad
+        \judgment{\Gamma}{e_1 \downarrow T}\quad
+        \judgment{\Gamma}{e_2 \downarrow T}\quad
+    }{
+        \judgment{\Gamma}{\text{mux}(c, e_1, e_2) \downarrow T}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e_i \uparrow \word{m_i}} \quad
+        \sum{m_i} = n
+    }{
+        \judgment{\Gamma}{\text{cat}(e_0, \dots, e_{n-1}) \downarrow \word{n}}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow \word{m}} \quad
+        m \le n
+    }{
+        \judgment{\Gamma}{\text{sext}(e) \downarrow \word{n}}
+    } \\
+\end{align*}
+
+\end{document}
