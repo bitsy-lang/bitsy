@@ -275,18 +275,6 @@ impl Wire {
     }
 }
 
-/// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
-#[derive(Debug, Clone)]
-pub enum Component {
-    Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
-    ModInst(Loc, Name, Reference<Component>),
-    Ext(Loc, Name, Vec<Arc<Component>>),
-    Incoming(Loc, Name, Arc<Type>),
-    Outgoing(Loc, Name, Arc<Type>),
-    Node(Loc, Name, Arc<Type>),
-    Reg(Loc, Name, Arc<Type>, Arc<Expr>),
-}
-
 impl HasLoc for Wire {
     fn loc(&self) -> Loc {
         let Wire(loc, _target, _expr, _wire_type) = self;
