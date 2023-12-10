@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use bitsy::*;
 use bitsy::sim::*;
+use bitsy::sim::ext::ExtInstance;
 
 mod lsp;
 
@@ -140,36 +141,36 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn ExtInstance> = match extname.as_str() {
             "Monitor" => {
-                let e = Box::new(bitsy::ext::monitor::Monitor::new());
+                let e = Box::new(bitsy::sim::ext::monitor::Monitor::new());
                 e
             },
             "RiscVDecoder" => {
-                let e = Box::new(bitsy::ext::riscv_decoder::RiscVDecoder::new());
+                let e = Box::new(bitsy::sim::ext::riscv_decoder::RiscVDecoder::new());
                 e
             },
             "Ram" => {
-                let mut e = Box::new(bitsy::ext::ram::Ram::new());
+                let mut e = Box::new(bitsy::sim::ext::ram::Ram::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Mem" => {
-                let mut e = Box::new(bitsy::ext::mem::Mem::new());
+                let mut e = Box::new(bitsy::sim::ext::mem::Mem::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Video" => {
-                let mut e = Box::new(bitsy::ext::video::Video::new());
+                let mut e = Box::new(bitsy::sim::ext::video::Video::new());
                 if params_map.remove("disabled") == Some("true".to_string()) {
                     e.disable()
                 }
                 e
             },
             "Terminal" => {
-                let e = Box::new(bitsy::ext::terminal::Terminal::new());
+                let e = Box::new(bitsy::sim::ext::terminal::Terminal::new());
                 e
             },
             _ => panic!("Unknown ext module being linked: {extname}")

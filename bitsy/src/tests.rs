@@ -1,5 +1,7 @@
 use super::*;
-use crate::sim::Sim;
+use crate::sim::{Sim, Value};
+use crate::sim::ext::ExtInstance;
+use crate::sim::ext::monitor::Monitor;
 
 use std::collections::{BTreeSet, BTreeMap};
 use std::sync::Arc;
@@ -123,7 +125,7 @@ fn vip() {
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let monitor = Box::new(ext::monitor::Monitor::new());
+    let monitor = Box::new(Monitor::new());
     let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
     exts.insert("top.vip".into(), monitor);
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::value::Value;
+use crate::sim::value::Value;
 
 pub mod monitor;
 pub mod ram;

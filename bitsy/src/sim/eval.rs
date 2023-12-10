@@ -1,5 +1,6 @@
 use super::*;
 use crate::sim::Sim;
+use crate::sim::Value;
 
 impl Expr {
     pub fn eval(&self, bitsy: &Sim) -> Value {
@@ -128,7 +129,7 @@ impl Expr {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
-                    Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name).unwrap(),
+                    Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name).unwrap().into(),
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }
             },

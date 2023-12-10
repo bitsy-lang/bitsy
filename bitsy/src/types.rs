@@ -1,4 +1,3 @@
-use super::*;
 use crate::reference::Reference;
 use std::sync::Arc;
 
@@ -44,15 +43,18 @@ impl Type {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct WordLit(pub Width, pub u64);
+
 /// A user-defined `enum` type.
 #[derive(Debug, Clone)]
 pub struct TypeDef {
     pub name: String,
-    pub values: Vec<(String, Value)>,
+    pub values: Vec<(String, WordLit)>,
 }
 
 impl TypeDef {
-    pub fn value_of(&self, name: &str) -> Option<Value> {
+    pub fn value_of(&self, name: &str) -> Option<WordLit> {
         for (other_name, value) in &self.values {
             if name == other_name {
                 return Some(value.clone());
@@ -64,7 +66,7 @@ impl TypeDef {
     pub fn width(&self) -> Width {
         let mut max_width = 0;
         for (_name, value) in &self.values {
-            if let Value::Word(w, _n) = value {
+            if let WordLit(w, _n) = value {
                 if *w > max_width {
                     max_width = *w;
                 }

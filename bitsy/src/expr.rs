@@ -1,6 +1,5 @@
 use reference::Reference;
 mod typecheck;
-mod eval;
 
 use super::*;
 use crate::sim::NetId;
