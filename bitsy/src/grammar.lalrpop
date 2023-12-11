@@ -246,7 +246,7 @@ ExprLit: Arc<Expr> = {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();
         let width = parts[1].parse().unwrap();
-        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), width, v))
+        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), OnceCell::new(), width, v))
     },
 }
 

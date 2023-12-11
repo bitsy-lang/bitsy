@@ -16,7 +16,7 @@ pub enum Expr {
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
     Net(Loc, OnceCell<Arc<Type>>, NetId),
     /// A literal Word.
-    Word(Loc, Width, u64),
+    Word(Loc, OnceCell<Arc<Type>>, Width, u64),
     /// A literal enum value.
     Enum(Loc, Reference<TypeDef>, String),
     /// Constructor (for `Valid<T>`)
@@ -65,7 +65,7 @@ impl HasLoc for Expr {
         match self {
             Expr::Net(loc, _typ, _netid) => loc.clone(),
             Expr::Reference(loc, _typ, _path) => loc.clone(),
-            Expr::Word(loc, _width, _val) => loc.clone(),
+            Expr::Word(loc, _typ, _width, _val) => loc.clone(),
             Expr::Enum(loc, _typedef, _name) => loc.clone(),
             Expr::Ctor(loc, _name, _e) => loc.clone(),
             Expr::Let(loc, _name, _e, _b) => loc.clone(),
@@ -98,7 +98,7 @@ impl std::fmt::Debug for Expr {
         match self {
             Expr::Net(_loc, _typ, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, _typ, path) => write!(f, "{path}"),
-            Expr::Word(_loc, width, val) => write!(f, "{val}w{width}"),
+            Expr::Word(_loc, _typ, width, val) => write!(f, "{val}w{width}"),
             Expr::Enum(_loc, typedef, name) => write!(f, "{typedef:?}::{name}"),
             Expr::Let(_loc, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
             Expr::Ctor(_loc, name, e) => write!(f, "@{name}({e:?})"),
@@ -183,7 +183,7 @@ impl Expr {
         match self {
             Expr::Reference(_loc, _typ, _path) => callback(self),
             Expr::Net(_loc, _typ, _netid) => callback(self),
-            Expr::Word(_loc, _width, _value) => callback(self),
+            Expr::Word(_loc, _typ, _width, _value) => callback(self),
             Expr::Enum(_loc, _typedef, _name) => callback(self),
             Expr::Ctor(_loc, _name, es) => {
                 callback(self);
@@ -287,7 +287,7 @@ impl Expr {
         match self {
             Expr::Reference(_loc, _typ, path) => vec![path.clone()].iter().cloned().collect(),
             Expr::Net(_loc, _typ, _netid) => BTreeSet::new(),
-            Expr::Word(_loc, _width, _value) => BTreeSet::new(),
+            Expr::Word(_loc, _typ, _width, _value) => BTreeSet::new(),
             Expr::Enum(_loc, _typedef, _name) => BTreeSet::new(),
             Expr::Ctor(_loc, _name, es) => {
                 let mut result = BTreeSet::new();
@@ -355,7 +355,7 @@ impl Expr {
         match self {
             Expr::Reference(_loc, _typ, _path) => false,
             Expr::Net(_loc, _typ, other_netid) => net_id == *other_netid,
-            Expr::Word(_loc, _width, _value) => false,
+            Expr::Word(_loc, _typ, _width, _value) => false,
             Expr::Enum(_loc, _typedef, _name) => false,
             Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Let(_loc, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
@@ -389,7 +389,7 @@ impl Expr {
                 }
             },
             Expr::Net(_loc, _typ, _net_id) => panic!("rebase() only works on reference expressions."),
-            Expr::Word(_loc, _width, _value) => self.clone(),
+            Expr::Word(_loc, _typ, _width, _value) => self.clone(),
             Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => Expr::Ctor(loc.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
             Expr::Let(loc, name, e, b) => {
@@ -463,7 +463,7 @@ impl Expr {
                 }
             },
             Expr::Net(_loc, _typ, _net_id) => panic!("references_to_nets() only works on reference expressions."),
-            Expr::Word(_loc, _width, _value) => self.clone(),
+            Expr::Word(_loc, _typ, _width, _value) => self.clone(),
             Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => {
                 Expr::Ctor(

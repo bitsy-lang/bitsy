@@ -17,7 +17,7 @@ impl Expr {
                 }
             }
             Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
-            Expr::Word(_loc, width, value) => Value::Word(*width, *value),
+            Expr::Word(_loc, _typ, width, value) => Value::Word(*width, *value),
             Expr::Enum(_loc, typedef, name) => Value::Enum(typedef.clone(), name.clone()),
             Expr::Ctor(_loc, name, es) => {
                 let values: Vec<Value> = es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())).collect();

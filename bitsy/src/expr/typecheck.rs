@@ -15,9 +15,9 @@ impl Expr {
         match &**self {
             Expr::Reference(_loc, _typ, path) => Err(TypeError::UndefinedReference(self.clone())),
             Expr::Net(_loc, _typ, netid) => panic!("Can't typecheck a net"),
-            Expr::Word(_loc, w, n) if n >> w != 0 =>
+            Expr::Word(_loc, _typ, w, n) if n >> w != 0 =>
                 Err(TypeError::InvalidWord(self.clone())),
-            Expr::Word(_loc, _width, _) => unreachable!(),
+            Expr::Word(_loc, _typ, _width, _) => unreachable!(),
             Expr::Enum(_loc, typedef, _name) => {
                 if let Type::TypeDef(typedef_expected) = &*type_expected {
                     if typedef_expected == typedef {
@@ -131,7 +131,7 @@ impl Expr {
                 Some(type_actual)
             },
             Expr::Net(_loc, _typ, netid) => panic!("Can't typecheck a net"),
-            Expr::Word(_loc, w, n) => if n >> w == 0 {
+            Expr::Word(_loc, _typ, w, n) => if n >> w == 0 {
                 Some(Type::word(*w))
             } else {
                 None
