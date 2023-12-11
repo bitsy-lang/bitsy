@@ -16,7 +16,7 @@ pub enum Expr {
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
     Net(Loc, OnceCell<Arc<Type>>, NetId),
     /// A literal Word.
-    Word(Loc, OnceCell<Arc<Type>>, Width, u64),
+    Word(Loc, OnceCell<Arc<Type>>, Option<Width>, u64),
     /// A literal enum value.
     Enum(Loc, Reference<TypeDef>, String),
     /// Constructor (for `Valid<T>`)
@@ -50,10 +50,10 @@ pub enum Expr {
     Hole(Loc, Option<String>),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MatchArm(pub Pat, pub Arc<Expr>);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Pat {
     At(String, Vec<Pat>),
     Bind(String),
@@ -98,7 +98,8 @@ impl std::fmt::Debug for Expr {
         match self {
             Expr::Net(_loc, _typ, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, _typ, path) => write!(f, "{path}"),
-            Expr::Word(_loc, _typ, width, val) => write!(f, "{val}w{width}"),
+            Expr::Word(_loc, _typ, None, val) => write!(f, "{val}"),
+            Expr::Word(_loc, _typ, Some(width), val) => write!(f, "{val}w{width}"),
             Expr::Enum(_loc, typedef, name) => write!(f, "{typedef:?}::{name}"),
             Expr::Let(_loc, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
             Expr::Ctor(_loc, name, e) => write!(f, "@{name}({e:?})"),
@@ -178,6 +179,15 @@ pub enum BinOp {
 }
 
 impl Expr {
+    pub fn assert_has_types(&self) {
+        let mut func = |e: &Expr| {
+            if let Expr::Word(_loc, typ, _width, _n) = e {
+                typ.get().unwrap();
+            }
+        };
+        self.with_subexprs(&mut func);
+    }
+
     /// Walk the expression tree in-order, calling `callback` for each subexpression.
     pub fn with_subexprs(&self, callback: &mut dyn FnMut(&Expr)) {
         match self {
@@ -532,7 +542,7 @@ impl Expr {
         match self {
             Expr::Net(_loc, typ, _netid) => Some(typ),
             Expr::Reference(_loc, typ, _path) => Some(typ),
-            Expr::Word(_loc, _typ, _width, _val) => None,
+            Expr::Word(_loc, typ, _width, _val) => Some(typ),
             Expr::Enum(_loc, _typedef, _name) => None,
             Expr::Ctor(_loc, _name, _e) => None,
             Expr::Let(_loc, _name, _e, _b) => None,

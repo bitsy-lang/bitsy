@@ -124,6 +124,14 @@ impl Loc {
     pub fn end(&self) -> LineCol {
         self.source_info.linelens.linecol(self.end)
     }
+
+    pub fn source(&self) -> &str {
+        if let Source::String(source) = &self.source_info.source {
+            &source[self.start..self.end]
+        } else {
+            ""
+        }
+    }
 }
 
 /// Many objects have location information.

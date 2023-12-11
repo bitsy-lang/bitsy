@@ -9,6 +9,14 @@ impl Package {
                     errors.push(component_error);
                 }
             }
+
+            for submod in moddef.submods() {
+                if let Err(component_errors) = self.check_component(submod) {
+                    for component_error in component_errors {
+                        errors.push(component_error);
+                    }
+                }
+            }
         }
 
         if errors.is_empty() {
@@ -95,7 +103,7 @@ impl Package {
                 Err(e) => errors.push(CircuitError::TypeError(e)),
                 Ok(()) => (),
             }
-
+            expr.assert_has_types();
         }
 
          for child in component.children() {
@@ -104,6 +112,7 @@ impl Package {
                      Err(e) => errors.push(CircuitError::TypeError(e)),
                      Ok(()) => (),
                  }
+                reset.assert_has_types();
              }
          }
 

@@ -244,7 +244,7 @@ ExprLit: Arc<Expr> = {
 
     <ll:@L> <lit:WordLit> <rr:@R> => {
         let WordLit(w, v) = lit;
-        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), OnceCell::new(), w.unwrap(), v)) // TODO
+        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), OnceCell::new(), w, v))
     },
 }
 

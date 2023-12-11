@@ -15,12 +15,16 @@ impl Expr {
         let result = match (&*type_expected.clone(), &**self) {
             (_type_expected, Expr::Reference(_loc, _typ, path)) => Err(TypeError::UndefinedReference(self.clone())),
             (Type::Word(width_expected), Expr::Word(_loc, typ, width_actual, n)) => {
-                if *width_actual == *width_expected {
-                    Err(TypeError::Other(self.clone(), format!("Not the expected width")))
-                } else if n >> *width_actual != 0 {
-                    Err(TypeError::Other(self.clone(), format!("Doesn't fit")))
+                if let Some(width_actual) = width_actual {
+                    if *width_actual == *width_expected {
+                        Err(TypeError::Other(self.clone(), format!("Not the expected width")))
+                    } else if n >> *width_actual != 0 {
+                        Err(TypeError::Other(self.clone(), format!("Doesn't fit")))
+                    } else {
+                        Ok(())
+                    }
                 } else {
-                    Ok(())
+                    Err(TypeError::Other(self.clone(), format!("Unknown?")))
                 }
             },
             (Type::TypeDef(typedef_expected), Expr::Enum(_loc, typedef, _name)) => {
@@ -92,7 +96,6 @@ impl Expr {
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (_type_expected, Expr::Cat(_loc, _es)) => Err(TypeError::CantInferType(self.clone())),
             (Type::Word(width_expected), Expr::Sext(_loc, e, n)) => {
                 if *n != *width_expected {
                     Err(TypeError::Other(self.clone(), format!("Type mismatch")))
@@ -147,7 +150,7 @@ impl Expr {
 
         if let Some(typ) = self.type_of() {
             if let Ok(()) = &result {
-                typ.set(type_expected).unwrap();
+                let _ = typ.set(type_expected);
             }
         }
         result
@@ -155,28 +158,19 @@ impl Expr {
 
     #[allow(unused_variables)] // TODO remove this
     pub fn typeinfer(self: &Arc<Self>, ctx: Context<Path, Arc<Type>>) -> Option<Arc<Type>> {
-        match &**self {
+        let result = match &**self {
             Expr::Reference(_loc, typ, path) => {
                 let type_actual = ctx.lookup(path)?;
                 Some(type_actual)
             },
             Expr::Net(_loc, _typ, netid) => panic!("Can't typecheck a net"),
-            Expr::Word(_loc, _typ, w, n) => if n >> w == 0 {
+            Expr::Word(_loc, _typ, None, n) => None,
+            Expr::Word(_loc, _typ, Some(w), n) => if n >> w == 0 {
                 Some(Type::word(*w))
             } else {
                 None
             },
             Expr::Enum(_loc, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
-            Expr::If(_loc, cond, e1, e2) => {
-                cond.typecheck(Type::word(1), ctx.clone()).ok()?;
-                let typ1 = e1.typeinfer(ctx.clone())?;
-                let typ2 = e2.typeinfer(ctx.clone())?;
-                if typ1 == typ2 {
-                    Some(typ1)
-                } else {
-                    None
-                }
-            },
             Expr::Cat(_loc, es) => {
                 let mut w = 0u64;
                 for e in es {
@@ -188,7 +182,6 @@ impl Expr {
                 }
                 Some(Type::word(w))
             },
-            Expr::Sext(_loc, e, n) => None,
             Expr::ToWord(loc, e) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::TypeDef(typedef)) => {
@@ -219,6 +212,13 @@ impl Expr {
             Expr::IdxDyn(_loc, e, i) => None,
             Expr::Hole(_loc, opt_name) => None,
             _ => None,
+        };
+
+        if let Some(type_actual) = &result {
+            if let Some(typ) = self.type_of() {
+                let _ = typ.set(type_actual.clone());
+            }
         }
+        result
     }
 }

@@ -141,4 +141,14 @@ impl Component {
             _ => None
         }
     }
+
+    pub fn submods(&self) -> Vec<Arc<Component>> {
+        let mut results = vec![];
+        for child in self.children() {
+            if let Component::Mod(_loc,_name, _children, _wires, _whens) = &*child {
+                results.push(child.clone());
+            }
+        }
+        results
+    }
 }
