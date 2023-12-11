@@ -97,6 +97,16 @@ impl Package {
             }
 
         }
+
+         for child in component.children() {
+             if let Component::Reg(_loc, _name, typ, Some(reset)) = &*child {
+                 match reset.typecheck(typ.clone(), ctx.clone()) {
+                     Err(e) => errors.push(CircuitError::TypeError(e)),
+                     Ok(()) => (),
+                 }
+             }
+         }
+
         errors
     }
 
