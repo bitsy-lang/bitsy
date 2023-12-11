@@ -112,6 +112,18 @@ Bitsy is a hardware description language with a principled type system founded o
     then $x + y$ can be inferred to be a $\text{Word}$ of that same bitlength.
 }
 
+\typingrule{Eq}{
+    \judgment{\Gamma}{x \uparrow T} \quad
+    \judgment{\Gamma}{y \downarrow T}
+}{
+    \judgment{\Gamma}{x == y \downarrow \word{1}}
+}{
+    If the type of $x$ can be inferred to be $\text{T}$ and $y$ can be \textit{checked} as $T$,
+    then $x == y$ can be checked to be a $\word{1}$.
+
+    Note that this is asymmetric in the arguments to allow for convenient checking against uninferrable word literals.
+}
+
 \typingrule{Mux}{
     \judgment{\Gamma}{c \downarrow \word{1}} \quad
     \judgment{\Gamma}{e_1 \downarrow T}\quad
