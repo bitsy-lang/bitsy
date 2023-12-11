@@ -187,7 +187,7 @@ impl Buffer {
             Ok(package) => package,
             Ok(circuit) => circuit,
             Err(errors) => {
-                info!("Parse Error: {errors:?}");
+                info!("Errors: {errors:?}");
                 for error in errors {
                     let start_line = error.loc().start().line() - 1;
                     let start_character = error.loc().start().col() - 1;
@@ -220,32 +220,6 @@ impl Buffer {
                 return;
             },
         };
-
-        if let Err(errors) = self.package.check() {
-            warn!("Errors found: {}", errors.len());
-            for (path, error) in &errors {
-                let loc: Loc = error.loc();
-                warn!("    {:?}: {path}: {error:?}", error.loc());
-
-                let start_line = loc.start().line() - 1;
-                let start_character = loc.start().col() - 1;
-
-                let end_line = loc.end().line() - 1;
-                let end_character = loc.end().col() - 1;
-
-                let message = format!("{error}");
-
-                let diagnostic = json!({
-                    "range": {
-                        "start": { "line": start_line, "character": start_character },
-                        "end": { "line": end_line, "character": end_character },
-                    },
-                    "severity": 1, // ERROR
-                    "message": message,
-                });
-                diagnostics.push(diagnostic);
-            }
-        }
 
         let message = json!({
             "jsonrpc": "2.0",

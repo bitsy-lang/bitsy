@@ -1,12 +1,12 @@
 use super::*;
 
 impl Package {
-    pub fn check(&self) -> Result<(), Vec<(Path, CircuitError)>> {
-        let mut errors: Vec<(Path, CircuitError)> = vec![];
+    pub(crate) fn check(&self) -> Result<(), Vec<CircuitError>> {
+        let mut errors: Vec<CircuitError> = vec![];
         for moddef in self.moddefs() {
             if let Err(component_errors) = self.check_component(moddef.clone()) {
                 for component_error in component_errors {
-                    errors.push((moddef.name().into(), component_error));
+                    errors.push(component_error);
                 }
             }
         }

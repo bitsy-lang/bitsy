@@ -25,10 +25,9 @@ pub fn load_package_from_string(package_text: &str) -> Result<Package, Vec<Circu
 }
 
 fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Package, Vec<CircuitError>> {
-    let package: Package = match grammar::PackageParser::new().parse(&source_info, &package_text) {
-        Ok(package) => {
-            package.resolve_references()?;
-            package
+    match grammar::PackageParser::new().parse(&source_info, &package_text) {
+        Ok(decls) => {
+            Package::new(decls)
         },
         Err(ParseError::UnrecognizedToken { token, expected }) => {
             let start_idx = token.0;
@@ -59,8 +58,7 @@ fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Pa
             let message = format!("Parse error: {error:?}");
             return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
         },
-    };
-    Ok(package)
+    }
 }
 
 impl From<&str> for Expr {

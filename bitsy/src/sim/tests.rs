@@ -39,7 +39,7 @@ fn test_nets() {
             node out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
-                node out of Word<32>;
+                outgoing out of Word<32>;
                 reg c of Word<32> reset 1w32;
                 c <= c + 1w4;
                 out := c;
@@ -112,21 +112,6 @@ fn test_eval() {
 }
 
 #[test]
-fn test_node() {
-    let top = load_package_from_string("
-        mod Top {
-            outgoing out of Word<1>;
-            node n of Word<1>;
-            n := 1w1;
-        }
-    ").unwrap();
-    let top = top.top("Top").unwrap();
-
-    let bitsy = Sim::new(&top);
-    assert_eq!(bitsy.peek("top.n"), Value::Word(1, 1));
-}
-
-#[test]
 fn buffer() {
     let buffer = load_package_from_string("
         mod Top {
@@ -175,34 +160,6 @@ fn counter() {
 }
 
 #[test]
-fn triangle_numbers() {
-    let top = load_package_from_string("
-        mod Top {
-            outgoing out of Word<32>;
-            reg sum of Word<32> reset 0w32;
-            mod counter {
-                outgoing out of Word<32>;
-                reg counter of Word<32> reset 1w32;
-                out := counter;
-                counter <= counter + 1w32;
-            }
-            out := sum;
-            sum <= sum + counter.out;
-        }
-    ").unwrap();
-    let top = top.top("Top").unwrap();
-
-    let mut bitsy = Sim::new(&top);
-    bitsy.reset();
-
-    for i in 0..16 {
-        let triange = (i * (i + 1)) / 2;
-        assert_eq!(bitsy.peek("top.out"), Value::Word(32, triange), "Failed on iteration i = {i}");
-        bitsy.clock();
-    }
-}
-
-#[test]
 fn vip() {
     let top = load_package_from_string("
         mod Top {
@@ -236,28 +193,3 @@ fn vip() {
     bitsy.clock();
     bitsy.clock();
 }
-
-#[test]
-fn ifs() {
-    let top = load_package_from_string("
-        mod Top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
-
-            out := if in {
-                42w8
-            } else {
-                100w8
-            };
-        }
-    ").unwrap();
-    let top = top.top("Top").unwrap();
-
-    let mut bitsy = Sim::new(&top);
-
-    bitsy.poke("top.in", true.into());
-    assert_eq!(bitsy.peek("top.out"), Value::Word(8, 42));
-    bitsy.poke("top.in", false.into());
-    assert_eq!(bitsy.peek("top.out"), Value::Word(8, 100));
-}
-

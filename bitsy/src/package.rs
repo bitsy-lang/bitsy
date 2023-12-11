@@ -18,9 +18,11 @@ pub type Name = String;
 pub struct Package(Vec<Decl>);
 
 impl Package {
-    pub fn new(decls: Vec<Decl>) -> Package {
+    pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<CircuitError>> {
         let package = Package(decls);
-        package
+        package.resolve_references()?;
+        package.check()?;
+        Ok(package)
     }
 
     pub fn top(&self, top_name: &str) -> Result<Circuit, CircuitError>  {
@@ -86,7 +88,7 @@ impl Package {
     ///
     /// For each wire, the expression is resolved.
     /// This will find any references to typedefs and resolve those (eg, `AluOp::Add`).
-    pub fn resolve_references(&self) -> Result<(), Vec<CircuitError>> {
+    fn resolve_references(&self) -> Result<(), Vec<CircuitError>> {
         let mut errors = vec![];
         self.resolve_references_component_types();
 

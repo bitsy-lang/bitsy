@@ -107,13 +107,6 @@ fn main() {
                 std::process::exit(1);
             },
         };
-        if let Err(errors) = circuit.package().check() {
-            for (path, error) in &errors {
-                eprintln!("{path}: {error:?}");
-            }
-            eprintln!("Circuit has {} errors.", errors.len());
-            std::process::exit(1);
-        }
 
         let sim: Sim = make_sim(circuit.clone(), &testbench);
         let mut repl = Repl::new(sim, circuit, testbench);

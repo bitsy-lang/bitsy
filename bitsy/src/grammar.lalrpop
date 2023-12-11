@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 grammar(source_info: &SourceInfo);
 
-pub Package: Package = {
-    <decls:Decl*> => Package::new(decls),
+pub Package: Vec<Decl> = {
+    <decls:Decl*> => decls,
 }
 
 Decl: Decl = {

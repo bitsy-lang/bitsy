@@ -66,12 +66,9 @@ impl TypeDef {
     pub fn width(&self) -> Width {
         let mut max_width = 0;
         for (_name, value) in &self.values {
-            if let WordLit(w, _n) = value {
-                if *w > max_width {
-                    max_width = *w;
-                }
-            } else {
-                panic!("Values of typedefs must only be Words.")
+            let WordLit(w, _n) = value;
+            if *w > max_width {
+                max_width = *w;
             }
         }
         max_width

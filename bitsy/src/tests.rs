@@ -143,7 +143,7 @@ fn ifs() {
     let top = load_package_from_string("
         mod Top {
             outgoing out of Word<8>;
-            incoming in of Word<8>;
+            incoming in of Word<1>;
 
             out := if in {
                 42w8
@@ -273,10 +273,10 @@ fn test_nets() {
 
     let triangle_numbers_top = load_package_from_string("
         mod Top {
-            node out of Word<32>;
+            outgoing out of Word<32>;
             reg sum of Word<32> reset 0w32;
             mod counter {
-                node out of Word<32>;
+                outgoing out of Word<32>;
                 reg c of Word<32> reset 1w32;
                 c <= c + 1w4;
                 out := c;
@@ -297,6 +297,7 @@ fn test_node() {
             outgoing out of Word<1>;
             node n of Word<1>;
             n := 1w1;
+            out := n;
         }
     ").unwrap();
     let top = top.top("Top").unwrap();
