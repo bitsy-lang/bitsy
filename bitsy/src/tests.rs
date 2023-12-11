@@ -410,25 +410,35 @@ fn typecheck() {
 #[test]
 fn test_examples() {
     let examples_dir = std::path::Path::new("examples");
+    let mut errors = vec![];
 
     if let Ok(entries) = std::fs::read_dir(examples_dir) {
         for entry in entries {
             if let Ok(entry) = entry {
-                if let Some(file_name) = entry.file_name().to_str() {
-                    if file_name.ends_with(".bitsy") {
+                let filename = entry.file_name();
+                if let Some(filename) = filename.to_str() {
+                    if filename.ends_with(".bitsy") {
                         let text = match std::fs::read_to_string(entry.path()) {
                             Ok(text) => text,
                             Err(_) => panic!("Failed to read file {:?}", entry.path()),
                         };
 
-                        let package = load_package_from_string(&text).expect(&format!("Testing {:?}", entry.path()));
-                        package.check().expect(&format!("Failed to check: {file_name}"));
+                        if let Err(_error) = std::panic::catch_unwind(|| {
+                            let package = load_package_from_string(&text).expect(&format!("Testing {:?}", entry.path()));
+                            package.check().expect(&format!("Failed to check: {filename}"));
+                        }) {
+                            errors.push(filename.to_string());
+                        }
                     }
                 }
             }
         }
     } else {
         panic!("Failed to read examples directory");
+    }
+
+    if errors.len() > 0 {
+        panic!("Errors in examples:\n  - {}", errors.join("\n  - "))
     }
 }
 
