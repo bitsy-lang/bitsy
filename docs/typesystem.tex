@@ -126,7 +126,7 @@ Bitsy is a hardware description language with a principled type system founded o
     \judgment{\Gamma}{e_i \uparrow \word{m_i}} \quad
     \sum{m_i} = n
 }{
-    \judgment{\Gamma}{\cat(e_0, \dots, e_{n-1}) \downarrow \word{n}}
+    \judgment{\Gamma}{\cat(e_0, \dots, e_{n-1}) \uparrow \word{n}}
 }{
     If you can infer each $e_i$ to a $\text{Word}$ and the total of their bitlengths is $n$,
     then $\cat(e_0, \dots, e_{n-1})$ is a $\word{n}$.
