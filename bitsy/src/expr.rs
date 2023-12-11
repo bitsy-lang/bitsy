@@ -149,8 +149,8 @@ impl std::fmt::Debug for Expr {
             Expr::IdxRange(_loc, e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
             Expr::IdxDyn(_loc, e, i) => write!(f, "{e:?}[{i:?}]"),
             Expr::Hole(_loc, opt_name) => {
-                if let Some(_name) = opt_name {
-                    todo!()
+                if let Some(name) = opt_name {
+                    write!(f, "?{name}")
                 } else {
                     write!(f, "?")
                 }

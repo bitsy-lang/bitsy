@@ -24,7 +24,11 @@ impl Expr {
                         Ok(())
                     }
                 } else {
-                    Err(TypeError::Other(self.clone(), format!("Unknown?")))
+                    if n >> *width_expected != 0 {
+                        Err(TypeError::Other(self.clone(), format!("Doesn't fit")))
+                    } else {
+                        Ok(())
+                    }
                 }
             },
             (Type::TypeDef(typedef_expected), Expr::Enum(_loc, typedef, _name)) => {
@@ -58,12 +62,9 @@ impl Expr {
             (_type_expected, Expr::Match(_loc, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
             (_type_expected, Expr::UnOp(_loc, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
             (Type::Word(1), Expr::BinOp(_loc, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
-                if let (Some(typ1), Some(typ2)) = (e1.typeinfer(ctx.clone()), e2.typeinfer(ctx.clone())) {
-                    if typ1 == typ2 {
-                        Ok(())
-                    } else {
-                        Err(TypeError::Other(self.clone(), format!("Types don't match")))
-                    }
+                if let Some(typ1) = e1.typeinfer(ctx.clone()) {
+                    e2.typecheck(typ1, ctx.clone())?;
+                    Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Can't infer type.")))
                 }
@@ -143,7 +144,7 @@ impl Expr {
                     None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
-            (_type_expected, Expr::IdxDyn(_loc, e, i)) => todo!(),
+//            (_type_expected, Expr::IdxDyn(_loc, e, i)) => todo!(),
             (_type_expected, Expr::Hole(_loc, opt_name)) => Ok(()),
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };

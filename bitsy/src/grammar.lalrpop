@@ -161,9 +161,9 @@ ExprCall: Arc<Expr> = {
     <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
     <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![e; n as usize])),
-    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
     <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Arc::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
     <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Arc::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
+//    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
     <e:ExprBase> => e,
 }
 
@@ -249,6 +249,8 @@ ExprLit: Arc<Expr> = {
 }
 
 WordLit: WordLit = {
+    <n:Nat> => WordLit(None, n),
+
     <lit:r"[0-9]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();
