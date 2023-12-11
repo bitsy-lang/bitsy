@@ -14,7 +14,6 @@ impl Expr {
 
         let result = match (&*type_expected.clone(), &**self) {
             (_type_expected, Expr::Reference(_loc, _typ, path)) => Err(TypeError::UndefinedReference(self.clone())),
-            (_type_expected, Expr::Net(_loc, _typ, netid)) => panic!("Can't typecheck a net"),
             (Type::Word(width_expected), Expr::Word(_loc, typ, width_actual, n)) => {
                 if *width_actual == *width_expected {
                     Err(TypeError::Other(self.clone(), format!("Not the expected width")))
@@ -24,13 +23,9 @@ impl Expr {
                     Ok(())
                 }
             },
-            (_type_expected, Expr::Enum(_loc, typedef, _name)) => {
-                if let Type::TypeDef(typedef_expected) = &*type_expected {
-                    if typedef_expected == typedef {
-                        Ok(())
-                    } else {
-                        Err(TypeError::Other(self.clone(), format!("Type Error")))
-                    }
+            (Type::TypeDef(typedef_expected), Expr::Enum(_loc, typedef, _name)) => {
+                if typedef_expected == typedef {
+                    Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
                 }
@@ -57,7 +52,7 @@ impl Expr {
                 }
             },
             (_type_expected, Expr::Match(_loc, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
-            (_type_expected, Expr::UnOp(_loc, _op, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
+            (_type_expected, Expr::UnOp(_loc, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
             (_type_expected, Expr::BinOp(_loc, _op, e1, e2)) => {
                 e1.typecheck(type_expected.clone(), ctx.clone())?;
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
@@ -76,35 +71,35 @@ impl Expr {
                 Ok(())
             },
             (_type_expected, Expr::Cat(_loc, _es)) => Err(TypeError::CantInferType(self.clone())),
-            (_type_expected, Expr::Sext(_loc, e, n)) => {
-                if let Some(type_actual) = e.typeinfer(ctx.clone()) {
+            (Type::Word(width_expected), Expr::Sext(_loc, e, n)) => {
+                if *n != *width_expected {
+                    Err(TypeError::Other(self.clone(), format!("Type mismatch")))
+                } else if let Some(type_actual) = e.typeinfer(ctx.clone()) {
                     if let Type::Word(m) = &*type_actual {
                         if n >= m {
                             Ok(())
                         } else {
-                            Err(TypeError::Other(self.clone(), format!(" Can't sext a Word<{m}> to a a Word<{n}>")))
+                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<{m}> to a a Word<{n}>")))
                         }
                     } else {
-                        Err(TypeError::CantInferType(self.clone()))
+                        Err(TypeError::Other(self.clone(), format!("Unknown?")))
                     }
                 } else {
                     Err(TypeError::CantInferType(self.clone()))
                 }
             },
-            (_type_expected, Expr::ToWord(_loc, e)) => todo!(),
-            (_type_expected, Expr::Vec(_loc, es)) => {
-                if let Type::Vec(typ, n) = &*type_expected {
-                    for e in es {
-                        e.typecheck(typ.clone(), ctx.clone())?;
-                    }
-                    if es.len() != *n as usize {
-                        let type_actual = Type::vec(typ.clone(), es.len().try_into().unwrap());
-                        Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()))
-                    } else {
-                        Ok(())
-                    }
+            (Type::Word(_n), Expr::ToWord(_loc, e)) => {
+                Err(TypeError::Other(self.clone(), format!("Not yet implemented.")))
+            },
+            (Type::Vec(typ, n), Expr::Vec(_loc, es)) => {
+                for e in es {
+                    e.typecheck(typ.clone(), ctx.clone())?;
+                }
+                if es.len() != *n as usize {
+                    let type_actual = Type::vec(typ.clone(), es.len().try_into().unwrap());
+                    Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()))
                 } else {
-                    Err(TypeError::Other(self.clone(), format!("Expected {type_expected:?} but found a Vec.")))
+                    Ok(())
                 }
             },
             (_type_expected, Expr::Idx(_loc, e, i)) => {
