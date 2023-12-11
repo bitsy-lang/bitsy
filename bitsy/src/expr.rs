@@ -527,4 +527,28 @@ impl Expr {
             Expr::Hole(loc, name) => Expr::Hole(loc.clone(), name.clone()),
         })
     }
+
+    fn type_of(&self) -> Option<&OnceCell<Arc<Type>>> {
+        match self {
+            Expr::Net(_loc, typ, _netid) => Some(typ),
+            Expr::Reference(_loc, typ, _path) => Some(typ),
+            Expr::Word(_loc, _typ, _width, _val) => None,
+            Expr::Enum(_loc, _typedef, _name) => None,
+            Expr::Ctor(_loc, _name, _e) => None,
+            Expr::Let(_loc, _name, _e, _b) => None,
+            Expr::UnOp(_loc, _op, _e) => None,
+            Expr::BinOp(_loc, _op, _e1, _e2) => None,
+            Expr::If(_loc, _cond, _e1, _e2) => None,
+            Expr::Match(_loc, _e, _arms) => None,
+            Expr::Mux(_loc, _cond, _e1, _e2) => None,
+            Expr::Cat(_loc, _es) => None,
+            Expr::Sext(_loc, _e, _n) => None,
+            Expr::ToWord(_loc, _e) => None,
+            Expr::Vec(_loc, _es) => None,
+            Expr::Idx(_loc, _e, _i) => None,
+            Expr::IdxRange(_loc, _e, _j, _i) => None,
+            Expr::IdxDyn(_loc, _e, _i) => None,
+            Expr::Hole(_loc, _opt_name) => None,
+        }
+    }
 }
