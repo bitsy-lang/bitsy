@@ -1,0 +1,8 @@
+mod Counter {
+    outgoing out of Word<4>;
+
+    reg counter of Word<4> reset 0;
+    counter <= counter + 1;
+
+    out := counter;
+}
