@@ -85,8 +85,8 @@ impl Package {
 impl Expr {
     fn emit_mlir(&self, prefix: usize, ctx: Context<Path, Arc<Type>>) -> String {
         let (name, op) = match self {
-            Expr::Reference(_loc, name) => {
-                let typ = ctx.lookup(name).unwrap();
+            Expr::Reference(_loc, typ, name) => {
+                let typ: Arc<Type> = typ.get().unwrap().clone();
                 let typ_name = type_to_mlir(typ);
                 (format!("%tmp_{prefix}_reference"), format!("comb.add %{name} : {typ_name}"))
             },

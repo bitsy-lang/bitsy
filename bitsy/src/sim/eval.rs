@@ -9,14 +9,14 @@ impl Expr {
 
     fn eval_with_ctx(&self, bitsy: &Sim, ctx: Context<Path, Value>) -> Value {
         match self {
-            Expr::Reference(_loc, path) => {
+            Expr::Reference(_loc, _typ, path) => {
                 if let Some(value) = ctx.lookup(path) {
                     value.clone()
                 } else {
                     bitsy.peek(path.clone())
                 }
             }
-            Expr::Net(_loc, netid) => bitsy.peek_net(*netid),
+            Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
             Expr::Word(_loc, width, value) => Value::Word(*width, *value),
             Expr::Enum(_loc, typedef, name) => Value::Enum(typedef.clone(), name.clone()),
             Expr::Ctor(_loc, name, es) => {

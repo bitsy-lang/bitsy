@@ -5,14 +5,16 @@ use super::*;
 use crate::sim::NetId;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
+use once_cell::sync::OnceCell;
+
 
 /// An expression.
 #[derive(Clone)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Reference(Loc, Path),
+    Reference(Loc, OnceCell<Arc<Type>>, Path),
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
-    Net(Loc, NetId),
+    Net(Loc, OnceCell<Arc<Type>>, NetId),
     /// A literal Word.
     Word(Loc, Width, u64),
     /// A literal enum value.
@@ -61,8 +63,8 @@ pub enum Pat {
 impl HasLoc for Expr {
     fn loc(&self) -> Loc {
         match self {
-            Expr::Net(loc, _netid) => loc.clone(),
-            Expr::Reference(loc, _path) => loc.clone(),
+            Expr::Net(loc, _typ, _netid) => loc.clone(),
+            Expr::Reference(loc, _typ, _path) => loc.clone(),
             Expr::Word(loc, _width, _val) => loc.clone(),
             Expr::Enum(loc, _typedef, _name) => loc.clone(),
             Expr::Ctor(loc, _name, _e) => loc.clone(),
@@ -94,8 +96,8 @@ impl HasLoc for Arc<Expr> {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Expr::Net(_loc, netid) => write!(f, "#{netid:?}"),
-            Expr::Reference(_loc, path) => write!(f, "{path}"),
+            Expr::Net(_loc, _typ, netid) => write!(f, "#{netid:?}"),
+            Expr::Reference(_loc, _typ, path) => write!(f, "{path}"),
             Expr::Word(_loc, width, val) => write!(f, "{val}w{width}"),
             Expr::Enum(_loc, typedef, name) => write!(f, "{typedef:?}::{name}"),
             Expr::Let(_loc, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
@@ -179,8 +181,8 @@ impl Expr {
     /// Walk the expression tree in-order, calling `callback` for each subexpression.
     pub fn with_subexprs(&self, callback: &mut dyn FnMut(&Expr)) {
         match self {
-            Expr::Reference(_loc, _path) => callback(self),
-            Expr::Net(_loc, _netid) => callback(self),
+            Expr::Reference(_loc, _typ, _path) => callback(self),
+            Expr::Net(_loc, _typ, _netid) => callback(self),
             Expr::Word(_loc, _width, _value) => callback(self),
             Expr::Enum(_loc, _typedef, _name) => callback(self),
             Expr::Ctor(_loc, _name, es) => {
@@ -263,9 +265,9 @@ impl Expr {
     pub fn paths(&self) -> Vec<Path> {
         let paths = std::cell::RefCell::new(vec![]);
         let mut func = |e: &Expr| {
-            if let Expr::Reference(_loc, path) = e {
+            if let Expr::Reference(_loc, _typ, path) = e {
                 paths.borrow_mut().push(path.clone());
-            } else if let Expr::Net(_loc, _netid) = e {
+            } else if let Expr::Net(_loc, _typ, _netid) = e {
                 panic!("paths() only works on symbolic expressions.");
             }
         };
@@ -283,8 +285,8 @@ impl Expr {
 
     pub fn free_vars(&self) -> BTreeSet<Path> {
         match self {
-            Expr::Reference(_loc, path) => vec![path.clone()].iter().cloned().collect(),
-            Expr::Net(_loc, _netid) => BTreeSet::new(),
+            Expr::Reference(_loc, _typ, path) => vec![path.clone()].iter().cloned().collect(),
+            Expr::Net(_loc, _typ, _netid) => BTreeSet::new(),
             Expr::Word(_loc, _width, _value) => BTreeSet::new(),
             Expr::Enum(_loc, _typedef, _name) => BTreeSet::new(),
             Expr::Ctor(_loc, _name, es) => {
@@ -351,8 +353,8 @@ impl Expr {
 
     pub fn depends_on_net(&self, net_id: NetId) -> bool {
         match self {
-            Expr::Reference(_loc, _path) => false,
-            Expr::Net(_loc, other_netid) => net_id == *other_netid,
+            Expr::Reference(_loc, _typ, _path) => false,
+            Expr::Net(_loc, _typ, other_netid) => net_id == *other_netid,
             Expr::Word(_loc, _width, _value) => false,
             Expr::Enum(_loc, _typedef, _name) => false,
             Expr::Ctor(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
@@ -379,14 +381,14 @@ impl Expr {
 
     fn rebase_rec(&self, current_path: Path, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
         Arc::new(match self {
-            Expr::Reference(loc, path) => {
+            Expr::Reference(loc, typ, path) => {
                 if !shadowed.contains(path) {
-                    Expr::Reference(loc.clone(), current_path.join(path.clone()))
+                    Expr::Reference(loc.clone(), typ.clone(), current_path.join(path.clone()))
                 } else {
                     self.clone()
                 }
             },
-            Expr::Net(_loc, _net_id) => panic!("rebase() only works on reference expressions."),
+            Expr::Net(_loc, _typ, _net_id) => panic!("rebase() only works on reference expressions."),
             Expr::Word(_loc, _width, _value) => self.clone(),
             Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => Expr::Ctor(loc.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
@@ -453,14 +455,14 @@ impl Expr {
 
     fn references_to_nets_rec(&self, net_id_by_path: &BTreeMap<Path, NetId>, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
         Arc::new(match self {
-            Expr::Reference(loc, path) => {
+            Expr::Reference(loc, typ, path) => {
                 if !shadowed.contains(path) {
-                    Expr::Net(loc.clone(), net_id_by_path[path])
+                    Expr::Net(loc.clone(), typ.clone(), net_id_by_path[path])
                 } else {
                     self.clone()
                 }
             },
-            Expr::Net(_loc, _net_id) => panic!("references_to_nets() only works on reference expressions."),
+            Expr::Net(_loc, _typ, _net_id) => panic!("references_to_nets() only works on reference expressions."),
             Expr::Word(_loc, _width, _value) => self.clone(),
             Expr::Enum(_loc, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, name, es) => {

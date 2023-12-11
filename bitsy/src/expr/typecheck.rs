@@ -13,8 +13,8 @@ impl Expr {
         }
 
         match &**self {
-            Expr::Reference(_loc, path) => Err(TypeError::UndefinedReference(self.clone())),
-            Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
+            Expr::Reference(_loc, _typ, path) => Err(TypeError::UndefinedReference(self.clone())),
+            Expr::Net(_loc, _typ, netid) => panic!("Can't typecheck a net"),
             Expr::Word(_loc, w, n) if n >> w != 0 =>
                 Err(TypeError::InvalidWord(self.clone())),
             Expr::Word(_loc, _width, _) => unreachable!(),
@@ -125,8 +125,12 @@ impl Expr {
     #[allow(unused_variables)] // TODO remove this
     pub fn typeinfer(self: &Arc<Self>, ctx: Context<Path, Arc<Type>>) -> Option<Arc<Type>> {
         match &**self {
-            Expr::Reference(_loc, path) => ctx.lookup(path),
-            Expr::Net(_loc, netid) => panic!("Can't typecheck a net"),
+            Expr::Reference(_loc, typ, path) => {
+                let type_actual = ctx.lookup(path)?;
+                let _ = typ.set(type_actual.clone()); // let _ = ... to ignore if already set.
+                Some(type_actual)
+            },
+            Expr::Net(_loc, _typ, netid) => panic!("Can't typecheck a net"),
             Expr::Word(_loc, w, n) => if n >> w == 0 {
                 Some(Type::word(*w))
             } else {

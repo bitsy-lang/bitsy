@@ -1,5 +1,6 @@
 use super::*;
 use std::sync::Arc;
+use once_cell::sync::OnceCell;
 
 grammar(source_info: &SourceInfo);
 
@@ -273,7 +274,7 @@ WordLit: WordLit = {
 }
 
 ExprReference: Arc<Expr> = {
-     <ll:@L> <path:Path> <rr:@R> => Arc::new(Expr::Reference(Loc::from(source_info, ll, rr), path.into()))
+     <ll:@L> <path:Path> <rr:@R> => Arc::new(Expr::Reference(Loc::from(source_info, ll, rr), OnceCell::new(), path.into()))
 }
 
 Type: Arc<Type> = {
