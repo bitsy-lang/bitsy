@@ -271,10 +271,3 @@ impl std::fmt::Binary for Value {
         }
     }
 }
-
-impl From<WordLit> for Value {
-    fn from(word: WordLit) -> Value {
-        let WordLit(w, n) = word;
-        Value::Word(w, n)
-    }
-}

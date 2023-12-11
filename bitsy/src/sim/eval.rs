@@ -129,7 +129,10 @@ impl Expr {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
-                    Value::Enum(typedef, name) => typedef.get().unwrap().value_of(&name).unwrap().into(),
+                    Value::Enum(typedef, name) => {
+                        let typedef: &TypeDef = &*typedef.get().unwrap();
+                        Value::Word(typedef.width(), typedef.value_of(&name).unwrap())
+                    },
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }
             },

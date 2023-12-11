@@ -44,7 +44,7 @@ impl Type {
 }
 
 #[derive(Debug, Clone)]
-pub struct WordLit(pub Width, pub u64);
+pub struct WordLit(pub Option<Width>, pub u64);
 
 /// A user-defined `enum` type.
 #[derive(Debug, Clone)]
@@ -54,24 +54,29 @@ pub struct TypeDef {
 }
 
 impl TypeDef {
-    pub fn value_of(&self, name: &str) -> Option<WordLit> {
-        for (other_name, value) in &self.values {
+    pub fn value_of(&self, name: &str) -> Option<u64> {
+        for (other_name, WordLit(_w, value)) in &self.values {
             if name == other_name {
-                return Some(value.clone());
+                return Some(*value);
             }
         }
         None
     }
 
     pub fn width(&self) -> Width {
-        let mut max_width = 0;
+        // TODO
+        let mut max_width = None;
         for (_name, value) in &self.values {
-            let WordLit(w, _n) = value;
-            if *w > max_width {
-                max_width = *w;
-            }
+            if let WordLit(Some(w), _n) = value {
+                if let Some(max_w) = max_width {
+                    assert_eq!(*w, max_w);
+                } else {
+                    max_width = Some(*w);
+                }
+             }
         }
-        max_width
+        // TODO
+        max_width.unwrap()
     }
 }
 

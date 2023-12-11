@@ -242,11 +242,9 @@ ExprLit: Arc<Expr> = {
     <ll:@L> <typename:Id> "::" <name:Id> <rr:@R> =>
         Arc::new(Expr::Enum(Loc::from(source_info, ll, rr), typename.into(), name.to_string())),
 
-    <ll:@L> <lit:r"[0-9]+w[0-9]+"> <rr:@R> => {
-        let parts = lit.split("w").collect::<Vec<_>>();
-        let v = parts[0].parse().unwrap();
-        let width = parts[1].parse().unwrap();
-        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), OnceCell::new(), width, v))
+    <ll:@L> <lit:WordLit> <rr:@R> => {
+        let WordLit(w, v) = lit;
+        Arc::new(Expr::Word(Loc::from(source_info, ll, rr), OnceCell::new(), w.unwrap(), v)) // TODO
     },
 }
 
@@ -255,21 +253,21 @@ WordLit: WordLit = {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = parts[0].parse().unwrap();
         let width = parts[1].parse().unwrap();
-        WordLit(width, v)
+        WordLit(Some(width), v)
     },
 
     <lit:r"0b[0-1]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = u64::from_str_radix(&parts[0][2..], 2).unwrap();
         let width = parts[1].parse().unwrap();
-        WordLit(width, v)
+        WordLit(Some(width), v)
     },
 
     <lit:r"0x[0-9a-fA-F]+w[0-9]+"> => {
         let parts = lit.split("w").collect::<Vec<_>>();
         let v = u64::from_str_radix(&parts[0][2..], 16).unwrap();
         let width = parts[1].parse().unwrap();
-        WordLit(width, v)
+        WordLit(Some(width), v)
     },
 }
 
