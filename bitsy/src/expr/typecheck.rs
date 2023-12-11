@@ -53,10 +53,32 @@ impl Expr {
             },
             (_type_expected, Expr::Match(_loc, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
             (_type_expected, Expr::UnOp(_loc, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
-            (_type_expected, Expr::BinOp(_loc, _op, e1, e2)) => {
+            (Type::Word(1), Expr::BinOp(_loc, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
+                if let (Some(typ1), Some(typ2)) = (e1.typeinfer(ctx.clone()), e2.typeinfer(ctx.clone())) {
+                    if typ1 == typ2 {
+                        Ok(())
+                    } else {
+                        Err(TypeError::Other(self.clone(), format!("Types don't match")))
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Can't infer type.")))
+                }
+            },
+            (Type::Word(n), Expr::BinOp(_loc, BinOp::Add | BinOp::Sub | BinOp::And | BinOp::Or | BinOp::Xor, e1, e2)) => {
                 e1.typecheck(type_expected.clone(), ctx.clone())?;
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
+            },
+            (Type::Word(n), Expr::BinOp(_loc, BinOp::AddCarry, e1, e2)) => {
+                if let (Some(typ1), Some(typ2)) = (e1.typeinfer(ctx.clone()), e2.typeinfer(ctx.clone())) {
+                    if *n > 0 && typ1 == typ2 && *typ1 == Type::Word(*n - 1) {
+                        Ok(())
+                    } else {
+                        Err(TypeError::Other(self.clone(), format!("Types don't match")))
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Can't infer type.")))
+                }
             },
             (_type_expected, Expr::If(_loc, cond, e1, e2)) => {
                 cond.typecheck(Type::word(1), ctx.clone())?;
@@ -145,43 +167,7 @@ impl Expr {
                 None
             },
             Expr::Enum(_loc, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
-            Expr::UnOp(_loc, _op, e) => e.typeinfer(ctx.clone()),
-            Expr::BinOp(_loc, BinOp::AddCarry, e1, e2) => {
-                let typ1 = e1.typeinfer(ctx.clone())?;
-                let typ2 = e2.typeinfer(ctx.clone())?;
-                if typ1 == typ2 {
-                    match &*typ1 {
-                        Type::Word(w) => Some(Type::word(w + 1)),
-                        _ => None,
-                    }
-                } else {
-                    None
-                }
-            },
-            Expr::BinOp(_loc, op, e1, e2) => {
-                let typ1 = e1.typeinfer(ctx.clone())?;
-                let typ2 = e2.typeinfer(ctx.clone())?;
-                if typ1 == typ2 {
-                    if *op == BinOp::Eq || *op == BinOp::Neq || *op == BinOp::Lt {
-                        Some(Type::word(1))
-                    } else {
-                        Some(typ1)
-                    }
-                } else {
-                    None
-                }
-            },
             Expr::If(_loc, cond, e1, e2) => {
-                cond.typecheck(Type::word(1), ctx.clone()).ok()?;
-                let typ1 = e1.typeinfer(ctx.clone())?;
-                let typ2 = e2.typeinfer(ctx.clone())?;
-                if typ1 == typ2 {
-                    Some(typ1)
-                } else {
-                    None
-                }
-            },
-            Expr::Mux(_loc, cond, e1, e2) => {
                 cond.typecheck(Type::word(1), ctx.clone()).ok()?;
                 let typ1 = e1.typeinfer(ctx.clone())?;
                 let typ2 = e2.typeinfer(ctx.clone())?;
