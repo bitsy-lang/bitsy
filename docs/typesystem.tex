@@ -8,6 +8,7 @@
 \newcommand{\word}[1]{\text{Word}\langle #1 \rangle}
 \newcommand{\vect}[2]{\text{Vec}\langle #1, #2 \rangle}
 \newcommand{\valid}[1]{\text{Valid}\langle #1 \rangle}
+\newcommand{\idx}[1]{\lbrack #1 \rbrack}
 
 \begin{document}
 
@@ -84,6 +85,34 @@ Bitsy is a hardware description language with a principled type system founded o
         m \le n
     }{
         \judgment{\Gamma}{\text{sext}(e) \downarrow \word{n}}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow \word{n}} \quad
+        i < n
+    }{
+        \judgment{\Gamma}{e \idx{i} \downarrow \word{1}}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow \word{n}} \quad
+        j \le i < n \quad m = j - i
+    }{
+        \judgment{\Gamma}{e \idx{j..i} \downarrow \word{m}}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
+        i < n
+    }{
+        \judgment{\Gamma}{e \idx{i} \downarrow T}
+    } \\
+    \\
+    \frac{
+        \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
+        j \le i < n \quad m = j - i
+    }{
+        \judgment{\Gamma}{e \idx{j..i} \downarrow \vect{T}{m}}
     } \\
 \end{align*}
 
