@@ -1,4 +1,6 @@
 \documentclass{article}
+\setlength{\parskip}{1em}
+
 \usepackage{amsmath}
 
 % Define typographical commands for typing judgments
@@ -9,6 +11,26 @@
 \newcommand{\vect}[2]{\text{Vec}\langle #1, #2 \rangle}
 \newcommand{\valid}[1]{\text{Valid}\langle #1 \rangle}
 \newcommand{\idx}[1]{\lbrack #1 \rbrack}
+\newcommand{\as}[0]{\text{ as }}
+\newcommand{\lett}[0]{\text{let }}
+\newcommand{\mux}[0]{\text{mux}}
+\newcommand{\cat}[0]{\text{cat}}
+
+\newcommand{\typingrule}[4]{
+    \begin{samepage}
+    \begin{flalign*}
+        \text{#1} \quad &
+        \frac{
+            #2
+        }{
+            #3
+        }
+        &&
+    \end{flalign*}
+
+    \noindent#4
+    \end{samepage}
+}
 
 \begin{document}
 
@@ -38,82 +60,134 @@ Bitsy is a hardware description language with a principled type system founded o
 
 \subsection{Typing Rules}
 
-\begin{align*}
-    \frac{
-        x : T \in \Gamma
-    }{
-        \judgment{\Gamma}{x \uparrow T}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{x_i \downarrow T}
-    }{
-        \judgment{\Gamma}{[x_0, \dots, x_{n-1}]  \downarrow T}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow S} \quad
-        \judgment{\Gamma, e : S}{b \downarrow T}
-    }{
-        \judgment{\Gamma}{\text{let} x = e \{ b \} \downarrow T}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{x \downarrow \word{n}} \quad
-        \judgment{\Gamma}{y \downarrow \word{n}}
-    }{
-        \judgment{\Gamma}{x + y \downarrow \word{n}}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{c \downarrow \word{1}} \quad
-        \judgment{\Gamma}{e_1 \downarrow T}\quad
-        \judgment{\Gamma}{e_2 \downarrow T}\quad
-    }{
-        \judgment{\Gamma}{\text{mux}(c, e_1, e_2) \downarrow T}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e_i \uparrow \word{m_i}} \quad
-        \sum{m_i} = n
-    }{
-        \judgment{\Gamma}{\text{cat}(e_0, \dots, e_{n-1}) \downarrow \word{n}}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow \word{m}} \quad
-        m \le n
-    }{
-        \judgment{\Gamma}{\text{sext}(e) \downarrow \word{n}}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow \word{n}} \quad
-        i < n
-    }{
-        \judgment{\Gamma}{e \idx{i} \downarrow \word{1}}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow \word{n}} \quad
-        j \le i < n \quad m = j - i
-    }{
-        \judgment{\Gamma}{e \idx{j..i} \downarrow \word{m}}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
-        i < n
-    }{
-        \judgment{\Gamma}{e \idx{i} \downarrow T}
-    } \\
-    \\
-    \frac{
-        \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
-        j \le i < n \quad m = j - i
-    }{
-        \judgment{\Gamma}{e \idx{j..i} \downarrow \vect{T}{m}}
-    } \\
-\end{align*}
+\typingrule{Path}{
+    x : T \in \Gamma
+}{
+    \judgment{\Gamma}{x \uparrow T}
+}{
+    We can always infer the type of a path that appears in the context.
+}
+
+\typingrule{InferCheck}{
+    \judgment{\Gamma}{x \uparrow T}
+}{
+    \judgment{\Gamma}{x \downarrow T}
+}{
+    If we can infer the type of an expression, we can check it.
+}
+
+\typingrule{TypeAscription}{
+    \judgment{\Gamma}{e \downarrow T}
+}{
+    \judgment{\Gamma}{e \as T \uparrow T}
+}{
+    You can ascribe an expression $e$ with a type $T$ with \as.
+    If you can check $e$ against $T$, then you can infer $e \as T$ against $T$.
+}
+
+\typingrule{VecCons}{
+    \judgment{\Gamma}{x_i \downarrow T}
+}{
+    \judgment{\Gamma}{[x_0, \dots, x_{n-1}]  \downarrow T}
+}{
+    If you can check the type of each component $e_i$ against $T$, then you have a vector of $T$'s.
+}
+\typingrule{Let}{
+    \judgment{\Gamma}{e \uparrow S} \quad
+    \judgment{\Gamma, e : S}{b \downarrow T}
+}{
+    \judgment{\Gamma}{\lett x = e \{ b \} \downarrow T}
+}{
+    If $b$ would be well-typed as $T$ when adding a new varaible $x : S$ to the context,
+    and $e$ has type $S$, then we can make these into a $\text{let}$ binding.
+}
+
+\typingrule{Add}{
+    \judgment{\Gamma}{x \downarrow \word{n}} \quad
+    \judgment{\Gamma}{y \downarrow \word{n}}
+}{
+    \judgment{\Gamma}{x + y \downarrow \word{n}}
+}{
+    If both $x$ and $y$ can be inferred to be $\text{Word}$ s of the same bitlength,
+    then $x + y$ can be inferred to be a $\text{Word}$ of that same bitlength.
+}
+
+\typingrule{Mux}{
+    \judgment{\Gamma}{c \downarrow \word{1}} \quad
+    \judgment{\Gamma}{e_1 \downarrow T}\quad
+    \judgment{\Gamma}{e_2 \downarrow T}\quad
+}{
+    \judgment{\Gamma}{\text{mux}(c, e_1, e_2) \downarrow T}
+}{
+    You can create a $\mux$ when $c$ is a $\word{1}$ and $e_1$ and $e_2$ have the same type.
+}
+
+\typingrule{Cat}{
+    \judgment{\Gamma}{e_i \uparrow \word{m_i}} \quad
+    \sum{m_i} = n
+}{
+    \judgment{\Gamma}{\cat(e_0, \dots, e_{n-1}) \downarrow \word{n}}
+}{
+    If you can infer each $e_i$ to a $\text{Word}$ and the total of their bitlengths is $n$,
+    then $\cat(e_0, \dots, e_{n-1})$ is a $\word{n}$.
+}
+
+\typingrule{Sext}{
+    \judgment{\Gamma}{e \uparrow \word{m}} \quad
+    m \le n
+}{
+    \judgment{\Gamma}{\text{sext}(e) \downarrow \word{n}}
+}{
+    If you can infer that $e$ has type $\word{m}$ and $m \le n$,
+    then you can sign extend $e$ to be $\word{n}$.
+}
+
+\typingrule{IndexWord}{
+    \judgment{\Gamma}{e \uparrow \word{n}} \quad
+    i < n
+}{
+    \judgment{\Gamma}{e \idx{i} \downarrow \word{1}}
+}{
+    You can statically index into a $\word{n}$ and receive a $\word{1}$.
+}
+
+\typingrule{IndexRangeWord}{
+    \judgment{\Gamma}{e \uparrow \word{n}} \quad
+    j \le i < n \quad m = i - j
+}{
+    \judgment{\Gamma}{e \idx{j..i} \downarrow \word{m}}
+}{
+    You can statically index into a $\word{n}$ with a range $j..i$
+    and receive a $\text{Word}$ with bitlength $j - i$.
+
+    \noindent Note that the \textit{larger} index $j$ comes \textit{first},
+    since integers are written in big-endian order by hand.
+
+    \noindent Also note that $j$ may be equal to $i$, resulting in a $\word{0}$.
+}
+
+\typingrule{IndexVec}{
+    \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
+    i < n
+}{
+    \judgment{\Gamma}{e \idx{i} \downarrow T}
+}{
+    When indexing into a $\text{Vec}$, note that you receive a $T$ back and not a $\vec{T}{1}$.
+}
+
+\typingrule{IndexRangeVec}{
+    \judgment{\Gamma}{e \uparrow \vect{T}{n}} \quad
+    i \le j < n \quad m = j - i
+}{
+    \judgment{\Gamma}{e \idx{i..j} \downarrow \vect{T}{m}}
+}{
+    You can statically index into a $\vect{T}{n}$ with a range $i..j$
+    and receive a $\text{Vec}$ with length $i - j$.
+
+    \noindent Note that the \textit{smaller} index $j$ comes \textit{first},
+    since lists are written in little-endian order by hand.
+
+    \noindent Also note that $i$ may be equal to $j$, resulting in a $\vect{T}{0}$.
+}
 
 \end{document}
