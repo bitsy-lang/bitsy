@@ -24,22 +24,22 @@ impl Expr {
                     unreachable!()
                 }
             },
-            Expr::Enum(_loc, typedef, name) => Value::Enum(typedef.clone(), name.clone()),
-            Expr::Ctor(_loc, name, es) => {
+            Expr::Enum(_loc, _typ, typedef, name) => Value::Enum(typedef.clone(), name.clone()),
+            Expr::Ctor(_loc, _typ, name, es) => {
                 let values: Vec<Value> = es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())).collect();
                 Value::Ctor(name.to_string(), values)
             },
-            Expr::Let(_loc, name, e, b) => {
+            Expr::Let(_loc, _typ, name, e, b) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 b.eval_with_ctx(bitsy, ctx.extend(name.clone().into(), v))
             },
-            Expr::UnOp(_loc, op, e) => {
+            Expr::UnOp(_loc, _typ, op, e) => {
                 match (op, e.eval_with_ctx(bitsy, ctx.clone())) {
                     (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
                     _ => Value::X,
                 }
             },
-            Expr::BinOp(_loc, op, e1, e2) => {
+            Expr::BinOp(_loc, _typ, op, e1, e2) => {
                 match (op, e1.eval_with_ctx(bitsy, ctx.clone()), e2.eval_with_ctx(bitsy, ctx.clone())) {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
@@ -59,7 +59,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::If(_loc, cond, e1, e2) => {
+            Expr::If(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
                 let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
                 let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
@@ -72,8 +72,8 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Match(_loc, _e, arms) => todo!(),
-            Expr::Mux(_loc, cond, e1, e2) => {
+            Expr::Match(_loc, _typ, _e, arms) => todo!(),
+            Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
                 let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
                 let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
@@ -86,7 +86,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Cat(_loc, es) => {
+            Expr::Cat(_loc, _typ, es) => {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 let mut wss: Vec<Value> = vec![];
@@ -108,7 +108,7 @@ impl Expr {
                     Value::Vec(wss.into_iter().rev().collect())
                 }
             },
-            Expr::Sext(_loc, e, n) => {
+            Expr::Sext(_loc, _typ, e, n) => {
                 match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
@@ -130,7 +130,7 @@ impl Expr {
                     _ => panic!("Can't sext {self:?}"),
                 }
             }
-            Expr::ToWord(_loc, e) => {
+            Expr::ToWord(_loc, _typ, e) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
@@ -141,7 +141,7 @@ impl Expr {
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }
             },
-            Expr::Vec(_loc, es) => {
+            Expr::Vec(_loc, _typ, es) => {
                 let mut vs = vec![];
                 for v in es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())) {
                     if let Value::X = v {
@@ -152,7 +152,7 @@ impl Expr {
                 }
                 Value::Vec(vs)
             },
-            Expr::Idx(_loc, e, i) => {
+            Expr::Idx(_loc, _typ, e, i) => {
                 let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {
                     Value::X
@@ -172,7 +172,7 @@ impl Expr {
                         panic!("Index with invalid value: {value:?}")
                 }
             },
-            Expr::IdxRange(_loc, e, j, i) => {
+            Expr::IdxRange(_loc, _typ, e, j, i) => {
                 let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {
                     Value::X
@@ -198,7 +198,7 @@ impl Expr {
                     panic!("Can't index into value: {value:?}")
                 }
             },
-            Expr::IdxDyn(_loc, e, i) => {
+            /*Expr::IdxDyn(_loc, e, i) => {
                 let index = if let Value::Word(_width, val) = i.eval_with_ctx(bitsy, ctx.clone()) {
                     val
                 } else {
@@ -221,8 +221,8 @@ impl Expr {
                 } else {
                     panic!("Index with invalid value: {value:?}")
                 }
-            },
-            Expr::Hole(_loc, opt_name) => {
+            }, */
+            Expr::Hole(_loc, _typ, opt_name) => {
                 match opt_name {
                     Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
                     None => panic!("EVALUATED A HOLE"),

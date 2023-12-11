@@ -111,7 +111,7 @@ impl Package {
         for moddef in self.moddefs() {
             for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
                 let mut func = |e: &Expr| {
-                    if let Expr::Enum(loc, r, name) = e {
+                    if let Expr::Enum(loc, _typ, r, name) = e {
                         if let Some(typedef) = self.typedef(r.name()) {
                             r.resolve_to(typedef).unwrap();
                         } else {

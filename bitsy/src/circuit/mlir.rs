@@ -95,8 +95,8 @@ impl Expr {
                 let (v_str, v_typ) = (format!("{n}"), type_to_mlir(typ));
                 (format!("%tmp_{prefix}_lit"), format!("hw.constant {v_str} : {v_typ}"))
             },
-            Expr::BinOp(_loc, BinOp::Add, e1, e2) => {
-                let typ = Arc::new(Type::Word(8)); // TODO
+            Expr::BinOp(_loc, typ, BinOp::Add, e1, e2) => {
+                let typ = typ.get().unwrap().clone();
                 let typ_name = type_to_mlir(typ);
                 let e1_ssa = e1.emit_mlir(prefix, ctx.clone());
                 let e2_ssa = e2.emit_mlir(prefix, ctx.clone());

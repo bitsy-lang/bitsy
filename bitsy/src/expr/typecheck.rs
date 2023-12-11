@@ -31,14 +31,14 @@ impl Expr {
                     }
                 }
             },
-            (Type::TypeDef(typedef_expected), Expr::Enum(_loc, typedef, _name)) => {
+            (Type::TypeDef(typedef_expected), Expr::Enum(_loc, _typ, typedef, _name)) => {
                 if typedef_expected == typedef {
                     Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
                 }
             },
-            (_type_expected, Expr::Ctor(loc, name, es)) => {
+            (_type_expected, Expr::Ctor(loc, _typ, name, es)) => {
                 // TODO
                 if let Type::Valid(typ) = &*type_expected {
                     if es.len() == 1 {
@@ -52,16 +52,16 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
                 }
             },
-            (_type_expected, Expr::Let(_loc, name, e, b)) => {
+            (_type_expected, Expr::Let(_loc, _typ, name, e, b)) => {
                 if let Some(typ) = e.typeinfer(ctx.clone()) {
                     b.typecheck(type_expected.clone(), ctx.extend(name.clone().into(), typ))
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
                 }
             },
-            (_type_expected, Expr::Match(_loc, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
-            (_type_expected, Expr::UnOp(_loc, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
-            (Type::Word(1), Expr::BinOp(_loc, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
+            (_type_expected, Expr::Match(_loc, _typ, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
+            (_type_expected, Expr::UnOp(_loc, _typ, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
+            (Type::Word(1), Expr::BinOp(_loc, _typ, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
                 if let Some(typ1) = e1.typeinfer(ctx.clone()) {
                     e2.typecheck(typ1, ctx.clone())?;
                     Ok(())
@@ -69,12 +69,12 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can't infer type.")))
                 }
             },
-            (Type::Word(n), Expr::BinOp(_loc, BinOp::Add | BinOp::Sub | BinOp::And | BinOp::Or | BinOp::Xor, e1, e2)) => {
+            (Type::Word(n), Expr::BinOp(_loc, _typ, BinOp::Add | BinOp::Sub | BinOp::And | BinOp::Or | BinOp::Xor, e1, e2)) => {
                 e1.typecheck(type_expected.clone(), ctx.clone())?;
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (Type::Word(n), Expr::BinOp(_loc, BinOp::AddCarry, e1, e2)) => {
+            (Type::Word(n), Expr::BinOp(_loc, _typ, BinOp::AddCarry, e1, e2)) => {
                 if let (Some(typ1), Some(typ2)) = (e1.typeinfer(ctx.clone()), e2.typeinfer(ctx.clone())) {
                     if *n > 0 && typ1 == typ2 && *typ1 == Type::Word(*n - 1) {
                         Ok(())
@@ -85,19 +85,19 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can't infer type.")))
                 }
             },
-            (_type_expected, Expr::If(_loc, cond, e1, e2)) => {
+            (_type_expected, Expr::If(_loc, _typ, cond, e1, e2)) => {
                 cond.typecheck(Type::word(1), ctx.clone())?;
                 e1.typecheck(type_expected.clone(), ctx.clone())?;
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (_type_expected, Expr::Mux(_loc, cond, e1, e2)) => {
+            (_type_expected, Expr::Mux(_loc, _typ, cond, e1, e2)) => {
                 cond.typecheck(Type::word(1), ctx.clone())?;
                 e1.typecheck(type_expected.clone(), ctx.clone())?;
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (Type::Word(width_expected), Expr::Sext(_loc, e, n)) => {
+            (Type::Word(width_expected), Expr::Sext(_loc, _typ, e, n)) => {
                 if *n != *width_expected {
                     Err(TypeError::Other(self.clone(), format!("Type mismatch")))
                 } else if let Some(type_actual) = e.typeinfer(ctx.clone()) {
@@ -114,10 +114,10 @@ impl Expr {
                     Err(TypeError::CantInferType(self.clone()))
                 }
             },
-            (Type::Word(_n), Expr::ToWord(_loc, e)) => {
+            (Type::Word(_n), Expr::ToWord(_loc, _typ, e)) => {
                 Err(TypeError::Other(self.clone(), format!("Not yet implemented.")))
             },
-            (Type::Vec(typ, n), Expr::Vec(_loc, es)) => {
+            (Type::Vec(typ, n), Expr::Vec(_loc, _typ, es)) => {
                 for e in es {
                     e.typecheck(typ.clone(), ctx.clone())?;
                 }
@@ -128,7 +128,7 @@ impl Expr {
                     Ok(())
                 }
             },
-            (_type_expected, Expr::Idx(_loc, e, i)) => {
+            (_type_expected, Expr::Idx(_loc, _typ, e, i)) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::Word(n)) if i < n => Ok(()),
                     Some(Type::Word(n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
@@ -136,7 +136,7 @@ impl Expr {
                     None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
-            (_type_expected, Expr::IdxRange(_loc, e, j, i)) => {
+            (_type_expected, Expr::IdxRange(_loc, _typ, e, j, i)) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::Word(n)) if n >= j && j >= i => Ok(()),
                     Some(Type::Word(_n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
@@ -144,8 +144,8 @@ impl Expr {
                     None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
-//            (_type_expected, Expr::IdxDyn(_loc, e, i)) => todo!(),
-            (_type_expected, Expr::Hole(_loc, opt_name)) => Ok(()),
+//            (_type_expected, Expr::IdxDyn(_loc, _typ, e, i)) => todo!(),
+            (_type_expected, Expr::Hole(_loc, _typ, opt_name)) => Ok(()),
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };
 
@@ -171,8 +171,8 @@ impl Expr {
             } else {
                 None
             },
-            Expr::Enum(_loc, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
-            Expr::Cat(_loc, es) => {
+            Expr::Enum(_loc, _typ, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
+            Expr::Cat(_loc, _typ, es) => {
                 let mut w = 0u64;
                 for e in es {
                     if let Some(Type::Word(m)) = e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
@@ -183,7 +183,7 @@ impl Expr {
                 }
                 Some(Type::word(w))
             },
-            Expr::ToWord(loc, e) => {
+            Expr::ToWord(loc, _typ, e) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::TypeDef(typedef)) => {
                         if let Some(typedef) = typedef.get() {
@@ -195,14 +195,14 @@ impl Expr {
                     _ => None,
                 }
             },
-            Expr::Vec(_loc, es) => None,
-            Expr::Idx(_loc, e, i) => {
+            Expr::Vec(_loc, _typ, es) => None,
+            Expr::Idx(_loc, _typ, e, i) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::Word(n)) if i < n => Some(Type::word(1)),
                     _ => None,
                 }
             },
-            Expr::IdxRange(_loc, e, j, i) => {
+            Expr::IdxRange(_loc, _typ, e, j, i) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::Word(n)) if n >= j && j >= i => Some(Type::word(*j - *i)),
                     Some(Type::Word(n)) => None,
@@ -210,8 +210,8 @@ impl Expr {
                     None => None,
                 }
             },
-            Expr::IdxDyn(_loc, e, i) => None,
-            Expr::Hole(_loc, opt_name) => None,
+            //Expr::IdxDyn(_loc, _typ, e, i) => None,
+            Expr::Hole(_loc, _typ, opt_name) => None,
             _ => None,
         };
 

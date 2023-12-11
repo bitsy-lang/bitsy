@@ -117,32 +117,32 @@ pub Expr: Arc<Expr> = {
 }
 
 ExprOr: Arc<Expr> = {
-    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
-    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Or, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Xor, e1, e2)),
     <e:ExprAnd> => e,
 }
 
 ExprAnd: Arc<Expr> = {
-    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
+    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::And, e1, e2)),
     <e:ExprNot> => e,
 }
 
 ExprNot: Arc<Expr> = {
-    <ll:@L> "!" <e:ExprEq> <rr:@R> => Arc::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
+    <ll:@L> "!" <e:ExprEq> <rr:@R> => Arc::new(Expr::UnOp(Loc::from(source_info, ll, rr), OnceCell::new(), UnOp::Not, e)),
     <e:ExprEq> => e,
 }
 
 ExprEq: Arc<Expr> = {
-    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
-    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Eq,  e1, e2)),
+    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Neq, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
 ExprAdd: Arc<Expr> = {
-    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
-    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
-    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Add, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::AddCarry, e1, e2)),
+    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Arc::new(Expr::BinOp(Loc::from(source_info, ll, rr), OnceCell::new(), BinOp::Sub, e1, e2)),
     <e:ExprCall> => e,
 }
 
@@ -152,18 +152,18 @@ ExprCall: Arc<Expr> = {
         for (_, e) in ess {
             es.push(e);
         }
-        Arc::new(Expr::Cat(Loc::from(source_info, ll, rr), es))
+        Arc::new(Expr::Cat(Loc::from(source_info, ll, rr), OnceCell::new(), es))
     },
-    <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Valid".to_string(), vec![e])),
-    <ll:@L> "@Invalid" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), "Invalid".to_string(), vec![])),
-    <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Arc::new(Expr::Mux(Loc::from(source_info, ll, rr), cond, e1, e2)),
-    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Arc::new(Expr::Sext(Loc::from(source_info, ll, rr), e, n)),
-    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), e)),
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![e; n as usize])),
-    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Arc::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Arc::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
-//    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), OnceCell::new(), "Valid".to_string(), vec![e])),
+    <ll:@L> "@Invalid" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), OnceCell::new(), "Invalid".to_string(), vec![])),
+    <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Arc::new(Expr::Mux(Loc::from(source_info, ll, rr), OnceCell::new(), cond, e1, e2)),
+    <ll:@L> "sext" "(" <e:Expr> "," <n:Nat> ")" <rr:@R> =>  Arc::new(Expr::Sext(Loc::from(source_info, ll, rr), OnceCell::new(), e, n)),
+    <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
+    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), OnceCell::new(), es)),
+    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), OnceCell::new(), vec![e; n as usize])),
+    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Arc::new(Expr::Idx(Loc::from(source_info, ll, rr), OnceCell::new(), e, i)),
+    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Arc::new(Expr::IdxRange(Loc::from(source_info, ll, rr), OnceCell::new(), e, j, i)),
+//    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), OnceCell::new(), e, i)),
     <e:ExprBase> => e,
 }
 
@@ -188,7 +188,7 @@ ExprBase: Arc<Expr> = {
 }
 
 ExprHole: Arc<Expr> = {
-    <ll:@L> "?" <name:Id?> <rr:@R> => Arc::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
+    <ll:@L> "?" <name:Id?> <rr:@R> => Arc::new(Expr::Hole(Loc::from(source_info, ll, rr), OnceCell::new(), name)),
 }
 
 ExprIf: Arc<Expr> = {
@@ -201,17 +201,17 @@ ExprIf: Arc<Expr> = {
         let mut result = elseexpr;
 
         for (_, _, _, elseif_cond, _, elseif_body) in elseifs.into_iter().rev() {
-            result = Arc::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
+            result = Arc::new(Expr::If(Loc::from(source_info, ll, rr), OnceCell::new(), elseif_cond, elseif_body, result));
         }
 
-        Arc::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
+        Arc::new(Expr::If(Loc::from(source_info, ll, rr), OnceCell::new(), cond, e1, result))
     },
 }
 
 ExprLet: Arc<Expr> = {
     <ll:@L> "let" <x:Id> "=" <e:Expr>
     "{" <b:Expr> "}" <rr:@R> => {
-        Arc::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
+        Arc::new(Expr::Let(Loc::from(source_info, ll, rr), OnceCell::new(), x, e, b))
     },
 }
 
@@ -219,7 +219,7 @@ ExprMatch: Arc<Expr> = {
     <ll:@L> "match" <e:Expr> "{"
         <arms:MatchArm*>
     "}" <rr:@R> => {
-        Arc::new(Expr::Match(Loc::from(source_info, ll, rr), e, arms))
+        Arc::new(Expr::Match(Loc::from(source_info, ll, rr), OnceCell::new(), e, arms))
     },
 }
 
@@ -240,7 +240,7 @@ Pat: Pat = {
 
 ExprLit: Arc<Expr> = {
     <ll:@L> <typename:Id> "::" <name:Id> <rr:@R> =>
-        Arc::new(Expr::Enum(Loc::from(source_info, ll, rr), typename.into(), name.to_string())),
+        Arc::new(Expr::Enum(Loc::from(source_info, ll, rr), OnceCell::new(), typename.into(), name.to_string())),
 
     <ll:@L> <lit:WordLit> <rr:@R> => {
         let WordLit(w, v) = lit;
