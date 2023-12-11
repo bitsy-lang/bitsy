@@ -31,7 +31,6 @@ impl Expr {
             },
             Expr::Let(_loc, name, e, b) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
-                dbg!(&v);
                 b.eval_with_ctx(bitsy, ctx.extend(name.clone().into(), v))
             },
             Expr::UnOp(_loc, op, e) => {

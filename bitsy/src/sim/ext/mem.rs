@@ -35,6 +35,10 @@ impl Mem {
     }
 
     fn read(&self) -> Value {
+        if self.read_addr >= 1<<16 {
+            //eprintln!("Out of bounds read: {:0x}", self.read_addr);
+            return Value::Word(32, 0);
+        }
         let val: u64 =
             (self.mem[self.read_addr as usize] as u64) |
             ((self.mem[self.read_addr as usize + 1] as u64) << 8) |
@@ -45,7 +49,6 @@ impl Mem {
     }
 
     pub fn render(&self) -> String {
-        //dbg!(self);
         let mem = if let Some(index) = self.mem.iter().position(|&x| x == 0) {
             &self.mem[..index+1]
         } else {

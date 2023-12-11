@@ -40,7 +40,7 @@ impl Repl {
     }
 
     pub fn run(&mut self) {
-        self.show();
+        // self.show();
         let commands = self.testbench.2.clone();
         for command in commands{
             self.exec_tb_command(command);
@@ -128,7 +128,7 @@ impl Repl {
                                 self.show();
                             } else {
                                 self.exec_tb_command(command);
-                                self.show();
+//                                self.show();
                             }
                         },
                         Err(err) => eprintln!("{err:?}"),
