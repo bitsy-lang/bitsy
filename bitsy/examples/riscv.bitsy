@@ -34,7 +34,7 @@ mod Core {
     mod ifetch of Ifetch;
     mod riscv_decoder of RiscvDecoder;
     mod instr_mem of InstrMem;
-    mod mem of Mem;
+    mod mem of MemorySubsystem;
 
     instr_mem.write_enable := 0w1;
     instr_mem.write_addr := 0w32;
@@ -59,6 +59,8 @@ mod Core {
     rf.write_enable := control.reg_write;
     rf.write_data := if control.mem_to_reg {
         mem.read_data
+    } else if decoder.opcode == Opcode::LUI {
+        immgen.imm
     } else {
         alu.r
     };
@@ -248,11 +250,13 @@ mod Control {
     mem_to_reg := mem_read;
     alu_op := if funct3 == 0w3 { // ADD/ADDI
         AluOp::ADD
+    } else if funct3 == 0b111w3 { // AND/ANDI
+        AluOp::AND
     } else {
         AluOp::ADD
     };
     alu_source := opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE;
-    reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD;
+    reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::LUI;
 }
 
 mod Alu {
@@ -376,6 +380,32 @@ mod Ifetch {
     instr := instr_mem_data;
 }
 
+mod MemorySubsystem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
+
+    mod mem of Mem;
+
+    mem.write_enable := write_addr < 0x10000w32 && write_enable;
+    mem.write_addr := write_addr;
+    mem.write_data := write_data;
+    mem.read_addr := read_addr;
+    read_data := if read_addr < 0x10000w32 {
+        mem.read_data
+    } else {
+        0w32
+    };
+
+    mod term of Terminal;
+
+    term.out_valid := write_enable && write_addr == 0x10000w32;
+    term.out_data := write_data;
+}
+
 ext mod RiscvDecoder {
     incoming in of Word<32>;
 }
@@ -398,4 +428,9 @@ ext mod Mem {
     incoming write_enable of Word<1>;
     incoming write_addr of Word<32>;
     incoming write_data of Word<32>;
+}
+
+ext mod Terminal {
+    incoming out_data of Word<32>;
+    incoming out_valid of Word<1>;
 }

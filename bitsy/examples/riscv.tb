@@ -1,13 +1,16 @@
 top Core
-link top.riscv_decoder = RiscVDecoder {}
+link top.riscv_decoder = RiscVDecoder {
+}
 
 link top.instr_mem = Mem {
-    file = "data/prog.bin"
+    file = "programs/hello.exe.bin"
 }
 
-link top.mem = Mem {
+link top.mem.mem = Mem {
     file = "data/hello.bin"
 }
+
+link top.mem.term = Terminal {}
 
 reset
 debug

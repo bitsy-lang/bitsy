@@ -12,14 +12,25 @@ impl Terminal {
 }
 
 impl ExtInstance for Terminal {
-    fn incoming_ports(&self) -> Vec<PortName> { vec!["in_data".to_string(), "in_valid".to_string()] }
+    fn incoming_ports(&self) -> Vec<PortName> { vec!["out_data".to_string(), "out_valid".to_string()] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
 
     fn update(&mut self, port: &PortName, value: Value) -> Vec<(PortName, Value)> {
-        if port == "in_valid" {
+        if value.is_x() {
+            return vec![];
+        }
+        if port == "out_valid" {
             self.2 = value.to_bool().unwrap();
-        } else if port == "in_data" {
-            self.0 = char::from_u32(value.to_u64().unwrap() as u32).unwrap();
+        } else if port == "out_data" {
+            if let Some(n) = value.to_u64() {
+                if n < 256 {
+                    if let Ok(k) = n.try_into() {
+                        if let Some(ch) = char::from_u32(k) {
+                            self.0 = ch;
+                        }
+                    }
+                }
+            }
         }
         vec![]
     }
@@ -27,6 +38,7 @@ impl ExtInstance for Terminal {
     fn clock(&mut self) -> Vec<(PortName, Value)> {
         if self.2 {
             let s = self.0;
+            eprintln!("TERMINAL OUTPUT: {}", s as u32);
             write!(self.1, "{s}").unwrap();
             self.1.flush().unwrap();
         }
