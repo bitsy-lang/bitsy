@@ -40,15 +40,16 @@ mod Core {
     instr_mem.write_addr := 0w32;
     instr_mem.write_data := 0w32;
 
-    mem.read_addr := 0w32; // TODO
+//    mem.read_enable := control.mem_read;
+    mem.read_addr  := rf.rs1_val + immgen.imm;
+    mem.write_addr := rf.rs1_val + immgen.imm;
+    mem.write_data := alu.r;
     mem.write_enable := control.mem_write;
-    mem.write_addr := rf.rs1_val;
-    mem.write_data := rf.rs2_val;
-
 
     ifetch.branch_offset := immgen.imm;
     ifetch.branch_enable := control.branch;
 
+//    instr_mem.read_enable := 1;
     instr_mem.read_addr := ifetch.instr_mem_addr;
     ifetch.instr_mem_data := instr_mem.read_data;
 
@@ -56,10 +57,15 @@ mod Core {
     rf.rs2 := decoder.rs2;
     rf.rd := decoder.rd;
     rf.write_enable := control.reg_write;
-    rf.write_data := alu.r;
+    rf.write_data := if control.mem_to_reg {
+        mem.read_data
+    } else {
+        alu.r
+    };
 
     decoder.instr := ifetch.instr;
     immgen.instr := ifetch.instr;
+    immgen.opcode := decoder.opcode;
 
     riscv_decoder.in := ifetch.instr;
 
@@ -223,7 +229,7 @@ mod Rf {
 }
 
 mod Control {
-    incoming opcode of Word<7>;
+    incoming opcode of Opcode;
     incoming funct3 of Word<3>;
     incoming funct7 of Word<7>;
 
@@ -235,18 +241,18 @@ mod Control {
     outgoing alu_source of Word<1>;
     outgoing reg_write of Word<1>;
 
-    branch := opcode == word(Opcode::BRANCH) || opcode == word(Opcode::JALR) || opcode == word(Opcode::JAL);
+    branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
 
-    mem_read := opcode == word(Opcode::LOAD);
-    mem_write := opcode == word(Opcode::STORE);
+    mem_read := opcode == Opcode::LOAD;
+    mem_write := opcode == Opcode::STORE;
     mem_to_reg := mem_read;
     alu_op := if funct3 == 0w3 { // ADD/ADDI
         AluOp::ADD
     } else {
         AluOp::ADD
     };
-    alu_source := opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD) || opcode == word(Opcode::STORE);
-    reg_write := opcode == word(Opcode::OP) || opcode == word(Opcode::OP_IMM) || opcode == word(Opcode::LOAD);
+    alu_source := opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE;
+    reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD;
 }
 
 mod Alu {
@@ -270,27 +276,25 @@ mod Alu {
 
 mod Immgen {
     incoming instr of Word<32>;
+    incoming opcode of Opcode;
     outgoing imm of Word<32>;
 
-    node opcode of Word<7>;
-    opcode := instr[7..0];
-
     node typ of InstrType;
-    typ := if opcode == word(Opcode::OP_IMM) {
+    typ := if opcode == Opcode::OP_IMM {
         InstrType::I
-    } else if opcode == word(Opcode::LOAD) {
+    } else if opcode == Opcode::LOAD {
         InstrType::I
-    } else if opcode == word(Opcode::STORE) {
+    } else if opcode == Opcode::STORE {
         InstrType::S
-    } else if opcode == word(Opcode::JAL) {
+    } else if opcode == Opcode::JAL {
         InstrType::J
-    } else if opcode == word(Opcode::BRANCH) {
+    } else if opcode == Opcode::BRANCH {
         InstrType::B
-    } else if opcode == word(Opcode::LUI) {
+    } else if opcode == Opcode::LUI {
         InstrType::U
-    } else if opcode == word(Opcode::AUIPC) {
+    } else if opcode == Opcode::AUIPC {
         InstrType::U
-    } else if opcode == word(Opcode::JALR) {
+    } else if opcode == Opcode::JALR {
         InstrType::I
     } else {
         InstrType::I
@@ -314,14 +318,36 @@ mod Immgen {
 mod Decoder {
     incoming instr of Word<32>;
 
-    outgoing opcode of Word<7>;
+    outgoing opcode of Opcode;
     outgoing rd  of Word<5>;
     outgoing rs1 of Word<5>;
     outgoing rs2 of Word<5>;
     outgoing funct3  of Word<3>;
     outgoing funct7  of Word<7>;
 
-    opcode := instr[7..0];
+    opcode := let opcode_bits = instr[7..0] {
+        if opcode_bits == word(Opcode::OP) {
+            Opcode::OP
+        } else if opcode_bits == word(Opcode::OP_IMM) {
+            Opcode::OP_IMM
+        } else if opcode_bits == word(Opcode::LOAD) {
+            Opcode::LOAD
+        } else if opcode_bits == word(Opcode::STORE) {
+            Opcode::STORE
+        } else if opcode_bits == word(Opcode::JAL) {
+            Opcode::JAL
+        } else if opcode_bits == word(Opcode::BRANCH) {
+            Opcode::BRANCH
+        } else if opcode_bits == word(Opcode::LUI) {
+            Opcode::LUI
+        } else if opcode_bits == word(Opcode::AUIPC) {
+            Opcode::AUIPC
+        } else if opcode_bits == word(Opcode::JALR) {
+            Opcode::JALR
+        } else {
+            Opcode::OP
+        }
+    };
     rd     := instr[12..7];
     funct3 := instr[15..12];
     rs1    := instr[20..15];
@@ -355,6 +381,7 @@ ext mod RiscvDecoder {
 }
 
 ext mod InstrMem {
+//    outgoing read_enable of Word<1>;
     incoming read_addr of Word<32>;
     outgoing read_data of Word<32>;
 
@@ -364,6 +391,7 @@ ext mod InstrMem {
 }
 
 ext mod Mem {
+//    outgoing read_enable of Word<1>;
     incoming read_addr of Word<32>;
     outgoing read_data of Word<32>;
 
