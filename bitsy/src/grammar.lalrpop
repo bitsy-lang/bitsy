@@ -227,7 +227,7 @@ MatchArm: MatchArm = {
     <pat:Pat> "=>" <e:Expr> ";" => MatchArm(pat, e),
 }
 
-pub Pat: Pat = {
+Pat: Pat = {
     <id:"@Invalid"> => Pat::At(id[1..].to_string(), vec![]),
     <id:"@Valid"> "(" <p:Pat> <ps:("," Pat)*> ")" => {
         let mut subpats = vec![p];

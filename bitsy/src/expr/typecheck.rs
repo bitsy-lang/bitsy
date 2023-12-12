@@ -59,8 +59,26 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
                 }
             },
-            (_type_expected, Expr::Match(_loc, _typ, _e, arms)) => {
-                Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented")))
+            (_type_expected, Expr::Match(_loc, _typ, subject, arms)) => {
+                if let Some(subject_typ) = subject.typeinfer(ctx.clone()) {
+                    let invalid_arms: Vec<&MatchArm> = arms.into_iter().filter(|MatchArm(pat, _e)| !subject_typ.valid_pat(pat)).collect();
+                    if invalid_arms.len() > 0 {
+                        return Err(TypeError::Other(self.clone(), format!("Invalid patterns for {subject_typ:?}: {invalid_arms:?}")));
+                    }
+
+                    for MatchArm(pat, e) in arms {
+                        if let Pat::At(ctor, subpats) = pat {
+                            //let new_ctx = ctx.extend(x.clone().into(), typ.clone());
+                            let new_ctx = ctx.clone();
+                            e.typecheck(type_expected.clone(), new_ctx)?;
+                        } else {
+                            return Err(TypeError::Other(self.clone(), format!("Match: Unknown?")));
+                        }
+                    }
+                } else {
+                    return Err(TypeError::Other(self.clone(), format!("Match: Can't infer subject type")));
+                }
+                Ok(())
             },
             (_type_expected, Expr::UnOp(_loc, _typ, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
             (Type::Word(1), Expr::BinOp(_loc, _typ, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
@@ -221,5 +239,28 @@ impl Expr {
             }
         }
         result
+    }
+}
+
+impl Type {
+    fn valid_pat(&self, pat: &Pat) -> bool{
+        match pat {
+            Pat::At(ctor, subpats) => {
+                match &*self {
+                    Type::Valid(inner_type) => {
+                        if ctor == "Invalid" && subpats.len() == 0 {
+                            true
+                        } else if ctor == "Valid" && subpats.len() == 1 {
+                            inner_type.valid_pat(&subpats[0])
+                        } else {
+                            false
+                        }
+                    },
+                    _ => false,
+                }
+            },
+            Pat::Bind(_x) => true,
+            Pat::Otherwise => true,
+        }
     }
 }
