@@ -19,8 +19,7 @@ Both carry a value of type `Word<1>` (that is, a bit) to and from the module.
 
 This module contains one subcomponent: a `reg` (register) named `queue`.
 It stores a value of type `Word<1>`.
-The `reset` clause declares that the reset value of the register is `0w1`.
-This is an 1-bit representation of the number 0.
+The `reset` clause declares that the reset value of the register is `0`.
 
 The final two statements are wires.
 

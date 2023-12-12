@@ -2,7 +2,7 @@ mod Buffer {
     incoming in  of Word<1>;
     outgoing out of Word<1>;
 
-    reg queue of Word<1> reset 0w1;
+    reg queue of Word<1> reset 0;
 
     queue <= in;
     out := queue;
