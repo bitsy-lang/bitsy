@@ -65,15 +65,11 @@ impl Expr {
                     if invalid_arms.len() > 0 {
                         return Err(TypeError::Other(self.clone(), format!("Invalid patterns for {subject_typ:?}: {invalid_arms:?}")));
                     }
+                    // TODO check pattern linearity
 
                     for MatchArm(pat, e) in arms {
-                        if let Pat::At(ctor, subpats) = pat {
-                            //let new_ctx = ctx.extend(x.clone().into(), typ.clone());
-                            let new_ctx = ctx.clone();
-                            e.typecheck(type_expected.clone(), new_ctx)?;
-                        } else {
-                            return Err(TypeError::Other(self.clone(), format!("Match: Unknown?")));
-                        }
+                        let new_ctx = subject_typ.extend_context_for_pat(ctx.clone(), pat);
+                        e.typecheck(type_expected.clone(), new_ctx)?;
                     }
                 } else {
                     return Err(TypeError::Other(self.clone(), format!("Match: Can't infer subject type")));
@@ -243,7 +239,7 @@ impl Expr {
 }
 
 impl Type {
-    fn valid_pat(&self, pat: &Pat) -> bool{
+    fn valid_pat(&self, pat: &Pat) -> bool {
         match pat {
             Pat::At(ctor, subpats) => {
                 match &*self {
@@ -261,6 +257,28 @@ impl Type {
             },
             Pat::Bind(_x) => true,
             Pat::Otherwise => true,
+        }
+    }
+
+    fn extend_context_for_pat(&self, ctx: Context<Path, Arc<Type>>, pat: &Pat) -> Context<Path, Arc<Type>> {
+        if let Type::Valid(inner_type) = self {
+            if let Pat::At(ctor, subpats) = pat {
+                if ctor == "Valid" && subpats.len() == 1 {
+                    if let Pat::Bind(x) = &subpats[0] {
+                        ctx.extend(x.clone().into(), inner_type.clone())
+                    } else {
+                        unreachable!()
+                    }
+                } else if ctor == "Invalid" {
+                    ctx.clone()
+                } else {
+                    unreachable!()
+                }
+            } else {
+                ctx.clone()
+            }
+        } else {
+            ctx.clone()
         }
     }
 }
