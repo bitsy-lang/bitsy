@@ -1,9 +1,9 @@
 import pysim
 
-monitor = pysim.Ext.monitor("Top.monitor")
-sim = pysim.Sim.load_from("Top.ntl", [monitor])
+monitor = pysim.Ext.monitor("top.monitor")
+sim = pysim.Sim.load_from("Top.bitsy", "Top", [monitor])
 
 sim.reset()
 for x in range(10):
     sim.clock()
-    print(sim.peek("Top.counter"))
+    print(sim.peek("top.counter"))

@@ -155,6 +155,7 @@ dependencies = [
  "lalrpop-util",
  "lazy_static",
  "log",
+ "once_cell",
  "riscy",
  "rustyline",
  "serde_json",

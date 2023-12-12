@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 
 #[pymodule]
@@ -59,37 +58,55 @@ struct Sim {
 #[pymethods]
 impl Sim {
     #[staticmethod]
-    fn load_from(filename: &str, exts: Option<&PyList>) -> Sim {
+    fn load_from(filename: &str, top_name: &str, exts: Option<&PyList>) -> Sim {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
-        let circuit = bitsy::parse_top(&text, None).unwrap();
 
-        let mut exts_map: BTreeMap<bitsy::Path, Box<dyn bitsy::ExtInstance>> = BTreeMap::new();
+        let package = match bitsy::load_package_from_string(&text) {
+            Ok(package) => package,
+            Err(errors) => {
+                for error in &errors {
+                    eprintln!("{error:?}");
+                }
+                eprintln!("Circuit has {} errors.", errors.len());
+                std::process::exit(1);
+            },
+        };
+        let circuit = match package.top(&top_name) {
+            Ok(circuit) => circuit,
+            Err(error) => {
+                eprintln!("{error:?}");
+                eprintln!("Circuit has 1 errors.");
+                std::process::exit(1);
+            },
+        };
+
+        let mut exts_map: BTreeMap<bitsy::Path, Box<dyn bitsy::sim::ext::ExtInstance>> = BTreeMap::new();
         if let Some(exts) = exts {
             for ext in exts.into_iter() {
                 let Ext(path, name) = ext.extract().unwrap();
-                let e: Box<dyn bitsy::ExtInstance> = match name {
+                let e: Box<dyn bitsy::sim::ext::ExtInstance> = match name {
                     "Monitor" => {
-                        let e = Box::new(bitsy::ext::monitor::Monitor::new());
+                        let e = Box::new(bitsy::sim::ext::monitor::Monitor::new());
                         e
                     },
                     "RiscVDecoder" => {
-                        let e = Box::new(bitsy::ext::riscv_decoder::RiscVDecoder::new());
+                        let e = Box::new(bitsy::sim::ext::riscv_decoder::RiscVDecoder::new());
                         e
                     },
                     "Ram" => {
-                        let e = Box::new(bitsy::ext::ram::Ram::new());
+                        let e = Box::new(bitsy::sim::ext::ram::Ram::new());
                         e
                     },
                     "Mem" => {
-                        let e = Box::new(bitsy::ext::mem::Mem::new());
+                        let e = Box::new(bitsy::sim::ext::mem::Mem::new());
                         e
                     },
                     "Video" => {
-                        let e = Box::new(bitsy::ext::video::Video::new());
+                        let e = Box::new(bitsy::sim::ext::video::Video::new());
                         e
                     },
                     "Terminal" => {
-                        let e = Box::new(bitsy::ext::terminal::Terminal::new());
+                        let e = Box::new(bitsy::sim::ext::terminal::Terminal::new());
                         e
                     },
                     _ => panic!("Unknown ext module being linked: {name}")
@@ -114,14 +131,14 @@ impl Sim {
 
     fn peek(&self, path: &str) -> Value {
         match self.sim.peek(path) {
-            bitsy::Value::Word(_width, n) => Value(n),
+            bitsy::sim::Value::Word(_width, n) => Value(n),
             _ => todo!(),
         }
     }
 
     fn poke(&mut self, path: &str, value: &Value) {
         let Value(n) = value;
-        self.sim.poke(path, bitsy::Value::Word(u64::MAX, *n));
+        self.sim.poke(path, bitsy::sim::Value::Word(u64::MAX, *n));
     }
 }
 
@@ -145,8 +162,16 @@ impl Package {
     #[new]
     fn new(filename: &str) -> Self {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
-        let circuit = bitsy::parse_top(&text, None).unwrap();
-        let package = circuit.package().clone();
+        let package = match bitsy::load_package_from_string(&text) {
+            Ok(package) => package,
+            Err(errors) => {
+                for error in &errors {
+                    eprintln!("{error:?}");
+                }
+                eprintln!("Circuit has {} errors.", errors.len());
+                std::process::exit(1);
+            },
+        };
         Package {
             package,
         }
