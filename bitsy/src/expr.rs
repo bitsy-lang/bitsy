@@ -60,6 +60,41 @@ pub enum Pat {
     Otherwise,
 }
 
+impl Pat {
+    fn bound_vars(&self) -> Vec<Path> {
+        let mut results = vec![];
+        match self {
+            Pat::At(_s, pats) => {
+                for pat in pats {
+                    results.extend(pat.bound_vars());
+                }
+            },
+            Pat::Bind(x) => results.push(x.clone().into()),
+            Pat::Otherwise => (),
+        }
+        results.sort();
+        results.dedup();
+        results
+    }
+}
+
+impl MatchArm {
+    fn free_vars(&self) -> Vec<Path> {
+        let mut results = vec![];
+        let MatchArm(pat, e) = self;
+        let bound_vars = pat.bound_vars();
+        for x in e.free_vars().iter() {
+            if !bound_vars.contains(x) {
+                results.push(x.clone());
+            }
+        }
+        results.sort();
+        results.dedup();
+        results
+
+    }
+}
+
 impl HasLoc for Expr {
     fn loc(&self) -> Loc {
         match self {
@@ -322,8 +357,12 @@ impl Expr {
                     .cloned()
                     .collect()
             },
-            Expr::Match(_loc, _typ, _e, arms) => {
-                todo!()
+            Expr::Match(_loc, _typ, e, arms) => {
+                let mut free_vars: Vec<_> = e.free_vars().into_iter().collect();
+                for arm in arms {
+                    free_vars.extend(arm.free_vars());
+                }
+                free_vars.into_iter().collect()
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 cond.free_vars()
@@ -409,7 +448,20 @@ impl Expr {
                 let new_b = b.rebase_rec(current_path, &new_shadowed);
                 Expr::Let(loc.clone(), typ.clone(), name.clone(), new_e, new_b)
             },
-            Expr::Match(_loc, _typ, _e, arms) => todo!(),
+            Expr::Match(loc, typ, e, arms) => {
+                let new_arms = arms.iter().map(|MatchArm(pat, e)| {
+                    let mut new_shadowed = shadowed.clone();
+                    new_shadowed.extend(pat.bound_vars());
+                    MatchArm(pat.clone(), e.rebase_rec(current_path.clone(), shadowed))
+
+                }).collect();
+                Expr::Match(
+                    loc.clone(),
+                    typ.clone(),
+                    e.rebase_rec(current_path.clone(), shadowed),
+                    new_arms,
+                )
+            },
             Expr::UnOp(loc, typ, op, e) => Expr::UnOp(loc.clone(), typ.clone(), *op, e.rebase_rec(current_path, shadowed)),
             Expr::BinOp(loc, typ, op, e1, e2) => {
                 Expr::BinOp(
@@ -514,7 +566,20 @@ impl Expr {
                     e2.references_to_nets_rec(net_id_by_path, shadowed),
                 )
             },
-            Expr::Match(_loc, typ, _e, arms) => todo!(),
+            Expr::Match(loc, typ, e, arms) => {
+                let new_arms = arms.iter().map(|MatchArm(pat, e)| {
+                    let mut new_shadowed = shadowed.clone();
+                    new_shadowed.extend(pat.bound_vars());
+                    MatchArm(pat.clone(), e.references_to_nets_rec(net_id_by_path, shadowed))
+
+                }).collect();
+                Expr::Match(
+                    loc.clone(),
+                    typ.clone(),
+                    e.references_to_nets_rec(net_id_by_path, shadowed),
+                    new_arms,
+                )
+            },
             Expr::Mux(loc, typ, cond, e1, e2) => {
                 Expr::Mux(
                     loc.clone(),

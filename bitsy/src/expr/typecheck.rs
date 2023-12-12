@@ -59,7 +59,9 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
                 }
             },
-            (_type_expected, Expr::Match(_loc, _typ, _e, arms)) => Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented"))),
+            (_type_expected, Expr::Match(_loc, _typ, _e, arms)) => {
+                Err(TypeError::Other(self.clone(), format!("match expressions are not yet implemented")))
+            },
             (_type_expected, Expr::UnOp(_loc, _typ, UnOp::Not, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
             (Type::Word(1), Expr::BinOp(_loc, _typ, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2)) => {
                 if let Some(typ1) = e1.typeinfer(ctx.clone()) {

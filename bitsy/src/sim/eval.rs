@@ -72,7 +72,9 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Match(_loc, _typ, _e, arms) => todo!(),
+            Expr::Match(_loc, _typ, _e, arms) => {
+                todo!()
+            },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
                 let v1 = e1.eval_with_ctx(bitsy, ctx.clone());

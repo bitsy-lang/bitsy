@@ -101,18 +101,16 @@ impl Package {
 
             match expr.typecheck(target_typ, ctx.clone()) {
                 Err(e) => errors.push(CircuitError::TypeError(e)),
-                Ok(()) => (),
+                Ok(()) => expr.assert_has_types(),
             }
-            expr.assert_has_types();
         }
 
          for child in component.children() {
              if let Component::Reg(_loc, _name, typ, Some(reset)) = &*child {
                  match reset.typecheck(typ.clone(), ctx.clone()) {
                      Err(e) => errors.push(CircuitError::TypeError(e)),
-                     Ok(()) => (),
+                     Ok(()) => reset.assert_has_types(),
                  }
-                reset.assert_has_types();
              }
          }
 
