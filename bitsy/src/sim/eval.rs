@@ -108,18 +108,23 @@ impl Expr {
                     Value::Vec(wss.into_iter().rev().collect())
                 }
             },
-            Expr::Sext(_loc, _typ, e, n) => {
+            Expr::Sext(_loc, typ, e) => {
+                let n = if let Type::Word(n) = **typ.get().unwrap() {
+                    n
+                } else {
+                    unreachable!()
+                };
                 match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
                     Value::Word(w, x) => {
-                        if w <= *n {
+                        if w <= n {
                             let is_negative = x & (1 << (w - 1)) > 0;
                             if is_negative {
                                 let flips = ((1 << (n - w)) - 1) << w;
-                                Value::Word(*n, flips | x)
+                                Value::Word(n, flips | x)
                             } else {
-                                Value::Word(*n, x)
+                                Value::Word(n, x)
                             }
                         } else {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")

@@ -36,7 +36,7 @@ pub enum Expr {
     /// A concatenate expression. Eg, `cat(foo, 0w1)`.
     Cat(Loc, OnceCell<Arc<Type>>, Vec<Arc<Expr>>),
     /// A sign extension expression.
-    Sext(Loc, OnceCell<Arc<Type>>, Arc<Expr>, u64),
+    Sext(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
     /// A word expression. Used to cast user-defined `enum` types to their bit values.
     ToWord(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
@@ -75,7 +75,7 @@ impl HasLoc for Expr {
             Expr::Match(loc, _typ, _e, _arms) => loc.clone(),
             Expr::Mux(loc, _typ, _cond, _e1, _e2) => loc.clone(),
             Expr::Cat(loc, _typ, _es) => loc.clone(),
-            Expr::Sext(loc, _typ, _e, _n) => loc.clone(),
+            Expr::Sext(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
             Expr::Vec(loc, _typ, _es) => loc.clone(),
             Expr::Idx(loc, _typ, _e, _i) => loc.clone(),
@@ -132,7 +132,7 @@ impl std::fmt::Debug for Expr {
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
             Expr::Cat(_loc, _typ, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
-            Expr::Sext(_loc, _typ, e, n) => write!(f, "sext({e:?}, {n})"),
+            Expr::Sext(_loc, _typ, e) => write!(f, "sext({e:?})"),
             Expr::ToWord(_loc, _typ, e) => write!(f, "word({e:?})"),
             Expr::Vec(_loc, _typ, es) => {
                 write!(f, "[")?;
@@ -240,7 +240,7 @@ impl Expr {
                     e.with_subexprs(callback);
                 }
             },
-            Expr::Sext(_loc, _typ, e, _n) => {
+            Expr::Sext(_loc, _typ, e) => {
                 callback(self);
                 e.with_subexprs(callback);
             },
@@ -349,7 +349,7 @@ impl Expr {
                 }
                 result
             },
-            Expr::Sext(_loc, _typ, e, _n) => e.free_vars(),
+            Expr::Sext(_loc, _typ, e) => e.free_vars(),
             Expr::Idx(_loc, _typ, e, _i) => e.free_vars(),
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.free_vars(),
             //Expr::IdxDyn(_loc, e, i) => e.free_vars().union(&i.free_vars()).cloned().collect(),
@@ -375,7 +375,7 @@ impl Expr {
             Expr::If(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Mux(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
-            Expr::Sext(_loc, _typ, e, _n) => e.depends_on_net(net_id),
+            Expr::Sext(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::ToWord(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::Vec(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Idx(_loc, _typ, e, _i) => e.depends_on_net(net_id),
@@ -445,7 +445,7 @@ impl Expr {
                     es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect(),
                 )
             },
-            Expr::Sext(loc, typ, e, n) => Expr::Sext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *n),
+            Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
             Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *i),
@@ -531,7 +531,7 @@ impl Expr {
                     es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
                 )
             },
-            Expr::Sext(loc, typ, e, n) => Expr::Sext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *n),
+            Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect()),
             Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *i),
@@ -561,7 +561,7 @@ impl Expr {
             Expr::Match(_loc, typ, _e, _arms) => Some(typ),
             Expr::Mux(_loc, typ, _cond, _e1, _e2) => Some(typ),
             Expr::Cat(_loc, typ, _es) => Some(typ),
-            Expr::Sext(_loc, typ, _e, _n) => Some(typ),
+            Expr::Sext(_loc, typ, _e) => Some(typ),
             Expr::ToWord(_loc, typ, _e) => Some(typ),
             Expr::Vec(_loc, typ, _es) => Some(typ),
             Expr::Idx(_loc, typ, _e, _i) => Some(typ),

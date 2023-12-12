@@ -97,15 +97,13 @@ impl Expr {
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (Type::Word(width_expected), Expr::Sext(_loc, _typ, e, n)) => {
-                if *n != *width_expected {
-                    Err(TypeError::Other(self.clone(), format!("Type mismatch")))
-                } else if let Some(type_actual) = e.typeinfer(ctx.clone()) {
+            (Type::Word(width_expected), Expr::Sext(_loc, typ, e)) => {
+                if let Some(type_actual) = e.typeinfer(ctx.clone()) {
                     if let Type::Word(m) = &*type_actual {
-                        if n >= m {
+                        if width_expected >= m {
                             Ok(())
                         } else {
-                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<{m}> to a a Word<{n}>")))
+                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<{m}> to a a Word<{width_expected}>")))
                         }
                     } else {
                         Err(TypeError::Other(self.clone(), format!("Unknown?")))

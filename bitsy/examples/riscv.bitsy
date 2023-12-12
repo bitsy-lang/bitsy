@@ -305,15 +305,15 @@ mod Immgen {
     };
 
     imm := if typ == InstrType::I {
-        sext(cat(instr[31], instr[32..20]), 32)
+        sext(cat(instr[31], instr[32..20]))
     } else if typ == InstrType::S {
-        sext(cat(instr[31], instr[32..25], instr[12..7]), 32)
+        sext(cat(instr[31], instr[32..25], instr[12..7]))
     } else if typ == InstrType::B {
-        sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1), 32)
+        sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
     } else if typ == InstrType::U {
-        sext(cat(instr[32..12], 0w12), 32)
+        sext(cat(instr[32..12], 0w12))
     } else if typ == InstrType::J {
-        sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1), 32)
+        sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1))
     } else {
         0w32
     };
