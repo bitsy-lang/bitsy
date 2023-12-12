@@ -1,2 +1,4 @@
 __pycache__
 latexbuild
+*.exe
+*.exe.bin
