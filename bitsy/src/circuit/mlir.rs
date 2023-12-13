@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 impl Package {
     pub fn emit_mlir(&self) {
         for moddef in self.moddefs() {
-            self.emit_mlir_moddef(moddef);
+            if let Component::Mod(_loc, _name, _children, _wires, _whens) = &*moddef {
+                self.emit_mlir_moddef(moddef);
+            }
         }
     }
 
@@ -34,19 +36,19 @@ impl Package {
         for (i, Wire(_loc, target, expr, wire_type)) in moddef.wires().iter().enumerate() {
             match wire_type {
                 WireType::Direct => {
-                    let ssa = expr.emit_mlir(i, ctx.clone());
+                    let ssa = expr.emit_mlir(format!("comb{i}"), ctx.clone());
                     let target_string = target.to_string();
                     if output_ports.contains(&target_string) {
                         output_port_ssas.insert(target_string, ssa);
                     }
                 },
                 WireType::Latch => {
-                    let next_ssa = expr.emit_mlir(i, ctx.clone());
+                    let next_ssa = expr.emit_mlir(format!("comb{i}"), ctx.clone());
                     let target_string = target.to_string();
                     let reg = moddef.child(target).unwrap();
                     let typ = reg.type_of().unwrap();
                     let reset = reg.reset().unwrap();
-                    let reset_ssa = reset.emit_mlir(i, ctx.clone());
+                    let reset_ssa = reset.emit_mlir(format!("reset{i}"), ctx.clone());
                     println!("    %{target_string} = seq.firreg {next_ssa} clock %_clock reset sync %_reset, {reset_ssa} : {}", type_to_mlir(typ));
                 },
                 _ => panic!(),
@@ -59,13 +61,21 @@ impl Package {
         let output_port_types: Vec<String> = output_port_types.iter().map(|typ| {
             type_to_mlir(typ.clone())
         }).collect();
-        println!("    hw.output {} : {}", output_port_ssas.join(","), output_port_types.join(","));
+        if output_port_ssas.len() > 0 {
+            println!("    hw.output {} : {}", output_port_ssas.join(","), output_port_types.join(","));
+        }
         println!("}}");
     }
 
     fn emit_mlir_moddef_portlist(&self, ports: &[(bool, String, Arc<Type>)]) {
         println!("    in %_clock : !seq.clock,");
-        println!("    in %_reset : i1,");
+        print!("    in %_reset : i1");
+        if ports.len() > 0 {
+            println!(",");
+        } else {
+            println!();
+        }
+
         for (i, (is_input, name, typ)) in ports.iter().enumerate() {
             let typ_name = type_to_mlir(typ.clone());
             if *is_input {
@@ -83,26 +93,130 @@ impl Package {
 }
 
 impl Expr {
-    fn emit_mlir(&self, prefix: usize, ctx: Context<Path, Arc<Type>>) -> String {
+    fn emit_mlir(&self, prefix: String, ctx: Context<Path, Arc<Type>>) -> String {
+        let typ: Arc<Type> = self.type_of();
+        let type_name = type_to_mlir(typ.clone());
+
         let (name, op) = match self {
-            Expr::Reference(_loc, typ, name) => {
-                let typ: Arc<Type> = typ.get().unwrap().clone();
-                let typ_name = type_to_mlir(typ);
-                (format!("%tmp_{prefix}_reference"), format!("comb.add %{name} : {typ_name}"))
+            Expr::Reference(_loc, _typ, name) => {
+                (format!("%{prefix}_reference"), format!("comb.add %{name} : {type_name}"))
             },
-            Expr::Word(_loc, typ, _w, n) => {
-                let typ: Arc<Type> = typ.get().unwrap().clone();
-                let (v_str, v_typ) = (format!("{n}"), type_to_mlir(typ));
-                (format!("%tmp_{prefix}_lit"), format!("hw.constant {v_str} : {v_typ}"))
+            Expr::Word(_loc, _typ, _w, n) => {
+                (format!("%{prefix}_word"), format!("hw.constant {n} : {type_name}"))
             },
-            Expr::BinOp(_loc, typ, BinOp::Add, e1, e2) => {
-                let typ = typ.get().unwrap().clone();
-                let typ_name = type_to_mlir(typ);
-                let e1_ssa = e1.emit_mlir(prefix, ctx.clone());
-                let e2_ssa = e2.emit_mlir(prefix, ctx.clone());
-                (format!("%tmp_{prefix}_add"), format!("comb.add {e1_ssa}, {e2_ssa} : {typ_name}"))
+            Expr::ToWord(_loc, _typ, e1) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_e1"), ctx.clone());
+                (format!("%{prefix}_toword"), format!("comb.add {e1_ssa} : {type_name}"))
             },
-            _ => panic!(),
+            Expr::UnOp(_loc, _typ, UnOp::Not, e1) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_not_e1"), ctx.clone());
+                // %c-1_i8 = hw.constant -1 : i8
+                // %0 = comb.xor bin %a, %c-1_i8 : i8
+                println!("%{prefix}_not_negone = hw.constant -1 : i8");
+                (format!("%{prefix}_not"), format!("comb.xor {e1_ssa}, %{prefix}_negone : {type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::Add, e1, e2) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_add_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_add_e2"), ctx.clone());
+                (format!("%{prefix}_add"), format!("comb.add {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::Sub, e1, e2) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_sub_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_sub_e2"), ctx.clone());
+                (format!("%{prefix}_sub"), format!("comb.sub {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::And, e1, e2) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_and_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_and_e2"), ctx.clone());
+                (format!("%{prefix}_and"), format!("comb.and {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::Or, e1, e2) => {
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_or_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_or_e2"), ctx.clone());
+                (format!("%{prefix}_or"), format!("comb.or {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::Eq, e1, e2) => {
+                let e1_type_name = type_to_mlir(e1.type_of());
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_eq_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_eq_e2"), ctx.clone());
+                // %0 = comb.icmp bin eq %a, %b : i8
+                (format!("%{prefix}_eq"), format!("comb.icmp bin eq {e1_ssa}, {e2_ssa} : {e1_type_name}"))
+            },
+            Expr::BinOp(_loc, _typ, BinOp::Lt, e1, e2) => {
+                let e1_type_name = type_to_mlir(e1.type_of());
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_lt_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_lt_e2"), ctx.clone());
+                // %0 = comb.icmp bin ult %a, %b : i8
+                (format!("%{prefix}_eq"), format!("comb.icmp bin ult {e1_ssa}, {e2_ssa} : {e1_type_name}"))
+            },
+            Expr::Enum(_loc, _typ, typedef, name) => {
+                let typedef = typedef.get().unwrap();
+                let v = typedef.value_of(&*name).unwrap();
+                (format!("%{prefix}_enum"), format!("hw.constant {v} : {type_name}"))
+            },
+            Expr::If(_loc, _typ, cond, e1, e2) => {
+                let cond_ssa = cond.emit_mlir(format!("{prefix}_if_cond"), ctx.clone());
+                let e1_ssa   =   e1.emit_mlir(format!("{prefix}_if_e1"),   ctx.clone());
+                let e2_ssa   =   e2.emit_mlir(format!("{prefix}_if_e2"),   ctx.clone());
+                // %0 = comb.mux bin %in, %a, %b : i8
+                (format!("%{prefix}_if"), format!("comb.mux bin {cond_ssa}, {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::Mux(_loc, _typ, cond, e1, e2) => {
+                let cond_ssa = cond.emit_mlir(format!("{prefix}_mux_cond"), ctx.clone());
+                let e1_ssa   =   e1.emit_mlir(format!("{prefix}_mux_e1"),   ctx.clone());
+                let e2_ssa   =   e2.emit_mlir(format!("{prefix}_mux_e2"),   ctx.clone());
+                // %0 = comb.mux bin %in, %a, %b : i8
+                (format!("%{prefix}_mux"), format!("comb.mux bin {cond_ssa}, {e1_ssa}, {e2_ssa} : {type_name}"))
+            },
+            Expr::Cat(_loc, _typ, es) => {
+                let mut es_ssas = vec![];
+                let mut es_typenames = vec![];
+                for (i, e) in es.iter().enumerate() {
+                    let ssa = e.emit_mlir(format!("{prefix}_cat_e{i}"),ctx.clone());
+                    let width = e.type_of().bitwidth();
+                    let type_name = format!("i{width}");
+                    es_ssas.push(ssa);
+                    es_typenames.push(type_name);
+                }
+
+                (format!("%{prefix}_cat"), format!("comb.concat {} : {}", es_ssas.join(", "), es_typenames.join(", ")))
+            },
+            Expr::Sext(_loc, _typ, e1) => {
+                match (&*typ, &*e1.type_of()) {
+                    (Type::Word(outer_width), Type::Word(inner_width)) => {
+                        assert!(outer_width >= inner_width);
+                        let extension_width = outer_width - inner_width;
+                        let e1_ssa = e1.emit_mlir(format!("{prefix}_sext_e1"),   ctx.clone());
+                        // %c0_i7 = hw.constant 0 : i7
+                        // %0 = comb.concat %c0_i7, %a : i7, i1
+                        println!("%{prefix}_sext_zero = hw.constant 0 : i{extension_width}");
+                        (format!("%{prefix}_sext"), format!("comb.concat %{prefix}_zero, {e1_ssa} : i{extension_width}, i{inner_width}"))
+                    },
+                    _ => panic!(),
+                }
+            },
+            /*
+            Expr::Let(loc, _typ, name, e, b) => {
+                let e_ssa = e.emit_mlir(format!("{prefix}_let_{name}"), ctx.clone());
+                let b_ssa = b.emit_mlir(format!("{prefix}_let_{name}"), new_ctx);
+
+                (format!("%{prefix}_let"), format!("comb.add %{b_ssa} : {type_name}"))
+            },
+            */
+            Expr::Idx(_loc, _typ, e1, i) => {
+                let e1_type_name = type_to_mlir(e1.type_of());
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_idx_e1"), ctx.clone());
+                // %0 = comb.extract %b from 0 : (i8) -> i1
+                (format!("%{prefix}_idx"), format!("comb.extract {e1_ssa} from {i} : ({e1_type_name}) -> i1"))
+            },
+            Expr::IdxRange(_loc, _typ, e1, j, i) => {
+                let e1_type_name = type_to_mlir(e1.type_of());
+                let width = j - i;
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_idxrange_e1"), ctx.clone());
+                // %0 = comb.extract %b from 0 : (i8) -> i3
+                (format!("%{prefix}_idxrange"), format!("comb.extract {e1_ssa} from {i} : ({e1_type_name}) -> i{width}"))
+            }
+            _ => panic!("Can't lower expression {self:?}"),
         };
 
         println!("    {name} = {op}");
@@ -113,6 +227,11 @@ impl Expr {
 fn type_to_mlir(typ: Arc<Type>) -> String {
     match &*typ {
         Type::Word(n) => format!("i{n}"),
-        _ => panic!(),
+        Type::TypeDef(typedef) => {
+            let typedef = typedef.get().unwrap();
+            let n = typedef.width();
+            format!("i{n}")
+        },
+        _ => panic!("Can't lower type to MLIR directly"),
     }
 }

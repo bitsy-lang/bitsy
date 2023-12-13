@@ -612,7 +612,11 @@ impl Expr {
         })
     }
 
-    fn type_of(&self) -> Option<&OnceCell<Arc<Type>>> {
+    pub fn type_of(&self) -> Arc<Type> {
+        self.type_of_cell().unwrap().get().unwrap().clone()
+    }
+
+    fn type_of_cell(&self) -> Option<&OnceCell<Arc<Type>>> {
         match self {
             Expr::Net(_loc, typ, _netid) => Some(typ),
             Expr::Reference(_loc, typ, _path) => Some(typ),

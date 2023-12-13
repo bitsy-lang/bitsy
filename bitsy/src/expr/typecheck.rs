@@ -163,7 +163,7 @@ impl Expr {
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };
 
-        if let Some(typ) = self.type_of() {
+        if let Some(typ) = self.type_of_cell() {
             if let Ok(()) = &result {
                 let _ = typ.set(type_expected);
             }
@@ -230,7 +230,7 @@ impl Expr {
         };
 
         if let Some(type_actual) = &result {
-            if let Some(typ) = self.type_of() {
+            if let Some(typ) = self.type_of_cell() {
                 let _ = typ.set(type_actual.clone());
             }
         }
