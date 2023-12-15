@@ -18,6 +18,8 @@ pub enum Type {
     Valid(Arc<Type>),
     /// A reference to a user-defined `enum`.
     TypeDef(Reference<TypeDef>),
+
+    Enum(Arc<TypeDef>),
 }
 
 impl Type {
@@ -39,15 +41,16 @@ impl Type {
             Type::Valid(typ) => typ.bitwidth() + 1,
             Type::Vec(typ, n) => typ.bitwidth() * n,
             Type::TypeDef(_typename) => todo!(), //...;
+            Type::Enum(typedef) => typedef.width(),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WordLit(pub Option<Width>, pub u64);
 
 /// A user-defined `enum` type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeDef {
     pub name: String,
     pub values: Vec<(String, WordLit)>,
@@ -87,6 +90,7 @@ impl std::fmt::Debug for Type {
             Type::Valid(typ) => write!(f, "Valid<{typ:?}>"),
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
             Type::TypeDef(reference) => write!(f, "{}", reference.name()),
+            Type::Enum(typedef) => write!(f, "{}", typedef.name),
         }
     }
 }

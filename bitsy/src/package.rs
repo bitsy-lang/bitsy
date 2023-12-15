@@ -1,5 +1,6 @@
 use super::*;
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -15,11 +16,24 @@ pub type Name = String;
 /// After that, you also need to call [`Package::check`] to do typechecking of expressions
 /// and connection checking of components.
 #[derive(Debug, Clone)]
-pub struct Package(Vec<Decl>);
+pub struct Package {
+    decls: Vec<Decl>,
+    user_types: BTreeMap<String, Arc<Type>>,
+}
 
 impl Package {
     pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<CircuitError>> {
-        let package = Package(decls);
+        let mut user_types: BTreeMap<String, Arc<Type>> = BTreeMap::new();
+        for decl in &decls {
+            if let Decl::TypeDef(typedef) = decl {
+                user_types.insert(typedef.name.clone(), Arc::new(Type::Enum(typedef.clone())));
+            }
+        }
+
+        let package = Package {
+            decls,
+            user_types,
+        };
         package.resolve_references()?;
         package.check()?;
         Ok(package)
@@ -35,7 +49,7 @@ impl Package {
 
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
         let mut results = vec![];
-        for decl in &self.0 {
+        for decl in &self.decls {
             if let Decl::ModDef(moddef) = &decl {
                 results.push(moddef.clone());
             } else if let Decl::ExtDef(moddef) = &decl {
@@ -46,7 +60,7 @@ impl Package {
     }
 
     pub fn moddef(&self, name: &str) -> Option<Arc<Component>> {
-        for decl in &self.0 {
+        for decl in &self.decls {
             if let Decl::ModDef(moddef) = &decl {
                 if moddef.name() == name {
                     return Some(moddef.clone());
@@ -61,7 +75,7 @@ impl Package {
     }
 
     pub fn extdef(&self, name: &str) -> Option<Arc<Component>> {
-        for decl in &self.0 {
+        for decl in &self.decls {
             if let Decl::ExtDef(extdef) = &decl {
                 if extdef.name() == name {
                     return Some(extdef.clone());
@@ -72,7 +86,7 @@ impl Package {
     }
 
     pub fn typedef(&self, name: &str) -> Option<Arc<TypeDef>> {
-        for decl in &self.0 {
+        for decl in &self.decls {
             if let Decl::TypeDef(typedef) = &decl {
                 if typedef.name == name {
                     return Some(typedef.clone());
@@ -151,13 +165,14 @@ impl Package {
     fn resolve_references_type(&self, typ: Arc<Type>) {
         match &*typ {
             Type::Word(_width) => (),
+            Type::Enum(_typedef) => (),
             Type::Valid(typ) => self.resolve_references_type(typ.clone()),
             Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
-            Type::TypeDef(typedef) => {
-                if let Some(resolved_typedef) = self.typedef(typedef.name()) {
-                    typedef.resolve_to(resolved_typedef).unwrap();
+            Type::TypeDef(r) => {
+                if let Type::Enum(typedef) = &**self.user_types.get(r.name()).unwrap() {
+                    r.resolve_to(typedef.clone()).unwrap();
                 } else {
-                    panic!("No definition for typedef {}", typedef.name())
+                    panic!("No such type {}", r.name())
                 }
             },
         }
