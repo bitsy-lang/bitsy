@@ -156,6 +156,13 @@ impl Expr {
                 println!("    {name} = comb.or {e1_ssa}, {e2_ssa} : {type_name}");
                 name
             },
+            Expr::BinOp(_loc, _typ, BinOp::Xor, e1, e2) => {
+                let name = format!("%{prefix}_xor");
+                let e1_ssa = e1.emit_mlir(format!("{prefix}_or_e1"), ctx.clone());
+                let e2_ssa = e2.emit_mlir(format!("{prefix}_or_e2"), ctx.clone());
+                println!("    {name} = comb.xor {e1_ssa}, {e2_ssa} : {type_name}");
+                name
+            },
             Expr::BinOp(_loc, _typ, BinOp::Eq, e1, e2) => {
                 let name = format!("%{prefix}_eq");
                 let e1_type_name = type_to_mlir(e1.type_of());
