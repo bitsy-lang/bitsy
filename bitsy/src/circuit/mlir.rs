@@ -40,6 +40,9 @@ impl Package {
                     let target_string = target.to_string();
                     if output_ports.contains(&target_string) {
                         output_port_ssas.insert(target_string, ssa);
+                    } else if let Some(Component::Node(_loc, name, typ)) = moddef.child(target).as_ref().map(|arc| &**arc) {
+                        let type_name = type_to_mlir(typ.clone());
+                        println!("    %{name} = comb.add {ssa} : {type_name}");
                     }
                 },
                 WireType::Latch => {
@@ -274,6 +277,10 @@ fn type_to_mlir(typ: Arc<Type>) -> String {
             let n = typedef.bitwidth();
             format!("i{n}")
         },
+        Type::Enum(typedef) => {
+            let n = typedef.width();
+            format!("i{n}")
+        }
         _ => panic!("Can't lower type to MLIR directly"),
     }
 }
