@@ -174,7 +174,7 @@ impl Package {
             Type::Enum(_typedef) => (),
             Type::Valid(typ) => self.resolve_references_type(typ.clone()),
             Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
-            Type::TypeDef(r) => {
+            Type::TypeRef(r) => {
                 let typ = self.user_types.get(r.name()).unwrap().clone();
                 r.resolve_to(typ).unwrap();
             },
@@ -239,7 +239,7 @@ impl Package {
             Component::Reg(_loc, _name, typ, _reset) => Some(typ.clone()),
         };
         if let Some(mut typ) = typ {
-            while let Type::TypeDef(r) = &*typ {
+            while let Type::TypeRef(r) = &*typ {
                 typ = r.get().unwrap();
             }
             Some(typ)

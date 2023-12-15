@@ -16,10 +16,10 @@ pub enum Type {
     Vec(Arc<Type>, Length),
     /// An optional value. Written `Valid<T>`.
     Valid(Arc<Type>),
-    /// A reference to a user-defined `enum`.
-    TypeDef(Reference<Type>),
-
+    /// A user-defined `enum`.
     Enum(Arc<TypeDef>),
+    /// An unresolved reference to a user-defined type.
+    TypeRef(Reference<Type>),
 }
 
 impl Type {
@@ -37,7 +37,7 @@ impl Type {
             Type::Valid(typ) => typ.bitwidth() + 1,
             Type::Vec(typ, n) => typ.bitwidth() * n,
             Type::Enum(typedef) => typedef.width(),
-            Type::TypeDef(typeref) => typeref.get().unwrap().bitwidth(),
+            Type::TypeRef(typeref) => typeref.get().unwrap().bitwidth(),
         }
     }
 }
@@ -86,7 +86,7 @@ impl std::fmt::Debug for Type {
             Type::Valid(typ) => write!(f, "Valid<{typ:?}>"),
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
-            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
+            Type::TypeRef(reference) => write!(f, "{}", reference.name()),
         }
     }
 }

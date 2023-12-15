@@ -212,7 +212,7 @@ impl Expr {
             },
             Expr::ToWord(loc, _typ, e) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
-                    Some(Type::TypeDef(typedef)) => {
+                    Some(Type::TypeRef(typedef)) => {
                         if let Some(typedef) = typedef.get() {
                             Some(Type::word(typedef.bitwidth()))
                         } else {

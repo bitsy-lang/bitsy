@@ -280,7 +280,7 @@ ExprReference: Arc<Expr> = {
 Type: Arc<Type> = {
     "Word" "<" <n:Nat> ">" => Arc::new(Type::Word(n)),
     "Valid" "<" <typ:Type> ">" => Arc::new(Type::Valid(typ.clone())),
-    <id:Id> => Arc::new(Type::TypeDef(id.into())),
+    <id:Id> => Arc::new(Type::TypeRef(id.into())),
     "Vec" "<" <typ:Type> "," <n:Nat> ">" => Arc::new(Type::Vec(typ.clone(), n)),
 }
 
