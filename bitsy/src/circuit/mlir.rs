@@ -124,8 +124,8 @@ impl Expr {
                 let e1_ssa = e1.emit_mlir(format!("{prefix}_not_e1"), ctx.clone());
                 // %c-1_i8 = hw.constant -1 : i8
                 // %0 = comb.xor bin %a, %c-1_i8 : i8
-                println!("%{prefix}_not_negone = hw.constant -1 : i8");
-                println!("    {name} = comb.xor {e1_ssa}, %{prefix}_negone : {type_name}");
+                println!("    %{prefix}_not_negone = hw.constant -1 : {type_name}");
+                println!("    {name} = comb.xor {e1_ssa}, %{prefix}_not_negone : {type_name}");
                 name
             },
             Expr::BinOp(_loc, _typ, BinOp::Add, e1, e2) => {
