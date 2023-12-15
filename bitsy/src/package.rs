@@ -106,7 +106,7 @@ impl Package {
         let mut errors = vec![];
         self.resolve_references_component_types();
 
-        // resolve references in ModInsts
+        // resolve references in ModInsts and resets
         for moddef in self.moddefs() {
             for child in moddef.children() {
                 if let Component::ModInst(loc, name, reference) = &*child {
@@ -115,35 +115,41 @@ impl Package {
                     } else {
                         errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
                     }
+                } else if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
+                    errors.extend(self.resolve_references_expr(reset.clone()));
                 }
             }
         }
 
-        let errors_mutex = Arc::new(Mutex::new(errors));
-
         // resolve references in Exprs in Wires
         for moddef in self.moddefs() {
             for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
-                let mut func = |e: &Expr| {
-                    if let Expr::Enum(loc, _typ, r, name) = e {
-                        if let Some(typ) = self.user_types.get(r.name()) {
-                            r.resolve_to(typ.clone()).unwrap();
-                        } else {
-                            let mut errors = errors_mutex.lock().unwrap();
-                            errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
-                        }
-                    }
-                };
-                expr.with_subexprs(&mut func);
+                errors.extend(self.resolve_references_expr(expr));
             }
         }
 
-        let errors = errors_mutex.lock().unwrap();
         if errors.len() > 0 {
             Err(errors.to_vec())
         } else {
             Ok(())
         }
+    }
+
+    fn resolve_references_expr(&self, expr: Arc<Expr>) -> Vec<CircuitError> {
+        let errors_mutex = Arc::new(Mutex::new(vec![]));
+        let mut func = |e: &Expr| {
+            if let Expr::Enum(loc, _typ, r, name) = e {
+                if let Some(typ) = self.user_types.get(r.name()) {
+                    r.resolve_to(typ.clone()).unwrap();
+                } else {
+                    let mut errors = errors_mutex.lock().unwrap();
+                    errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
+                }
+            }
+        };
+        expr.with_subexprs(&mut func);
+        let errors = errors_mutex.lock().unwrap();
+        errors.clone()
     }
 
     fn resolve_references_component_types(&self) {

@@ -106,8 +106,10 @@ impl Package {
         }
 
          for child in component.children() {
-             if let Component::Reg(_loc, _name, typ, Some(reset)) = &*child {
-                 match reset.typecheck(typ.clone(), ctx.clone()) {
+             if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
+                 // TODO This is done to turn the reference to the type into the actual type.
+                 let typ = self.type_of(child.clone()).unwrap();
+                 match reset.typecheck(typ, ctx.clone()) {
                      Err(e) => errors.push(CircuitError::TypeError(e)),
                      Ok(()) => reset.assert_has_types(),
                  }

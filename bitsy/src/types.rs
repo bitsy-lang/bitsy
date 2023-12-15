@@ -85,8 +85,8 @@ impl std::fmt::Debug for Type {
             Type::Word(n) => write!(f, "Word<{n}>"),
             Type::Valid(typ) => write!(f, "Valid<{typ:?}>"),
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
-            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
+            Type::TypeDef(reference) => write!(f, "{}", reference.name()),
         }
     }
 }

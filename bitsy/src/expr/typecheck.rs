@@ -196,7 +196,9 @@ impl Expr {
             } else {
                 None
             },
-            Expr::Enum(_loc, _typ, typedef, _name) => Some(typedef.get().unwrap().clone()),
+            Expr::Enum(loc, _typ, typedef, _name) => {
+                Some(typedef.get().unwrap().clone())
+            },
             Expr::Cat(_loc, _typ, es) => {
                 let mut w = 0u64;
                 for e in es {
