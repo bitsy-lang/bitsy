@@ -11,6 +11,7 @@ pub Package: Vec<Decl> = {
 Decl: Decl = {
     <m:ModDef> => Decl::ModDef(m),
     <e:EnumTypeDef> => Decl::EnumTypeDef(e),
+    <e:StructTypeDef> => Decl::StructTypeDef(e),
     <m:ExtDef> => Decl::ExtDef(m)
 }
 
@@ -50,6 +51,17 @@ ExtDef: Arc<Component> = {
         }
 
         Arc::new(Component::Ext(Loc::from(source_info, ll, rr), id, children))
+    },
+}
+
+StructTypeDef: Arc<StructTypeDef> = {
+    <ll:@L> "struct" "type" <name:Id> "{"
+        <fields:(Id "of" Type ";")*>
+    "}" <rr:@R> => {
+        Arc::new(StructTypeDef {
+            name,
+            fields: fields.iter().map(|(name, _, typ, _)| (name.clone(), typ.clone())).collect::<Vec<_>>(),
+        })
     },
 }
 

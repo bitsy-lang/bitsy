@@ -278,7 +278,7 @@ fn type_to_mlir(typ: Arc<Type>) -> String {
             format!("i{n}")
         },
         Type::Enum(typedef) => {
-            let n = typedef.width();
+            let n = typedef.bitwidth();
             format!("i{n}")
         }
         _ => panic!("Can't lower type to MLIR directly"),

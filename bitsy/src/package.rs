@@ -27,6 +27,8 @@ impl Package {
         for decl in &decls {
             if let Decl::EnumTypeDef(typedef) = decl {
                 user_types.insert(typedef.name.clone(), Arc::new(Type::Enum(typedef.clone())));
+            } else if let Decl::StructTypeDef(typedef) = decl {
+                user_types.insert(typedef.name.clone(), Arc::new(Type::Struct(typedef.clone())));
             }
         }
 
@@ -174,6 +176,11 @@ impl Package {
             Type::Enum(_typedef) => (),
             Type::Valid(typ) => self.resolve_references_type(typ.clone()),
             Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
+            Type::Struct(typedef) => {
+                for (_name, typ) in &typedef.fields {
+                    self.resolve_references_type(typ.clone());
+                }
+            },
             Type::TypeRef(r) => {
                 let typ = self.user_types.get(r.name()).unwrap().clone();
                 r.resolve_to(typ).unwrap();
@@ -270,6 +277,7 @@ pub enum Decl {
     ModDef(Arc<Component>),
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
+    StructTypeDef(Arc<StructTypeDef>),
 }
 
 /// The different kinds of [`Wire`]s in Bitsy.

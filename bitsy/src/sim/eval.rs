@@ -143,7 +143,7 @@ impl Expr {
                     Value::X => Value::X,
                     Value::Enum(typedef, name) => {
                         if let Type::Enum(typedef) = &*typedef.get().unwrap() {
-                            Value::Word(typedef.width(), typedef.value_of(&name).unwrap())
+                            Value::Word(typedef.bitwidth(), typedef.value_of(&name).unwrap())
                         } else {
                             panic!();
                         }

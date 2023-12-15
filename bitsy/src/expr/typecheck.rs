@@ -131,7 +131,7 @@ impl Expr {
             (Type::Word(n), Expr::ToWord(_loc, typ, e)) => {
                 let typ = e.typeinfer(ctx.clone()).unwrap();
                 if let Type::Enum(typedef) = &*typ {
-                    let width = typedef.width();
+                    let width = typedef.bitwidth();
                     if *n == width {
                         Ok(())
                     } else {

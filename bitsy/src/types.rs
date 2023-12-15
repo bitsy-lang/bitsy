@@ -18,6 +18,8 @@ pub enum Type {
     Valid(Arc<Type>),
     /// A user-defined `enum`.
     Enum(Arc<EnumTypeDef>),
+    /// A user-defined `struct`.
+    Struct(Arc<StructTypeDef>),
     /// An unresolved reference to a user-defined type.
     TypeRef(Reference<Type>),
 }
@@ -36,7 +38,8 @@ impl Type {
             Type::Word(n) => *n,
             Type::Valid(typ) => typ.bitwidth() + 1,
             Type::Vec(typ, n) => typ.bitwidth() * n,
-            Type::Enum(typedef) => typedef.width(),
+            Type::Enum(typedef) => typedef.bitwidth(),
+            Type::Struct(typedef) => typedef.bitwidth(),
             Type::TypeRef(typeref) => typeref.get().unwrap().bitwidth(),
         }
     }
@@ -52,6 +55,19 @@ pub struct EnumTypeDef {
     pub values: Vec<(String, WordLit)>,
 }
 
+/// A user-defined `struct` type.
+#[derive(Debug, Clone, PartialEq)]
+pub struct StructTypeDef {
+    pub name: String,
+    pub fields: Vec<(String, Arc<Type>)>,
+}
+
+impl StructTypeDef {
+    fn bitwidth(&self) -> Width {
+        self.fields.iter().map(|(_name, typ)| typ.bitwidth()).sum()
+    }
+}
+
 impl EnumTypeDef {
     pub fn value_of(&self, name: &str) -> Option<u64> {
         for (other_name, WordLit(_w, value)) in &self.values {
@@ -62,7 +78,7 @@ impl EnumTypeDef {
         None
     }
 
-    pub fn width(&self) -> Width {
+    pub fn bitwidth(&self) -> Width {
         // TODO
         let mut max_width = None;
         for (_name, value) in &self.values {
@@ -85,6 +101,7 @@ impl std::fmt::Debug for Type {
             Type::Word(n) => write!(f, "Word<{n}>"),
             Type::Valid(typ) => write!(f, "Valid<{typ:?}>"),
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
+            Type::Struct(typedef) => write!(f, "{}", typedef.name),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
             Type::TypeRef(reference) => write!(f, "{}", reference.name()),
         }
