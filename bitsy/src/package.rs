@@ -25,7 +25,7 @@ impl Package {
     pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<CircuitError>> {
         let mut user_types: BTreeMap<String, Arc<Type>> = BTreeMap::new();
         for decl in &decls {
-            if let Decl::TypeDef(typedef) = decl {
+            if let Decl::EnumTypeDef(typedef) = decl {
                 user_types.insert(typedef.name.clone(), Arc::new(Type::Enum(typedef.clone())));
             }
         }
@@ -85,9 +85,9 @@ impl Package {
         None
     }
 
-    pub fn typedef(&self, name: &str) -> Option<Arc<TypeDef>> {
+    pub fn typedef(&self, name: &str) -> Option<Arc<EnumTypeDef>> {
         for decl in &self.decls {
-            if let Decl::TypeDef(typedef) = &decl {
+            if let Decl::EnumTypeDef(typedef) = &decl {
                 if typedef.name == name {
                     return Some(typedef.clone());
                 }
@@ -269,7 +269,7 @@ impl Package {
 pub enum Decl {
     ModDef(Arc<Component>),
     ExtDef(Arc<Component>),
-    TypeDef(Arc<TypeDef>),
+    EnumTypeDef(Arc<EnumTypeDef>),
 }
 
 /// The different kinds of [`Wire`]s in Bitsy.

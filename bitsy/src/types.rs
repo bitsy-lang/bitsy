@@ -17,7 +17,7 @@ pub enum Type {
     /// An optional value. Written `Valid<T>`.
     Valid(Arc<Type>),
     /// A user-defined `enum`.
-    Enum(Arc<TypeDef>),
+    Enum(Arc<EnumTypeDef>),
     /// An unresolved reference to a user-defined type.
     TypeRef(Reference<Type>),
 }
@@ -47,12 +47,12 @@ pub struct WordLit(pub Option<Width>, pub u64);
 
 /// A user-defined `enum` type.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TypeDef {
+pub struct EnumTypeDef {
     pub name: String,
     pub values: Vec<(String, WordLit)>,
 }
 
-impl TypeDef {
+impl EnumTypeDef {
     pub fn value_of(&self, name: &str) -> Option<u64> {
         for (other_name, WordLit(_w, value)) in &self.values {
             if name == other_name {

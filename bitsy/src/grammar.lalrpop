@@ -10,7 +10,7 @@ pub Package: Vec<Decl> = {
 
 Decl: Decl = {
     <m:ModDef> => Decl::ModDef(m),
-    <e:TypeDef> => Decl::TypeDef(e),
+    <e:EnumTypeDef> => Decl::EnumTypeDef(e),
     <m:ExtDef> => Decl::ExtDef(m)
 }
 
@@ -53,11 +53,11 @@ ExtDef: Arc<Component> = {
     },
 }
 
-TypeDef: Arc<TypeDef> = {
+EnumTypeDef: Arc<EnumTypeDef> = {
     <ll:@L> "enum" "type" <name:Id> "{"
         <values:(Id "=" WordLit ";")*>
     "}" <rr:@R> => {
-        Arc::new(TypeDef {
+        Arc::new(EnumTypeDef {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
         })
