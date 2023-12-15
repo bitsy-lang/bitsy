@@ -142,8 +142,11 @@ impl Expr {
                 match v {
                     Value::X => Value::X,
                     Value::Enum(typedef, name) => {
-                        let typedef: &TypeDef = &*typedef.get().unwrap();
-                        Value::Word(typedef.width(), typedef.value_of(&name).unwrap())
+                        if let Type::Enum(typedef) = &*typedef.get().unwrap() {
+                            Value::Word(typedef.width(), typedef.value_of(&name).unwrap())
+                        } else {
+                            panic!();
+                        }
                     },
                     _ => panic!("Can only call word() on enum values, but found {v:?}"),
                 }

@@ -17,7 +17,7 @@ pub enum Type {
     /// An optional value. Written `Valid<T>`.
     Valid(Arc<Type>),
     /// A reference to a user-defined `enum`.
-    TypeDef(Reference<TypeDef>),
+    TypeDef(Reference<Type>),
 
     Enum(Arc<TypeDef>),
 }
@@ -31,17 +31,13 @@ impl Type {
         Arc::new(Type::Vec(typ, n))
     }
 
-    pub fn type_def(typedef: Reference<TypeDef>) -> Arc<Type> {
-        Arc::new(Type::TypeDef(typedef))
-    }
-
     pub fn bitwidth(&self) -> Width {
         match self {
             Type::Word(n) => *n,
             Type::Valid(typ) => typ.bitwidth() + 1,
             Type::Vec(typ, n) => typ.bitwidth() * n,
-            Type::TypeDef(_typename) => todo!(), //...;
             Type::Enum(typedef) => typedef.width(),
+            Type::TypeDef(typeref) => typeref.get().unwrap().bitwidth(),
         }
     }
 }

@@ -14,7 +14,7 @@ pub enum Value {
     /// An element of `Valid<T>`.
     Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
-    Enum(Reference<TypeDef>, String),
+    Enum(Reference<Type>, String),
 }
 
 impl Value {

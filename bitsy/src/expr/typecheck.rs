@@ -31,8 +31,8 @@ impl Expr {
                     }
                 }
             },
-            (Type::TypeDef(typedef_expected), Expr::Enum(_loc, _typ, typedef, _name)) => {
-                if typedef_expected == typedef {
+            (_type_expected, Expr::Enum(_loc, _typ, typedef, _name)) => {
+                if type_expected == typedef.get().unwrap() {
                     Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
@@ -128,8 +128,19 @@ impl Expr {
                     Err(TypeError::CantInferType(self.clone()))
                 }
             },
-            (Type::Word(_n), Expr::ToWord(_loc, _typ, e)) => {
-                Err(TypeError::Other(self.clone(), format!("Not yet implemented.")))
+            (Type::Word(n), Expr::ToWord(_loc, typ, e)) => {
+                let typ = e.typeinfer(ctx.clone()).unwrap();
+                if let Type::Enum(typedef) = &*typ {
+                    let width = typedef.width();
+                    if *n == width {
+                        Ok(())
+                    } else {
+                        let name = &typedef.name;
+                        Err(TypeError::Other(self.clone(), format!("enum type {name} has bitwidth {width} which cannot be cast to Word<{n}>")))
+                    }
+                } else {
+                    unreachable!()
+                }
             },
             (Type::Vec(typ, n), Expr::Vec(_loc, _typ, es)) => {
                 for e in es {
@@ -185,7 +196,7 @@ impl Expr {
             } else {
                 None
             },
-            Expr::Enum(_loc, _typ, typedef, _name) => Some(Arc::new(Type::TypeDef(typedef.clone()))),
+            Expr::Enum(_loc, _typ, typedef, _name) => Some(typedef.get().unwrap().clone()),
             Expr::Cat(_loc, _typ, es) => {
                 let mut w = 0u64;
                 for e in es {
@@ -201,7 +212,7 @@ impl Expr {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::TypeDef(typedef)) => {
                         if let Some(typedef) = typedef.get() {
-                            Some(Type::word(typedef.width()))
+                            Some(Type::word(typedef.bitwidth()))
                         } else {
                             panic!("Unresolved typedef: {:?} location: {loc:?}", typedef.name())
                         }

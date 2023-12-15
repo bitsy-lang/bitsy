@@ -126,8 +126,8 @@ impl Package {
             for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
                 let mut func = |e: &Expr| {
                     if let Expr::Enum(loc, _typ, r, name) = e {
-                        if let Some(typedef) = self.typedef(r.name()) {
-                            r.resolve_to(typedef).unwrap();
+                        if let Some(typ) = self.user_types.get(r.name()) {
+                            r.resolve_to(typ.clone()).unwrap();
                         } else {
                             let mut errors = errors_mutex.lock().unwrap();
                             errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
@@ -169,11 +169,8 @@ impl Package {
             Type::Valid(typ) => self.resolve_references_type(typ.clone()),
             Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
             Type::TypeDef(r) => {
-                if let Type::Enum(typedef) = &**self.user_types.get(r.name()).unwrap() {
-                    r.resolve_to(typedef.clone()).unwrap();
-                } else {
-                    panic!("No such type {}", r.name())
-                }
+                let typ = self.user_types.get(r.name()).unwrap().clone();
+                r.resolve_to(typ).unwrap();
             },
         }
     }
@@ -226,7 +223,7 @@ impl Package {
     }
 
     pub fn type_of(&self, component: Arc<Component>) -> Option<Arc<Type>> {
-        match &*component {
+        let typ = match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,
             Component::Ext(_loc, _name, _children) => None,
@@ -234,6 +231,14 @@ impl Package {
             Component::Outgoing(_loc, _name, typ) => Some(typ.clone()),
             Component::Incoming(_loc, _name, typ) => Some(typ.clone()),
             Component::Reg(_loc, _name, typ, _reset) => Some(typ.clone()),
+        };
+        if let Some(mut typ) = typ {
+            while let Type::TypeDef(r) = &*typ {
+                typ = r.get().unwrap();
+            }
+            Some(typ)
+        } else {
+            None
         }
     }
 

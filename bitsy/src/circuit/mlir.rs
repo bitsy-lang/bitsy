@@ -106,9 +106,13 @@ impl Expr {
                 println!("    {name} = hw.constant {n} : {type_name}");
                 name
             },
-            Expr::Enum(_loc, _typ, typedef, valname) => {
+            Expr::Enum(_loc, typ, _typedef, valname) => {
                 let name = format!("%{prefix}_enum");
-                let typedef = typedef.get().unwrap();
+                let typedef = if let Type::Enum(typedef) = &**typ.get().unwrap() {
+                    typedef
+                } else {
+                    panic!();
+                };
                 let v = typedef.value_of(&*valname).unwrap();
                 println!("    {name} = hw.constant {v} : {type_name}");
                 name
@@ -267,7 +271,7 @@ fn type_to_mlir(typ: Arc<Type>) -> String {
         Type::Word(n) => format!("i{n}"),
         Type::TypeDef(typedef) => {
             let typedef = typedef.get().unwrap();
-            let n = typedef.width();
+            let n = typedef.bitwidth();
             format!("i{n}")
         },
         _ => panic!("Can't lower type to MLIR directly"),
