@@ -25,6 +25,7 @@ clean:
 	rm -rf ./latexbuild/
 
 %.pdf: %.tex
+	mkdir -p ./build/html
 	mkdir -p ./latexbuild/
 	pdflatex -output-directory=./latexbuild/ $<
 	cp ./latexbuild/$@ $(BUILDDIR)/html/
