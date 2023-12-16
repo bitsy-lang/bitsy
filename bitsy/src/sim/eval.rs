@@ -239,6 +239,7 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
+            Expr::Call(loc, _name, _es) => panic!("{loc:?} Can't evaluate an unresolved {self:?}"),
         }
     }
 }

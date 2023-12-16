@@ -49,6 +49,7 @@ pub enum Expr {
 //    IdxDyn(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>),
     /// A hole. Eg, `?foo`.
     Hole(Loc, OnceCell<Arc<Type>>, Option<String>),
+    Call(Loc, String, Vec<Arc<Expr>>),
 }
 
 #[derive(Clone, Debug)]
@@ -119,6 +120,7 @@ impl HasLoc for Expr {
             Expr::IdxRange(loc, _typ, _e, _j, _i) => loc.clone(),
 //            Expr::IdxDyn(loc, _typ, _e, _i) => loc.clone(),
             Expr::Hole(loc, _typ, _opt_name) => loc.clone(),
+            Expr::Call(loc, _name, _es) => loc.clone(),
         }
     }
 }
@@ -192,7 +194,8 @@ impl std::fmt::Debug for Expr {
                 } else {
                     write!(f, "?")
                 }
-            }
+            },
+            Expr::Call(_loc, name, es) => write!(f, "{name}({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
         }
     }
 }
@@ -311,6 +314,12 @@ impl Expr {
             Expr::Hole(_loc, _typ, _name) => {
                 callback(self);
             },
+            Expr::Call(_loc, _name, es) => {
+                callback(self);
+                for e in es {
+                    e.with_subexprs(callback);
+                }
+            },
         }
     }
 
@@ -401,6 +410,13 @@ impl Expr {
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.free_vars(),
             //Expr::IdxDyn(_loc, e, i) => e.free_vars().union(&i.free_vars()).cloned().collect(),
             Expr::Hole(_loc, _typ, _name) => BTreeSet::new(),
+            Expr::Call(_loc, _name, es) => {
+                let mut result = BTreeSet::new();
+                for e in es {
+                    result.extend(e.free_vars())
+                }
+                result
+            },
         }
     }
 
@@ -430,6 +446,7 @@ impl Expr {
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.depends_on_net(net_id),
             //Expr::IdxDyn(_loc, e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
             Expr::Hole(_loc, _typ, _name) => false,
+            Expr::Call(_loc, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
         }
     }
 
@@ -520,6 +537,13 @@ impl Expr {
                 )
             }, */
             Expr::Hole(loc, typ, name) => Expr::Hole(loc.clone(), typ.clone(), name.clone()),
+            Expr::Call(loc, name, es) => {
+                Expr::Call(
+                    loc.clone(),
+                    name.clone(),
+                    es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect(),
+                )
+            },
         })
     }
 
@@ -620,6 +644,13 @@ impl Expr {
                 )
             }, */
             Expr::Hole(loc, typ, name) => Expr::Hole(loc.clone(), typ.clone(), name.clone()),
+            Expr::Call(loc, name, es) => {
+                Expr::Call(
+                    loc.clone(),
+                    name.clone(),
+                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
+                )
+            },
         })
     }
 
@@ -649,6 +680,7 @@ impl Expr {
             Expr::IdxRange(_loc, typ, _e, _j, _i) => Some(typ),
             //Expr::IdxDyn(_loc, typ, _e, _i) => Some(typ),
             Expr::Hole(_loc, typ, _opt_name) => Some(typ),
+            Expr::Call(_loc, _name, _es) => None,
         }
     }
 }
