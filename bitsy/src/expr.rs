@@ -32,8 +32,6 @@ pub enum Expr {
     If(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A `match` expression.
     Match(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Vec<MatchArm>),
-    /// A multiplexer. Eg, `mux(cond, a, b)`.
-    Mux(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A concatenate expression. Eg, `cat(foo, 0w1)`.
     Cat(Loc, OnceCell<Arc<Type>>, Vec<Arc<Expr>>),
     /// A sign extension expression.
@@ -111,7 +109,6 @@ impl HasLoc for Expr {
             Expr::BinOp(loc, _typ, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _typ, _cond, _e1, _e2) => loc.clone(),
             Expr::Match(loc, _typ, _e, _arms) => loc.clone(),
-            Expr::Mux(loc, _typ, _cond, _e1, _e2) => loc.clone(),
             Expr::Cat(loc, _typ, _es) => loc.clone(),
             Expr::Sext(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
@@ -170,7 +167,6 @@ impl std::fmt::Debug for Expr {
             Expr::Match(_loc, _typ, e, arms) => {
                 write!(f, "match {e:?} {{ ... }}") // TODO
             },
-            Expr::Mux(_loc, _typ, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
             Expr::Cat(_loc, _typ, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
             Expr::Sext(_loc, _typ, e) => write!(f, "sext({e:?})"),
             Expr::ToWord(_loc, _typ, e) => write!(f, "word({e:?})"),
@@ -273,12 +269,6 @@ impl Expr {
                     arm_e.with_subexprs(callback);
                 }
             }
-            Expr::Mux(_loc, _typ, cond, e1, e2) => {
-                callback(self);
-                cond.with_subexprs(callback);
-                e1.with_subexprs(callback);
-                e2.with_subexprs(callback);
-            },
             Expr::Cat(_loc, _typ, es) => {
                 callback(self);
                 for e in es {
@@ -381,15 +371,6 @@ impl Expr {
                 }
                 free_vars.into_iter().collect()
             },
-            Expr::Mux(_loc, _typ, cond, e1, e2) => {
-                cond.free_vars()
-                    .union(&e1.free_vars())
-                    .cloned()
-                    .collect::<BTreeSet<_>>()
-                    .union(&e2.free_vars())
-                    .cloned()
-                    .collect()
-            },
             Expr::Cat(_loc, _typ, es) => {
                 let mut result = BTreeSet::new();
                 for e in es {
@@ -437,7 +418,6 @@ impl Expr {
             Expr::UnOp(_loc, _typ, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _typ, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::If(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
-            Expr::Mux(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Sext(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::ToWord(_loc, _typ, e) => e.depends_on_net(net_id),
@@ -501,15 +481,6 @@ impl Expr {
             },
             Expr::If(loc, typ, cond, e1, e2) => {
                 Expr::If(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.rebase_rec(current_path.clone(), shadowed),
-                    e1.rebase_rec(current_path.clone(), shadowed),
-                    e2.rebase_rec(current_path, shadowed),
-                )
-            },
-            Expr::Mux(loc, typ, cond, e1, e2) => {
-                Expr::Mux(
                     loc.clone(),
                     typ.clone(),
                     cond.rebase_rec(current_path.clone(), shadowed),
@@ -615,15 +586,6 @@ impl Expr {
                     new_arms,
                 )
             },
-            Expr::Mux(loc, typ, cond, e1, e2) => {
-                Expr::Mux(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.references_to_nets_rec(net_id_by_path, shadowed),
-                    e1.references_to_nets_rec(net_id_by_path, shadowed),
-                    e2.references_to_nets_rec(net_id_by_path, shadowed),
-                )
-            },
             Expr::Cat(loc, typ, es) => {
                 Expr::Cat(
                     loc.clone(),
@@ -671,7 +633,6 @@ impl Expr {
             Expr::BinOp(_loc, typ, _op, _e1, _e2) => Some(typ),
             Expr::If(_loc, typ, _cond, _e1, _e2) => Some(typ),
             Expr::Match(_loc, typ, _e, _arms) => Some(typ),
-            Expr::Mux(_loc, typ, _cond, _e1, _e2) => Some(typ),
             Expr::Cat(_loc, typ, _es) => Some(typ),
             Expr::Sext(_loc, typ, _e) => Some(typ),
             Expr::ToWord(_loc, typ, _e) => Some(typ),

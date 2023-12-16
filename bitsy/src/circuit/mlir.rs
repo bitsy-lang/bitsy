@@ -197,15 +197,15 @@ impl Expr {
                 println!("    {name} = comb.mux bin {cond_ssa}, {e1_ssa}, {e2_ssa} : {type_name}");
                 name
             },
-            Expr::Mux(_loc, _typ, cond, e1, e2) => {
-                let name = format!("%{prefix}_mux");
-                let cond_ssa = cond.emit_mlir(format!("{prefix}_mux_cond"), ctx.clone());
-                let e1_ssa   =   e1.emit_mlir(format!("{prefix}_mux_e1"),   ctx.clone());
-                let e2_ssa   =   e2.emit_mlir(format!("{prefix}_mux_e2"),   ctx.clone());
-                // %0 = comb.mux bin %in, %a, %b : i8
-                println!("    {name} = comb.mux bin {cond_ssa}, {e1_ssa}, {e2_ssa} : {type_name}");
-                name
-            },
+//            Expr::Mux(_loc, _typ, cond, e1, e2) => {
+//                let name = format!("%{prefix}_mux");
+//                let cond_ssa = cond.emit_mlir(format!("{prefix}_mux_cond"), ctx.clone());
+//                let e1_ssa   =   e1.emit_mlir(format!("{prefix}_mux_e1"),   ctx.clone());
+//                let e2_ssa   =   e2.emit_mlir(format!("{prefix}_mux_e2"),   ctx.clone());
+//                // %0 = comb.mux bin %in, %a, %b : i8
+//                println!("    {name} = comb.mux bin {cond_ssa}, {e1_ssa}, {e2_ssa} : {type_name}");
+//                name
+//            },
             Expr::Cat(_loc, _typ, es) => {
             let name = format!("%{prefix}_cat");
                 let mut es_ssas = vec![];

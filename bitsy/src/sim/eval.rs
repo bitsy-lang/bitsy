@@ -76,19 +76,6 @@ impl Expr {
             Expr::Match(_loc, _typ, _e, arms) => {
                 todo!()
             },
-            Expr::Mux(_loc, _typ, cond, e1, e2) => {
-                let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
-                let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
-                let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
-                if cond_v.is_x() || v1.is_x() || v2.is_x() {
-                    return Value::X;
-                }
-                match cond_v {
-                    Value::Word(1, 1) => v1,
-                    Value::Word(1, 0) => v2,
-                    _ => Value::X,
-                }
-            },
             Expr::Cat(_loc, _typ, es) => {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
@@ -239,7 +226,24 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
-            Expr::Call(loc, _name, _es) => panic!("{loc:?} Can't evaluate an unresolved {self:?}"),
+            Expr::Call(loc, name, es) => {
+                if name == "mux" {
+                    assert_eq!(es.len(), 3);
+                    let cond = es[0].eval_with_ctx(bitsy, ctx.clone());
+                    let val1 = es[1].eval_with_ctx(bitsy, ctx.clone());
+                    let val2 = es[2].eval_with_ctx(bitsy, ctx.clone());
+                    if cond.is_x() || val1.is_x() || val2.is_x() {
+                        return Value::X;
+                    }
+                    match cond {
+                        Value::Word(1, 1) => val1,
+                        Value::Word(1, 0) => val2,
+                        _ => Value::X,
+                    }
+                } else {
+                    panic!("{loc:?} Can't evaluate an unresolved {self:?}")
+                }
+            },
         }
     }
 }

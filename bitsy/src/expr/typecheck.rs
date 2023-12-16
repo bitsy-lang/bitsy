@@ -108,12 +108,6 @@ impl Expr {
                 e2.typecheck(type_expected.clone(), ctx.clone())?;
                 Ok(())
             },
-            (_type_expected, Expr::Mux(_loc, _typ, cond, e1, e2)) => {
-                cond.typecheck(Type::word(1), ctx.clone())?;
-                e1.typecheck(type_expected.clone(), ctx.clone())?;
-                e2.typecheck(type_expected.clone(), ctx.clone())?;
-                Ok(())
-            },
             (Type::Word(width_expected), Expr::Sext(_loc, typ, e)) => {
                 if let Some(type_actual) = e.typeinfer(ctx.clone()) {
                     if let Type::Word(m) = &*type_actual {
@@ -172,6 +166,20 @@ impl Expr {
             },
 //            (_type_expected, Expr::IdxDyn(_loc, _typ, e, i)) => todo!(),
             (_type_expected, Expr::Hole(_loc, _typ, opt_name)) => Ok(()),
+            (_type_expected, Expr::Call(_loc, name, es)) => {
+                if name == "mux" {
+                    if es.len() != 3 {
+                        Err(TypeError::Other(self.clone(), format!("mux takes 3 parameters: {} found", es.len())))
+                    } else {
+                        es[0].typecheck(Type::word(1), ctx.clone())?;
+                        es[1].typecheck(type_expected.clone(), ctx.clone())?;
+                        es[2].typecheck(type_expected.clone(), ctx.clone())?;
+                        Ok(())
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("{self:?} Unknown call {name}")))
+                }
+            },
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };
 
