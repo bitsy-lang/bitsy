@@ -4,8 +4,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use anyhow::anyhow;
-
 pub type Name = String;
 
 /// A Package is a parsed Bitsy file.
@@ -189,15 +187,15 @@ impl Package {
     }
 
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
-    pub fn context_for(&self, component: Arc<Component>) -> anyhow::Result<Context<Path, Arc<Type>>> {
+    pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Arc<Type>> {
         // TODO Remove this anyhow
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
 //            let target = self.component_from(component.clone(), path.clone()).unwrap();
-            let typ = self.type_of(target).ok_or_else(|| anyhow!("Unknown component: {path} is not visible in {}", component.name()))?;
+            let typ = self.type_of(target).unwrap();
             ctx.push((path, typ));
         }
-        Ok(Context::from(ctx))
+        Context::from(ctx)
     }
 
     pub(crate) fn visible_paths(&self, component: Arc<Component>) -> Vec<(Path, Arc<Component>)> {
@@ -300,13 +298,8 @@ pub struct When(pub Arc<Expr>, pub Vec<Wire>);
 
 impl Wire {
     pub fn new(loc: Loc, target: Path, expr: Arc<Expr>, typ: WireType) -> Wire {
-        Wire(loc, target, expr, typ)
-    }
-
-    pub fn rebase(self, base: Path) -> Wire {
         // TODO REMOVE THIS.
-        let Wire(loc, target, expr, typ) = self;
-        Wire(loc, base.join(target), expr.rebase(base), typ)
+        Wire(loc, target, expr, typ)
     }
 }
 

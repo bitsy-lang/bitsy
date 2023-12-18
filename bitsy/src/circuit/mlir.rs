@@ -27,7 +27,7 @@ impl Package {
             }
         }
 
-        let ctx = self.context_for(moddef.clone()).unwrap();
+        let ctx = self.context_for(moddef.clone());
 
         println!("hw.module @{}(", moddef.name());
         self.emit_mlir_moddef_portlist(&ports);

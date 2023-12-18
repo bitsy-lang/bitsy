@@ -84,11 +84,7 @@ impl Package {
     }
 
     fn check_typecheck(&self, component: Arc<Component>) -> Vec<BitsyError> {
-        let ctx = match self.context_for(component.clone()) {
-            Ok(ctx) => ctx,
-            Err(e) => return vec![BitsyError::Unknown(Some(component.loc()), format!("{e:?}"))],
-        };
-
+        let ctx = self.context_for(component.clone());
         let mut errors = vec![];
 
         for Wire(loc, target, expr, _wiretype) in &component.wires() {
