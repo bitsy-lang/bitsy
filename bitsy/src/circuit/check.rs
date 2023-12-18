@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::Mutex;
 
 impl Package {
     pub(crate) fn check(&self) -> Result<(), Vec<CircuitError>> {
@@ -38,6 +39,7 @@ impl Package {
                 errors.extend(self.check_missing_drivers(component.clone()));
                 errors.extend(self.check_wires_wiretype(component.clone()));
                 errors.extend(self.check_incoming_port_driven(component.clone()));
+                errors.extend(self.check_outgoing_port_read(component.clone()));
             },
             Component::Ext(loc, _name, children) => {
                 for component in children {
@@ -105,16 +107,16 @@ impl Package {
             }
         }
 
-         for child in component.children() {
-             if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
-                 // TODO This is done to turn the reference to the type into the actual type.
-                 let typ = self.type_of(child.clone()).unwrap();
-                 match reset.typecheck(typ, ctx.clone()) {
-                     Err(e) => errors.push(CircuitError::TypeError(e)),
-                     Ok(()) => reset.assert_has_types(),
-                 }
-             }
-         }
+        for child in component.children() {
+            if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
+                // TODO This is done to turn the reference to the type into the actual type.
+                let typ = self.type_of(child.clone()).unwrap();
+                match reset.typecheck(typ, ctx.clone()) {
+                    Err(e) => errors.push(CircuitError::TypeError(e)),
+                    Ok(()) => reset.assert_has_types(),
+                }
+            }
+        }
 
         errors
     }
@@ -164,6 +166,40 @@ impl Package {
                 }
             }
         }
+        errors
+    }
+
+    fn check_outgoing_port_read(&self, component: Arc<Component>) -> Vec<CircuitError> {
+        let errors_mutex = Arc::new(Mutex::new(vec![]));
+
+
+
+        let mut func = |e: &Expr| {
+            if let Expr::Reference(loc, _typ, path) = e {
+                let is_local = !path.contains(".");
+                if is_local {
+                    if let Some(component) = self.component_from(component.clone(), path.clone()) {
+                        if let Component::Outgoing(_loc, name, _typ) = &*component {
+                            let mut errors = errors_mutex.lock().unwrap();
+                            errors.push(CircuitError::OutgoingPortRead(loc.clone(), name.clone()));
+                        }
+                    }
+                }
+            }
+        };
+
+        for Wire(_loc, _target, expr, _wiretype) in &component.wires() {
+            expr.with_subexprs(&mut func);
+        }
+
+        for child in component.children() {
+            if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
+                reset.with_subexprs(&mut func);
+            }
+        }
+
+
+        let errors = errors_mutex.lock().unwrap().to_vec();
         errors
     }
 

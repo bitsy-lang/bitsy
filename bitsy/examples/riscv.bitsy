@@ -247,7 +247,7 @@ mod Control {
 
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
-    mem_to_reg := mem_read;
+    mem_to_reg := opcode == Opcode::LOAD;
     alu_op := if funct3 == 0w3 { // ADD/ADDI
         AluOp::ADD
     } else if funct3 == 0b111w3 { // AND/ANDI

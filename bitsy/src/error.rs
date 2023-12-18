@@ -10,6 +10,7 @@ pub enum CircuitError {
     NoDrivers(Arc<Component>),
     WrongWireType(Loc, Name, WireType),
     IncomingPortDriven(Loc, Name),
+    OutgoingPortRead(Loc, Name),
     NoSuchComponent(Loc, String),
     TypeError(TypeError),
     ParseError(Loc, String),
@@ -64,7 +65,8 @@ impl std::fmt::Display for CircuitError {
                 };
                 write!(f, "Wrong wire type: {name} does not support {symbol}")
             },
-            CircuitError::IncomingPortDriven(_loc, name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
+            CircuitError::IncomingPortDriven(_loc, _name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be"),
+            CircuitError::OutgoingPortRead(_loc, _name) => write!(f, "Outgoing port is being read from inside a mod, but shouldn't be"),
             CircuitError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
             CircuitError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
             CircuitError::ParseError(_loc, _error) => write!(f, "{self:?}"),
@@ -82,6 +84,7 @@ impl HasLoc for CircuitError {
             CircuitError::NoDrivers(component) => component.loc(),
             CircuitError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
             CircuitError::IncomingPortDriven(loc, _name) => loc.clone(),
+            CircuitError::OutgoingPortRead(loc, _name) => loc.clone(),
             CircuitError::NoSuchComponent(loc, _name) => loc.clone(),
             CircuitError::TypeError(type_error) => type_error.loc(),
             CircuitError::ParseError(loc, _error) => loc.clone(),
