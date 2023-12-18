@@ -18,7 +18,7 @@ impl Expr {
                 }
             }
             Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
-            Expr::Word(_loc, typ, _width, value) => {
+            Expr::Word(loc, typ, _width, value) => {
                 if let Type::Word(width) = &**typ.get().unwrap() {
                     Value::Word(*width, *value)
                 } else {
@@ -226,8 +226,20 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
-            Expr::Call(loc, name, es) => {
-                if name == "mux" {
+            Expr::Call(_loc, _typ, name, es) => {
+                let fndef = name.get().unwrap();
+                assert_eq!(fndef.args.len(), es.len());
+                let mut new_ctx = ctx.clone();
+
+                for ((arg_name, _arg_typ), e) in fndef.args.iter().zip(es.iter()) {
+                    let v = e.eval_with_ctx(bitsy, ctx.clone());
+                    new_ctx = new_ctx.extend(arg_name.clone().into(), v);
+                }
+
+                fndef.body.eval_with_ctx(bitsy, new_ctx)
+
+                /*
+                if name.name() == "mux" {
                     assert_eq!(es.len(), 3);
                     let cond = es[0].eval_with_ctx(bitsy, ctx.clone());
                     let val1 = es[1].eval_with_ctx(bitsy, ctx.clone());
@@ -243,6 +255,7 @@ impl Expr {
                 } else {
                     panic!("{loc:?} Can't evaluate an unresolved {self:?}")
                 }
+                */
             },
         }
     }

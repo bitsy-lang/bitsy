@@ -129,7 +129,6 @@ fn buffer() {
     let mut bitsy = Sim::new(&buffer);
 
     bitsy.poke("top.in", true.into());
-    dbg!(&bitsy.peek("top.r"));
     assert_eq!(bitsy.peek("top.r"), Value::X);
     assert_eq!(bitsy.peek("top.out"), Value::X);
 

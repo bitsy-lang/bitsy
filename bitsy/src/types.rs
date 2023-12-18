@@ -1,3 +1,6 @@
+use super::Context;
+use super::Path;
+use super::Expr;
 use crate::reference::Reference;
 use std::sync::Arc;
 
@@ -60,6 +63,21 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Arc<Type>)>,
+}
+
+/// A user-defined `fn` function.
+#[derive(Debug, Clone)]
+pub struct FnDef {
+    pub name: String,
+    pub args: Vec<(String, Arc<Type>)>,
+    pub ret: Arc<Type>,
+    pub body: Arc<Expr>,
+}
+
+impl FnDef {
+    pub fn context(&self) -> Context<Path, Arc<Type>> {
+        Context::from(self.args.iter().map(|(arg_name, arg_type)| (arg_name.to_string().into(), arg_type.clone())).collect::<Vec<_>>())
+    }
 }
 
 impl StructTypeDef {

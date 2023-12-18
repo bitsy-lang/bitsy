@@ -166,7 +166,22 @@ impl Expr {
             },
 //            (_type_expected, Expr::IdxDyn(_loc, _typ, e, i)) => todo!(),
             (_type_expected, Expr::Hole(_loc, _typ, opt_name)) => Ok(()),
-            (_type_expected, Expr::Call(_loc, name, es)) => {
+            (_type_expected, Expr::Call(_loc, _typ, name, es)) => {
+                // TODO
+                let fndef = name.get().unwrap();
+                if fndef.args.len() != es.len() {
+                    let fn_name = &fndef.name;
+                    let m = fndef.args.len();
+                    let n = es.len();
+                    Err(TypeError::Other(self.clone(), format!("{fn_name} takes {n} args, but found {m} instead")))
+                } else {
+                    for ((_arg_name, arg_typ), e) in fndef.args.iter().zip(es.iter()) {
+                        e.typecheck(arg_typ.clone(), ctx.clone())?;
+                    }
+
+                    Ok(())
+                }
+                /*
                 if name == "mux" {
                     if es.len() != 3 {
                         Err(TypeError::Other(self.clone(), format!("mux takes 3 parameters: {} found", es.len())))
@@ -179,6 +194,7 @@ impl Expr {
                 } else {
                     Err(TypeError::Other(self.clone(), format!("{self:?} Unknown call {name}")))
                 }
+                */
             },
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };

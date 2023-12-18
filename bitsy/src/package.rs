@@ -98,6 +98,27 @@ impl Package {
         None
     }
 
+    pub fn fndef(&self, name: &str) -> Option<Arc<FnDef>> {
+        for decl in &self.decls {
+            if let Decl::FnDef(fndef) = &decl {
+                if fndef.name == name {
+                    return Some(fndef.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub fn fndefs(&self) -> Vec<Arc<FnDef>> {
+        let mut result = vec![];
+        for decl in &self.decls {
+            if let Decl::FnDef(fndef) = &decl {
+                result.push(fndef.clone());
+            }
+        }
+        result
+    }
+
     /// Iterate over all declarations and resolve references.
     ///
     /// Submodule instances (eg, `mod foo of Foo`) will resolve the module definition (eg, `Foo`).
@@ -146,6 +167,14 @@ impl Package {
                 } else {
                     let mut errors = errors_mutex.lock().unwrap();
                     errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
+                }
+            } else if let Expr::Call(loc, _typ, r, _es) = e {
+                if let Some(fndef) = self.fndef(r.name()) {
+                    r.resolve_to(fndef.clone()).unwrap();
+                } else {
+                    let mut errors = errors_mutex.lock().unwrap();
+                    let name = r.name();
+                    errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to fn {name}")));
                 }
             }
         };
@@ -278,6 +307,7 @@ pub enum Decl {
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
     StructTypeDef(Arc<StructTypeDef>),
+    FnDef(Arc<FnDef>),
 }
 
 /// The different kinds of [`Wire`]s in Bitsy.

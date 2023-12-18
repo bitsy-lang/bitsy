@@ -116,6 +116,14 @@ impl Package {
              }
          }
 
+        for fndef in self.fndefs() {
+            let ctx = fndef.context();
+            match fndef.body.typecheck(fndef.ret.clone(), ctx) {
+                Err(e) => errors.push(CircuitError::TypeError(e)),
+                Ok(()) => fndef.body.assert_has_types(),
+            }
+        }
+
         errors
     }
 

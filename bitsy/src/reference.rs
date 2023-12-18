@@ -60,3 +60,9 @@ impl<T> PartialEq for Reference<T> {
         }
     }
 }
+
+impl<T> std::fmt::Display for Reference<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        write!(f, "{}", self.name())
+    }
+}

@@ -12,7 +12,8 @@ Decl: Decl = {
     <m:ModDef> => Decl::ModDef(m),
     <e:EnumTypeDef> => Decl::EnumTypeDef(e),
     <e:StructTypeDef> => Decl::StructTypeDef(e),
-    <m:ExtDef> => Decl::ExtDef(m)
+    <m:ExtDef> => Decl::ExtDef(m),
+    <f:FnDef> => Decl::FnDef(f),
 }
 
 ModDef: Arc<Component> = {
@@ -73,6 +74,28 @@ EnumTypeDef: Arc<EnumTypeDef> = {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
         })
+    },
+}
+
+FnDef: Arc<FnDef> = {
+    "fn" <name:Id> "(" <args:ArgList?> ")" "->" <ret:Type> "{"
+        <body:Expr>
+    "}" => {
+        Arc::new(FnDef {
+            name: name.to_string(),
+            args: args.unwrap_or_else(|| vec![]),
+            ret,
+            body: Arc::into_inner(body).unwrap().into(),
+        })
+    },
+}
+
+ArgList: Vec<(String, Arc<Type>)> = {
+    <id:Id> "of" <typ:Type> => vec![(id.to_string(), typ.clone())],
+    <id:Id> "of" <typ:Type> "," <args:ArgList> => {
+        let mut results = vec![(id.to_string(), typ.clone())];
+        results.extend(args.into_iter());
+        results
     },
 }
 
@@ -170,8 +193,8 @@ ExprCall: Arc<Expr> = {
     <ll:@L> "@Invalid" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), OnceCell::new(), "Invalid".to_string(), vec![])),
     <ll:@L> "sext" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::Sext(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
     <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
-    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Arc::new(Expr::Call(Loc::from(source_info, ll, rr), name.to_string(), es)),
-    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Arc::new(Expr::Call(Loc::from(source_info, ll, rr), name.to_string(), es)),
+    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Arc::new(Expr::Call(Loc::from(source_info, ll, rr), OnceCell::new(), name.into(), es)),
+    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Arc::new(Expr::Call(Loc::from(source_info, ll, rr), OnceCell::new(), name.into(), es)),
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), OnceCell::new(), es)),
     <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Arc::new(Expr::Vec(Loc::from(source_info, ll, rr), OnceCell::new(), vec![e; n as usize])),
     <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Arc::new(Expr::Idx(Loc::from(source_info, ll, rr), OnceCell::new(), e, i)),
