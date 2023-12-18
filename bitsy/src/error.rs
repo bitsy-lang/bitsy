@@ -3,7 +3,7 @@ use super::*;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub enum CircuitError {
+pub enum BitsyError {
     ExtHasNonPort(Loc, Name),
     DuplicateComponent(Arc<Component>),
     MultipleDrivers(Loc, Name),
@@ -49,14 +49,14 @@ impl std::fmt::Display for TypeError {
     }
 }
 
-impl std::fmt::Display for CircuitError {
+impl std::fmt::Display for BitsyError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            CircuitError::ExtHasNonPort(_loc, name) => write!(f, "Ext declares a component other than an incoming or outgoing: {name}"),
-            CircuitError::DuplicateComponent(component) => write!(f, "Duplicate component: {}", component.name()),
-            CircuitError::MultipleDrivers(_loc, name) => write!(f, "Component has multiple drivers: {name}."),
-            CircuitError::NoDrivers(component) => write!(f, "Component is not driven: {}", component.name()),
-            CircuitError::WrongWireType(_loc, name, wire_type) => {
+            BitsyError::ExtHasNonPort(_loc, name) => write!(f, "Ext declares a component other than an incoming or outgoing: {name}"),
+            BitsyError::DuplicateComponent(component) => write!(f, "Duplicate component: {}", component.name()),
+            BitsyError::MultipleDrivers(_loc, name) => write!(f, "Component has multiple drivers: {name}."),
+            BitsyError::NoDrivers(component) => write!(f, "Component is not driven: {}", component.name()),
+            BitsyError::WrongWireType(_loc, name, wire_type) => {
                 let symbol = match wire_type {
                     WireType::Direct => ":=",
                     WireType::Latch => "<=",
@@ -64,28 +64,28 @@ impl std::fmt::Display for CircuitError {
                 };
                 write!(f, "Wrong wire type: {name} does not support {symbol}")
             },
-            CircuitError::IncomingPortDriven(_loc, name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
-            CircuitError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
-            CircuitError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
-            CircuitError::ParseError(_loc, _error) => write!(f, "{self:?}"),
-            CircuitError::Unknown(_loc, _message) => write!(f, "{self:?}"),
+            BitsyError::IncomingPortDriven(_loc, name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
+            BitsyError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
+            BitsyError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
+            BitsyError::ParseError(_loc, _error) => write!(f, "{self:?}"),
+            BitsyError::Unknown(_loc, _message) => write!(f, "{self:?}"),
         }
     }
 }
 
-impl HasLoc for CircuitError {
+impl HasLoc for BitsyError {
     fn loc(&self) -> Loc {
         match self {
-            CircuitError::ExtHasNonPort(loc, _name) => loc.clone(),
-            CircuitError::DuplicateComponent(component) => component.loc(),
-            CircuitError::MultipleDrivers(loc, _name) => loc.clone(),
-            CircuitError::NoDrivers(component) => component.loc(),
-            CircuitError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
-            CircuitError::IncomingPortDriven(loc, _name) => loc.clone(),
-            CircuitError::NoSuchComponent(loc, _name) => loc.clone(),
-            CircuitError::TypeError(type_error) => type_error.loc(),
-            CircuitError::ParseError(loc, _error) => loc.clone(),
-            CircuitError::Unknown(loc, _string) => loc.clone().unwrap_or_else(|| Loc::unknown()),
+            BitsyError::ExtHasNonPort(loc, _name) => loc.clone(),
+            BitsyError::DuplicateComponent(component) => component.loc(),
+            BitsyError::MultipleDrivers(loc, _name) => loc.clone(),
+            BitsyError::NoDrivers(component) => component.loc(),
+            BitsyError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
+            BitsyError::IncomingPortDriven(loc, _name) => loc.clone(),
+            BitsyError::NoSuchComponent(loc, _name) => loc.clone(),
+            BitsyError::TypeError(type_error) => type_error.loc(),
+            BitsyError::ParseError(loc, _error) => loc.clone(),
+            BitsyError::Unknown(loc, _string) => loc.clone().unwrap_or_else(|| Loc::unknown()),
         }
     }
 }

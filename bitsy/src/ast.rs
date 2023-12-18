@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use super::loc::Loc;
 use super::loc::SourceInfo;
-use super::error::CircuitError;
+use super::error::BitsyError;
 
 use super::{Width, UnOp, BinOp, Name, Length};
 
@@ -9,7 +9,7 @@ use lalrpop_util::ParseError;
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(ast_grammar);
 
-pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<CircuitError>> {
+pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<BitsyError>> {
     let source_info = SourceInfo::from_string(package_text);
     match ast_grammar::PackageParser::new().parse(&source_info, &package_text) {
         Err(ParseError::UnrecognizedToken { token, expected }) => {
@@ -18,28 +18,28 @@ pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<Circ
             let loc = Loc::from(&source_info, start_idx, end_idx);
 
             let message = format!("Parse error: Expected one of {}", expected.join(" "));
-            return Err(vec![CircuitError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(loc, message)]);
         },
         Err(ParseError::InvalidToken { location }) => {
             let loc = Loc::from(&source_info, location, location + 1);
             let message = format!("Parse error");
-            return Err(vec![CircuitError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(loc, message)]);
         },
         Err(ParseError::ExtraToken { token }) => {
             let start_idx = token.0;
             let end_idx = token.2;
             let loc = Loc::from(&source_info, start_idx, end_idx);
             let message = format!("Parse error: extra token: {token:?}");
-            return Err(vec![CircuitError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(loc, message)]);
         },
         Err(ParseError::UnrecognizedEof { location, expected }) => {
             let loc = Loc::from(&source_info, location, location + 1);
             let message = format!("Parse error: Unexpected end of file: Expected {expected:?}");
-            return Err(vec![CircuitError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(loc, message)]);
         },
         Err(ParseError::User { error }) => {
             let message = format!("Parse error: {error:?}");
-            return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
+            return Err(vec![BitsyError::ParseError(Loc::unknown(), message)]);
         },
         Ok(package) => Ok(package),
     }

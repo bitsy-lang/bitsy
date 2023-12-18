@@ -22,7 +22,7 @@ pub struct Package {
 }
 
 impl Package {
-    pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<CircuitError>> {
+    pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<BitsyError>> {
         let mut user_types: BTreeMap<String, Arc<Type>> = BTreeMap::new();
         for decl in &decls {
             if let Decl::EnumTypeDef(typedef) = decl {
@@ -41,11 +41,11 @@ impl Package {
         Ok(package)
     }
 
-    pub fn top(&self, top_name: &str) -> Result<Circuit, CircuitError>  {
+    pub fn top(&self, top_name: &str) -> Result<Circuit, BitsyError>  {
         if let Some(top) = self.moddef(top_name) {
             Ok(Circuit(self.clone(), top))
         } else {
-            Err(CircuitError::Unknown(None, format!("No such mod definition: {top_name}")))
+            Err(BitsyError::Unknown(None, format!("No such mod definition: {top_name}")))
         }
     }
 
@@ -104,7 +104,7 @@ impl Package {
     ///
     /// For each wire, the expression is resolved.
     /// This will find any references to typedefs and resolve those (eg, `AluOp::Add`).
-    fn resolve_references(&self) -> Result<(), Vec<CircuitError>> {
+    fn resolve_references(&self) -> Result<(), Vec<BitsyError>> {
         let mut errors = vec![];
         self.resolve_references_component_types();
 
@@ -115,7 +115,7 @@ impl Package {
                     if let Some(moddef) = self.moddef(reference.name()) {
                         reference.resolve_to(moddef).unwrap();
                     } else {
-                        errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
+                        errors.push(BitsyError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
                     }
                 } else if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
                     errors.extend(self.resolve_references_expr(reset.clone()));
@@ -137,7 +137,7 @@ impl Package {
         }
     }
 
-    fn resolve_references_expr(&self, expr: Arc<Expr>) -> Vec<CircuitError> {
+    fn resolve_references_expr(&self, expr: Arc<Expr>) -> Vec<BitsyError> {
         let errors_mutex = Arc::new(Mutex::new(vec![]));
         let mut func = |e: &Expr| {
             if let Expr::Enum(loc, _typ, r, name) = e {
@@ -145,7 +145,7 @@ impl Package {
                     r.resolve_to(typ.clone()).unwrap();
                 } else {
                     let mut errors = errors_mutex.lock().unwrap();
-                    errors.push(CircuitError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
+                    errors.push(BitsyError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
                 }
             }
         };
