@@ -21,6 +21,7 @@ pub enum Expr {
     Enum(Loc, OnceCell<Arc<Type>>, Reference<Type>, String),
     /// Constructor (for `Valid<T>`)
     Ctor(Loc, OnceCell<Arc<Type>>, String, Vec<Arc<Expr>>),
+    Struct(Loc, OnceCell<Arc<Type>>, Vec<(String, Arc<Expr>)>),
     /// Let binding. Eg, `let x = a + b in x + x`.
     Let(Loc, OnceCell<Arc<Type>>, String, Arc<Expr>, Arc<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
@@ -103,6 +104,7 @@ impl HasLoc for Expr {
             Expr::Word(loc, _typ, _width, _val) => loc.clone(),
             Expr::Enum(loc, _typ, _typedef, _name) => loc.clone(),
             Expr::Ctor(loc, _typ, _name, _e) => loc.clone(),
+            Expr::Struct(loc, _typ, _fields) => loc.clone(),
             Expr::Let(loc, _typ, _name, _e, _b) => loc.clone(),
             Expr::UnOp(loc, _typ, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _typ, _op, _e1, _e2) => loc.clone(),
@@ -138,6 +140,7 @@ impl std::fmt::Debug for Expr {
             Expr::Enum(_loc, _typ, typedef, name) => write!(f, "{typedef:?}::{name}"),
             Expr::Let(_loc, _typ, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
             Expr::Ctor(_loc, _typ, name, e) => write!(f, "@{name}({e:?})"),
+            Expr::Struct(_loc, _typ, fields) => write!(f, "{{ .. }}"), // TODO
             Expr::UnOp(_loc, _typ, op, e) => {
                 let op_symbol = match op {
                     UnOp::Not => "!",
@@ -217,7 +220,7 @@ impl Expr {
     pub fn assert_has_types(&self) {
         let mut func = |e: &Expr| {
             if let Expr::Word(_loc, typ, _width, _n) = e {
-                typ.get().unwrap();
+                typ.get().expect(&format!("Expression was not typechecked: {e:?}"));
             }
         };
         self.with_subexprs(&mut func);
@@ -233,6 +236,12 @@ impl Expr {
             Expr::Ctor(_loc, _typ, _name, es) => {
                 callback(self);
                 for e in es {
+                    e.with_subexprs(callback);
+                }
+            },
+            Expr::Struct(_loc, _typ, fields) => {
+                callback(self);
+                for (_name, e) in fields {
                     e.with_subexprs(callback);
                 }
             },
@@ -341,6 +350,13 @@ impl Expr {
                 }
                 result
             },
+            Expr::Struct(_loc, _typ, fields) => {
+                let mut result = BTreeSet::new();
+                for (_name, e) in fields {
+                    result.extend(e.free_vars())
+                }
+                result
+            },
             Expr::Let(_loc, _typ, x, e, b) => {
                 let mut result = b.free_vars();
                 result.remove(&x.to_string().into());
@@ -407,6 +423,7 @@ impl Expr {
             Expr::Word(_loc, _typ, _width, _value) => false,
             Expr::Enum(_loc, _typ, _typedef, _name) => false,
             Expr::Ctor(_loc, _typ, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Struct(_loc, _typ, fields) => fields.iter().any(|(_name, e)| e.depends_on_net(net_id)),
             Expr::Let(_loc, _typ, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
             Expr::Match(_loc, _typ, e, arms) => e.depends_on_net(net_id) || arms.iter().any(|MatchArm(_pat, arm_e)| arm_e.depends_on_net(net_id)),
             Expr::UnOp(_loc, _typ, _op, e) => e.depends_on_net(net_id),
@@ -441,6 +458,16 @@ impl Expr {
             Expr::Word(_loc, _typ, _width, _value) => self.clone(),
             Expr::Enum(_loc, _typ, _typedef, _name) => self.clone(),
             Expr::Ctor(loc, typ, name, es) => Expr::Ctor(loc.clone(), typ.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
+            Expr::Struct(loc, typ, fields) => {
+                Expr::Struct(
+                    loc.clone(),
+                    typ.clone(),
+                    fields
+                        .iter()
+                        .map(|(name, e)| (name.clone(), e.rebase_rec(current_path.clone(), shadowed)))
+                        .collect(),
+                    )
+            },
             Expr::Let(loc, typ, name, e, b) => {
                 let new_e = e.rebase_rec(current_path.clone(), shadowed);
                 let mut new_shadowed = shadowed.clone();
@@ -538,7 +565,16 @@ impl Expr {
                     name.clone(),
                     es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
                 )
-
+            },
+            Expr::Struct(loc, typ, fields) => {
+                Expr::Struct(
+                    loc.clone(),
+                    typ.clone(),
+                    fields
+                        .iter()
+                        .map(|(name, e)| (name.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)))
+                        .collect(),
+                    )
             },
             Expr::Let(loc, typ, name, e, b) => {
                 let new_e = e.references_to_nets_rec(net_id_by_path, shadowed);
@@ -623,6 +659,7 @@ impl Expr {
             Expr::Word(_loc, typ, _width, _val) => Some(typ),
             Expr::Enum(_loc, typ, _typedef, _name) => Some(typ),
             Expr::Ctor(_loc, typ, _name, _e) => Some(typ),
+            Expr::Struct(_loc, typ, _fields) => Some(typ),
             Expr::Let(_loc, typ, _name, _e, _b) => Some(typ),
             Expr::UnOp(_loc, typ, _op, _e) => Some(typ),
             Expr::BinOp(_loc, typ, _op, _e1, _e2) => Some(typ),

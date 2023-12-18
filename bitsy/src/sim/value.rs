@@ -1,5 +1,6 @@
 use crate::reference::Reference;
 use crate::types::*;
+use std::sync::Arc;
 
 /// A value used in the simulator (see [`crate::sim::Sim`]).
 #[derive(Clone, Default, PartialEq)]
@@ -15,6 +16,7 @@ pub enum Value {
     Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
     Enum(Reference<Type>, String),
+    Struct(Arc<Type>, Vec<(String, Value)>),
 }
 
 impl Value {
@@ -32,6 +34,7 @@ impl Value {
             Value::Word(w, n) => Some(n & ((1 << w) - 1)),
             Value::Vec(_vs) => panic!(),
             Value::Enum(_typedef, _name) => panic!(),
+            Value::Struct(_typedef, _fields) => panic!(),
             Value::Ctor(_ctor, _e) => None,
         }
     }
@@ -109,6 +112,10 @@ impl std::fmt::Debug for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Struct(typedef, fields) => {
+                let field_strs: Vec<_> = fields.iter().map(|(name, val)| format!("{name} = {val:?}")).collect();
+                write!(f, "{{ {} }}", field_strs.join(", "))
+            },
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -145,6 +152,7 @@ impl std::fmt::Display for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Struct(typedef, fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -181,6 +189,7 @@ impl std::fmt::LowerHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Struct(typedef, fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -217,6 +226,7 @@ impl std::fmt::UpperHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Struct(typedef, fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -253,6 +263,7 @@ impl std::fmt::Binary for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Struct(typedef, fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {

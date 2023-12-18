@@ -168,6 +168,7 @@ ExprCall: Arc<Expr> = {
     },
     <ll:@L> "@Valid" "(" <e:Expr> ")" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), OnceCell::new(), "Valid".to_string(), vec![e])),
     <ll:@L> "@Invalid" <rr:@R> => Arc::new(Expr::Ctor(Loc::from(source_info, ll, rr), OnceCell::new(), "Invalid".to_string(), vec![])),
+    <e:StructCtor> => e,
     <ll:@L> "mux" "(" <cond:Expr> "," <e1:Expr> "," <e2:Expr> ")" <rr:@R> => Arc::new(Expr::Mux(Loc::from(source_info, ll, rr), OnceCell::new(), cond, e1, e2)),
     <ll:@L> "sext" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::Sext(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
     <ll:@L> "word" "(" <e:Expr> ")" <rr:@R> =>  Arc::new(Expr::ToWord(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
@@ -177,6 +178,13 @@ ExprCall: Arc<Expr> = {
     <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Arc::new(Expr::IdxRange(Loc::from(source_info, ll, rr), OnceCell::new(), e, j, i)),
 //    <ll:@L> <e:ExprBase> "[" <i:Expr> "]" <rr:@R> => Arc::new(Expr::IdxDyn(Loc::from(source_info, ll, rr), OnceCell::new(), e, i)),
     <e:ExprBase> => e,
+}
+
+StructCtor: Arc<Expr> = {
+    <ll:@L> "{" <fields:(Id "=" Expr ",")*> "}" <rr:@R> => {
+        let fields = fields.iter().map(|(name, _, e, _)| (name.to_string(), e.clone())).collect();
+        Arc::new(Expr::Struct(Loc::from(source_info, ll, rr), OnceCell::new(), fields))
+    },
 }
 
 ExprList: Vec<Arc<Expr>> = {

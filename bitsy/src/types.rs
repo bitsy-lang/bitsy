@@ -66,6 +66,15 @@ impl StructTypeDef {
     fn bitwidth(&self) -> Width {
         self.fields.iter().map(|(_name, typ)| typ.bitwidth()).sum()
     }
+
+    pub fn type_of_field(&self, fieldname: &str) -> Option<Arc<Type>> {
+        for (name, typ) in &self.fields {
+            if name == fieldname {
+                return Some(typ.clone())
+            }
+        }
+        None
+    }
 }
 
 impl EnumTypeDef {

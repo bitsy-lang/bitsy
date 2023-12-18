@@ -29,6 +29,15 @@ impl Expr {
                 let values: Vec<Value> = es.iter().map(|e| e.eval_with_ctx(bitsy, ctx.clone())).collect();
                 Value::Ctor(name.to_string(), values)
             },
+            Expr::Struct(_loc, typ, fields) => {
+                // TODO canonicalize ordering
+                let mut field_values = vec![];
+                for (name, e) in fields {
+                    let value = e.eval_with_ctx(bitsy, ctx.clone());
+                    field_values.push((name.to_string(), value));
+                }
+                Value::Struct(typ.get().unwrap().clone(), field_values)
+            },
             Expr::Let(_loc, _typ, name, e, b) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 b.eval_with_ctx(bitsy, ctx.extend(name.clone().into(), v))

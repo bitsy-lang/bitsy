@@ -52,6 +52,18 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
                 }
             },
+            (Type::Struct(typedef), Expr::Struct(_loc, _typ, fields)) => {
+                // TODO Ensure all fields exist.
+                for (name, e) in fields {
+                    if let Some(typ) = typedef.type_of_field(name) {
+                        e.typecheck(typ, ctx.clone())?;
+                    } else {
+                        let typename = &typedef.name;
+                        return Err(TypeError::Other(self.clone(), format!("struct type {typename} has no field {name}")))
+                    }
+                }
+                Ok(())
+            },
             (_type_expected, Expr::Let(_loc, _typ, name, e, b)) => {
                 if let Some(typ) = e.typeinfer(ctx.clone()) {
                     b.typecheck(type_expected.clone(), ctx.extend(name.clone().into(), typ))
