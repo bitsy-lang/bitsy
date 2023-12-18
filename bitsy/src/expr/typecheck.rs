@@ -13,6 +13,7 @@ impl Expr {
         }
 
         let result = match (&*type_expected.clone(), &**self) {
+            (_type_expected, Expr::Paren(_loc, _typ, e)) => e.typecheck(type_expected.clone(), ctx.clone()),
             (_type_expected, Expr::Reference(_loc, _typ, path)) => Err(TypeError::UndefinedReference(self.clone())),
             (Type::Word(width_expected), Expr::Word(_loc, typ, width_actual, n)) => {
                 if let Some(width_actual) = width_actual {
@@ -185,6 +186,7 @@ impl Expr {
     #[allow(unused_variables)] // TODO remove this
     pub fn typeinfer(self: &Arc<Self>, ctx: Context<Path, Arc<Type>>) -> Option<Arc<Type>> {
         let result = match &**self {
+            Expr::Paren(_loc, _typ, e) => e.typeinfer(ctx.clone()),
             Expr::Reference(_loc, typ, path) => {
                 let type_actual = ctx.lookup(path)?;
                 Some(type_actual)
