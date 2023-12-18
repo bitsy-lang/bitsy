@@ -158,10 +158,8 @@ impl Package {
             if let Some(component) = self.component_from(component.clone(), target.clone()) {
                 let is_local = !target.contains(".");
                 if is_local {
-                    match &*component {
-                        Component::Incoming(loc, name, _typ) =>
-                            errors.push(CircuitError::IncomingPortDriven(loc.clone(), name.clone())),
-                        _ => (),
+                    if let Component::Incoming(loc, name, _typ) = &*component {
+                        errors.push(CircuitError::IncomingPortDriven(loc.clone(), name.clone()));
                     }
                 }
             }
@@ -171,8 +169,6 @@ impl Package {
 
     fn check_outgoing_port_read(&self, component: Arc<Component>) -> Vec<CircuitError> {
         let errors_mutex = Arc::new(Mutex::new(vec![]));
-
-
 
         let mut func = |e: &Expr| {
             if let Expr::Reference(loc, _typ, path) = e {
