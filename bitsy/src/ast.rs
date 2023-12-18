@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use super::error::BitsyError;
 use super::loc::Loc;
 use super::loc::SourceInfo;
