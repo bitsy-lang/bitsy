@@ -15,41 +15,31 @@ Item: Item = {
     <m:ExtDef> => Item::ExtDef(m)
 }
 
-ModDef: Component = {
+ModDef: ModDef = {
     <ll:@L> "mod" <id:Id> "{"
-        <decls:ModDecl*>
+        <decls:Decl*>
     "}" <rr:@R> => {
         let mut children = vec![];
-        let mut wires = vec![];
-        let mut whens = vec![];
 
         for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => wires.push(w),
-                ModDecl::When(w) => whens.push(w),
-            }
+            children.push(decl);
         }
 
-        Component::Mod(Loc::from(source_info, ll, rr), id, children, wires, whens)
+        ModDef(Loc::from(source_info, ll, rr), id, children)
     },
 }
 
-ExtDef: Component = {
+ExtDef: ModDef = {
     <ll:@L> "ext" "mod" <id:Id> "{"
-        <decls:ModDecl*>
+        <decls:Decl*>
     "}" <rr:@R> => {
         let mut children = vec![];
 
         for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => panic!("Exts can't have wires {id}"),
-                ModDecl::When(w) => panic!("Exts can't have whens {id}"),
-            }
+            children.push(decl);
         }
 
-        Component::Ext(Loc::from(source_info, ll, rr), id, children)
+        ModDef(Loc::from(source_info, ll, rr), id, children)
     },
 }
 
@@ -75,15 +65,15 @@ StructTypeDef: StructTypeDef = {
     },
 }
 
-ModDecl: ModDecl  = {
-    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Incoming(Loc::from(source_info, ll, rr), id, typ)),
-    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ)),
-    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Node(Loc::from(source_info, ll, rr), id, typ)),
-    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Component::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1))),
-    <when:When> => ModDecl::When(when),
-    <m:Mod> => ModDecl::Component(m),
-    <m:ModInst> => ModDecl::Component(m),
-    <wire:Wire> => ModDecl::Wire(wire),
+Decl: Decl  = {
+    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Incoming(Loc::from(source_info, ll, rr), id, typ),
+    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Outgoing(Loc::from(source_info, ll, rr), id, typ),
+    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Node(Loc::from(source_info, ll, rr), id, typ),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => Decl::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1)),
+    <ll:@L> <when:When> <rr:@R> => Decl::When(Loc::from(source_info, ll, rr), when),
+    <m:Mod> => m,
+    <m:ModInst> => m,
+    <ll:@L> <wire:Wire> <rr:@R> => Decl::Wire(Loc::from(source_info, ll, rr), wire),
 }
 
 When: When = {
@@ -92,23 +82,17 @@ When: When = {
     "}" => When(e, wires),
 }
 
-Mod: Component = {
+Mod: Decl = {
     <ll:@L> "mod" <id:Id> "{"
-        <decls:ModDecl*>
+        <decls:Decl*>
     "}" <rr:@R> => {
         let mut children = vec![];
-        let mut wires = vec![];
-        let mut whens = vec![];
 
         for decl in decls {
-            match decl {
-                ModDecl::Component(c) => children.push(c),
-                ModDecl::Wire(w) => wires.push(w),
-                ModDecl::When(w) => whens.push(w),
-            }
+            children.push(decl);
         }
 
-        Component::Mod(Loc::from(source_info, ll, rr), id, children, wires, whens)
+        Decl::Mod(Loc::from(source_info, ll, rr), id, children)
     },
 }
 
@@ -118,8 +102,8 @@ Wire: Wire = {
     <ll:@L> <target:Target> "<=!" <e:Expr> ";" <rr:@R> => Wire(Loc::from(source_info, ll, rr), target, e, WireType::Proc),
 }
 
-ModInst: Component = {
-    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Component::ModInst(Loc::from(source_info, ll, rr), id, modname.into()),
+ModInst: Decl = {
+    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Loc::from(source_info, ll, rr), id, modname.into()),
 }
 
 pub Expr: Box<Expr> = {

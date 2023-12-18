@@ -18,22 +18,26 @@ pub struct Package {
 /// A top-level declaration in a [`Package`].
 #[derive(Debug, Clone)]
 pub enum Item {
-    ModDef(Component),
-    ExtDef(Component),
+    ModDef(ModDef),
+    ExtDef(ModDef),
     EnumTypeDef(EnumTypeDef),
     StructTypeDef(StructTypeDef),
 }
 
+#[derive(Debug, Clone)]
+pub struct ModDef(Loc, Name, Vec<Decl>);
+
 /// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]
-pub enum Component {
-    Mod(Loc, Name, Vec<Component>, Vec<Wire>, Vec<When>),
-    Ext(Loc, Name, Vec<Component>),
+pub enum Decl {
+    Mod(Loc, Name, Vec<Decl>),
     ModInst(Loc, Name, Name),
     Incoming(Loc, Name, Type),
     Outgoing(Loc, Name, Type),
     Node(Loc, Name, Type),
     Reg(Loc, Name, Type, Option<Box<Expr>>),
+    Wire(Loc, Wire),
+    When(Loc, When),
 }
 
 /// A user-defined `enum` type.
@@ -48,13 +52,6 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
-}
-
-#[derive(Debug, Clone)]
-enum ModDecl {
-    Component(Component),
-    Wire(Wire),
-    When(When),
 }
 
 /// An expression.
