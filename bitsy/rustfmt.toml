@@ -1,3 +1,5 @@
 match_block_trailing_comma = true
 reorder_imports = false
 reorder_modules = false
+blank_lines_upper_bound = 1
+blank_lines_lower_bound = 1
