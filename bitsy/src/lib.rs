@@ -1,5 +1,5 @@
 pub mod sim;
-mod ast;
+pub mod ast;
 mod types;
 mod reference;
 mod package;

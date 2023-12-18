@@ -181,6 +181,39 @@ impl Buffer {
 
     fn send_diagnostics(&mut self) {
         let mut diagnostics = vec![];
+        if let Err(errors) = bitsy::ast::parse_package_from_string(&self.text) {
+                info!("Errors: {errors:?}");
+                for error in errors {
+                    let start_line = error.loc().start().line() - 1;
+                    let start_character = error.loc().start().col() - 1;
+
+                    let end_line = error.loc().end().line() - 1;
+                    let end_character = error.loc().end().col() - 1;
+
+                    let message = format!("{error}");
+
+                    let diagnostic = json!({
+                        "range": {
+                            "start": { "line": start_line, "character": start_character },
+                            "end": { "line": end_line, "character": end_character },
+                        },
+                        "severity": 1, // ERROR
+                        "message": message,
+                    });
+                    diagnostics.push(diagnostic);
+                }
+
+                let message = json!({
+                    "jsonrpc": "2.0",
+                    "method": "textDocument/publishDiagnostics",
+                    "params": {
+                        "uri": self.uri.to_string(),
+                        "diagnostics": diagnostics,
+                    },
+                });
+                send_message(message);
+                return;
+        }
 
         // TODO should fake parsing package from file
         self.package = match bitsy::load_package_from_string(&self.text) {

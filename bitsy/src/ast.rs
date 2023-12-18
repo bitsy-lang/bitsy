@@ -1,12 +1,49 @@
 #![allow(dead_code)]
 use super::loc::Loc;
 use super::loc::SourceInfo;
+use super::error::CircuitError;
 
 use super::{Width, UnOp, BinOp, Name, Length};
 
-// use lalrpop_util::ParseError;
+use lalrpop_util::ParseError;
 use lalrpop_util::lalrpop_mod;
 lalrpop_mod!(ast_grammar);
+
+pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<CircuitError>> {
+    let source_info = SourceInfo::from_string(package_text);
+    match ast_grammar::PackageParser::new().parse(&source_info, &package_text) {
+        Err(ParseError::UnrecognizedToken { token, expected }) => {
+            let start_idx = token.0;
+            let end_idx = token.2;
+            let loc = Loc::from(&source_info, start_idx, end_idx);
+
+            let message = format!("Parse error: Expected one of {}", expected.join(" "));
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::InvalidToken { location }) => {
+            let loc = Loc::from(&source_info, location, location + 1);
+            let message = format!("Parse error");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::ExtraToken { token }) => {
+            let start_idx = token.0;
+            let end_idx = token.2;
+            let loc = Loc::from(&source_info, start_idx, end_idx);
+            let message = format!("Parse error: extra token: {token:?}");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::UnrecognizedEof { location, expected }) => {
+            let loc = Loc::from(&source_info, location, location + 1);
+            let message = format!("Parse error: Unexpected end of file: Expected {expected:?}");
+            return Err(vec![CircuitError::ParseError(loc, message)]);
+        },
+        Err(ParseError::User { error }) => {
+            let message = format!("Parse error: {error:?}");
+            return Err(vec![CircuitError::ParseError(Loc::unknown(), message)]);
+        },
+        Ok(package) => Ok(package),
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Package {
@@ -24,7 +61,7 @@ enum ModDecl {
 #[derive(Clone, Debug)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Id(Loc, String),
+    Ref(Loc, Target),
     /// A literal Word.
     Word(Loc, Option<Width>, u64),
     /// A literal enum value.
@@ -42,9 +79,10 @@ pub enum Expr {
     /// A `match` expression.
     Match(Loc, Box<Expr>, Vec<MatchArm>),
     /// A multiplexer. Eg, `mux(cond, a, b)`.
-    Vec(Loc, Vec<Box<Expr>>),
+    Vec(Loc, Vec<Expr>),
     Dot(Loc, Box<Expr>, String),
     /// A static index. Eg, `foo[0]`.
+    IdxField(Loc, Box<Expr>, String),
     Idx(Loc, Box<Expr>, u64),
     IdxRange(Loc, Box<Expr>, u64, u64),
     /// A hole. Eg, `?foo`.

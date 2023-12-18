@@ -344,3 +344,37 @@ fn test_locs() {
     assert_eq!(source_info.start(expr).to_string(), "6:20");
     assert_eq!(source_info.end(expr).to_string(), "6:22");
 }
+
+#[test]
+fn test_parse_package_from_string() {
+    let examples_dir = std::path::Path::new("examples");
+    let mut errors = vec![];
+
+    if let Ok(entries) = std::fs::read_dir(examples_dir) {
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let filename = entry.file_name();
+                if let Some(filename) = filename.to_str() {
+                    if filename.ends_with(".bitsy") {
+                        let text = match std::fs::read_to_string(entry.path()) {
+                            Ok(text) => text,
+                            Err(_) => panic!("Failed to read file {:?}", entry.path()),
+                        };
+
+                        if let Err(_error) = std::panic::catch_unwind(|| {
+                            let _package = ast::parse_package_from_string(&text).expect(&format!("Testing {:?}", entry.path()));
+                        }) {
+                            errors.push(filename.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        panic!("Failed to read examples directory");
+    }
+
+    if errors.len() > 0 {
+        panic!("Errors in examples:\n  - {}", errors.join("\n  - "))
+    }
+}
