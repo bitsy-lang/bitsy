@@ -205,7 +205,7 @@ ExprBase: Arc<Expr> = {
     <e:ExprLet> => e,
     <e:ExprMatch> => e,
     <e:ExprHole> => e,
-    "(" <e:Expr> ")" => e,
+    <ll:@L> "(" <e:Expr> ")" <rr:@R> => Arc::new(Expr::Paren(Loc::from(source_info, ll, rr), OnceCell::new(), e)),
 }
 
 ExprHole: Arc<Expr> = {

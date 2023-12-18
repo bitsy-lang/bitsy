@@ -9,6 +9,7 @@ impl Expr {
 
     fn eval_with_ctx(&self, bitsy: &Sim, ctx: Context<Path, Value>) -> Value {
         match self {
+            Expr::Paren(_loc, _typ, e) => e.eval_with_ctx(bitsy, ctx.clone()),
             Expr::Reference(_loc, _typ, path) => {
                 if let Some(value) = ctx.lookup(path) {
                     value.clone()

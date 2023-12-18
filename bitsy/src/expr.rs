@@ -11,6 +11,7 @@ use once_cell::sync::OnceCell;
 /// An expression.
 #[derive(Clone)]
 pub enum Expr {
+    Paren(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
     /// A referenec to a port, reg, or node.
     Reference(Loc, OnceCell<Arc<Type>>, Path),
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
@@ -100,6 +101,7 @@ impl MatchArm {
 impl HasLoc for Expr {
     fn loc(&self) -> Loc {
         match self {
+            Expr::Paren(loc, _typ, _inner) => loc.clone(),
             Expr::Net(loc, _typ, _netid) => loc.clone(),
             Expr::Reference(loc, _typ, _path) => loc.clone(),
             Expr::Word(loc, _typ, _width, _val) => loc.clone(),
@@ -135,6 +137,7 @@ impl HasLoc for Arc<Expr> {
 impl std::fmt::Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
+            Expr::Paren(_loc, _typ, e) => write!(f, "({e:?})"),
             Expr::Net(_loc, _typ, netid) => write!(f, "#{netid:?}"),
             Expr::Reference(_loc, _typ, path) => write!(f, "{path}"),
             Expr::Word(_loc, _typ, None, val) => write!(f, "{val}"),
@@ -147,7 +150,7 @@ impl std::fmt::Debug for Expr {
                 let op_symbol = match op {
                     UnOp::Not => "!",
                 };
-                write!(f, "({op_symbol}{e:?})")
+                write!(f, "{op_symbol}{e:?}")
             },
             Expr::BinOp(_loc, _typ, op, e1, e2) => {
                 let op_symbol = match op {
@@ -162,7 +165,7 @@ impl std::fmt::Debug for Expr {
                     BinOp::Neq => "!=",
                     BinOp::Lt => "<",
                 };
-                write!(f, "({e1:?} {op_symbol} {e2:?})")
+                write!(f, "{e1:?} {op_symbol} {e2:?}")
             },
             Expr::If(_loc, _typ, cond, e1, e2) => {
                 write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
@@ -232,6 +235,10 @@ impl Expr {
     /// Walk the expression tree in-order, calling `callback` for each subexpression.
     pub fn with_subexprs(&self, callback: &mut dyn FnMut(&Expr)) {
         match self {
+            Expr::Paren(_loc, _typ, e) => {
+                callback(self);
+                e.with_subexprs(callback);
+            },
             Expr::Reference(_loc, _typ, _path) => callback(self),
             Expr::Net(_loc, _typ, _netid) => callback(self),
             Expr::Word(_loc, _typ, _width, _value) => callback(self),
@@ -346,6 +353,7 @@ impl Expr {
 
     pub fn free_vars(&self) -> BTreeSet<Path> {
         match self {
+            Expr::Paren(_loc, _typ, e) => e.free_vars(),
             Expr::Reference(_loc, _typ, path) => vec![path.clone()].iter().cloned().collect(),
             Expr::Net(_loc, _typ, _netid) => BTreeSet::new(),
             Expr::Word(_loc, _typ, _width, _value) => BTreeSet::new(),
@@ -426,6 +434,7 @@ impl Expr {
 
     pub fn depends_on_net(&self, net_id: NetId) -> bool {
         match self {
+            Expr::Paren(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::Reference(_loc, _typ, _path) => false,
             Expr::Net(_loc, _typ, other_netid) => net_id == *other_netid,
             Expr::Word(_loc, _typ, _width, _value) => false,
@@ -456,6 +465,7 @@ impl Expr {
 
     fn rebase_rec(&self, current_path: Path, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
         Arc::new(match self {
+            Expr::Paren(loc, typ, e) => Expr::Paren(loc.clone(), typ.clone(), e.rebase_rec(current_path, &shadowed)),
             Expr::Reference(loc, typ, path) => {
                 if !shadowed.contains(path) {
                     Expr::Reference(loc.clone(), typ.clone(), current_path.join(path.clone()))
@@ -558,6 +568,7 @@ impl Expr {
 
     fn references_to_nets_rec(&self, net_id_by_path: &BTreeMap<Path, NetId>, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
         Arc::new(match self {
+            Expr::Paren(loc, typ, e) => Expr::Paren(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, &shadowed)),
             Expr::Reference(loc, typ, path) => {
                 if !shadowed.contains(path) {
                     Expr::Net(loc.clone(), typ.clone(), net_id_by_path[path])
@@ -665,6 +676,7 @@ impl Expr {
 
     fn type_of_cell(&self) -> Option<&OnceCell<Arc<Type>>> {
         match self {
+            Expr::Paren(_loc, typ, _e) => Some(typ),
             Expr::Net(_loc, typ, _netid) => Some(typ),
             Expr::Reference(_loc, typ, _path) => Some(typ),
             Expr::Word(_loc, typ, _width, _val) => Some(typ),
