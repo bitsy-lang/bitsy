@@ -3,16 +3,16 @@ use super::*;
 grammar(source_info: &SourceInfo);
 
 pub Package: Package = {
-    <decls:Decl*> => Package {
-        decls,
+    <items:Item*> => Package {
+        items,
     },
 }
 
-Decl: Decl = {
-    <m:ModDef> => Decl::ModDef(m),
-    <e:EnumTypeDef> => Decl::EnumTypeDef(e),
-    <e:StructTypeDef> => Decl::StructTypeDef(e),
-    <m:ExtDef> => Decl::ExtDef(m)
+Item: Item = {
+    <m:ModDef> => Item::ModDef(m),
+    <e:EnumTypeDef> => Item::EnumTypeDef(e),
+    <e:StructTypeDef> => Item::StructTypeDef(e),
+    <m:ExtDef> => Item::ExtDef(m)
 }
 
 ModDef: Component = {

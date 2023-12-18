@@ -12,12 +12,12 @@ lalrpop_mod!(ast_grammar);
 /// A `Package` is a compilation unit built from a single file.
 #[derive(Debug, Clone)]
 pub struct Package {
-    decls: Vec<Decl>,
+    items: Vec<Item>,
 }
 
 /// A top-level declaration in a [`Package`].
 #[derive(Debug, Clone)]
-pub enum Decl {
+pub enum Item {
     ModDef(Component),
     ExtDef(Component),
     EnumTypeDef(EnumTypeDef),
