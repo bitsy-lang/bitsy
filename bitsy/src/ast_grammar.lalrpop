@@ -1,0 +1,123 @@
+use super::*;
+
+grammar(source_info: &SourceInfo);
+
+pub Package: Vec<Decl> = {
+    <decls:Decl*> => decls,
+}
+
+Decl: Decl = {
+    <m:ModDef> => Decl::ModDef(m),
+//    <e:EnumTypeDef> => Decl::EnumTypeDef(e),
+//    <e:StructTypeDef> => Decl::StructTypeDef(e),
+//    <m:ExtDef> => Decl::ExtDef(m)
+}
+
+ModDef: Component = {
+    <ll:@L> "mod" <id:Id> "{"
+        <decls:ModDecl*>
+    "}" <rr:@R> => {
+        let mut children = vec![];
+        let mut wires = vec![];
+        let mut whens = vec![];
+
+        for decl in decls {
+            match decl {
+                ModDecl::Component(c) => children.push(c),
+                ModDecl::Wire(w) => wires.push(w),
+                ModDecl::When(w) => whens.push(w),
+            }
+        }
+
+        Component::Mod(Loc::from(source_info, ll, rr), id, children, wires, whens)
+    },
+}
+
+ModDecl: ModDecl  = {
+    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Incoming(Loc::from(source_info, ll, rr), id, typ)),
+    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Outgoing(Loc::from(source_info, ll, rr), id, typ)),
+    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => ModDecl::Component(Component::Node(Loc::from(source_info, ll, rr), id, typ)),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => ModDecl::Component(Component::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1))),
+//    <when:When> => ModDecl::When(when),
+//    <m:Mod> => ModDecl::Component(m),
+//    <m:ModInst> => ModDecl::Component(m),
+//    <wire:Wire> => ModDecl::Wire(wire),
+}
+
+Expr: Box<Expr> = {
+    <e:ExprBase> => e,
+}
+
+ExprBase: Box<Expr> = {
+    <e:ExprLit> => e,
+//    <e:ExprReference> => e,
+//    <e:ExprIf> => e,
+//    <e:ExprLet> => e,
+//    <e:ExprMatch> => e,
+//    <e:ExprHole> => e,
+    "(" <e:Expr> ")" => e,
+}
+
+ExprLit: Box<Expr> = {
+//    <ll:@L> <typename:Id> "::" <name:Id> <rr:@R> =>
+//        Arc::new(Expr::Enum(Loc::from(source_info, ll, rr), OnceCell::new(), typename.into(), name.to_string())),
+
+    <ll:@L> <lit:WordLit> <rr:@R> => {
+        let WordLit(w, v) = lit;
+        Box::new(Expr::Word(Loc::from(source_info, ll, rr), w, v))
+    },
+}
+
+WordLit: WordLit = {
+    <n:Nat> => WordLit(None, n),
+
+    <lit:r"[0-9]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = parts[0].parse().unwrap();
+        let width = parts[1].parse().unwrap();
+        WordLit(Some(width), v)
+    },
+
+    <lit:r"0b[0-1]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = u64::from_str_radix(&parts[0][2..], 2).unwrap();
+        let width = parts[1].parse().unwrap();
+        WordLit(Some(width), v)
+    },
+
+    <lit:r"0x[0-9a-fA-F]+w[0-9]+"> => {
+        let parts = lit.split("w").collect::<Vec<_>>();
+        let v = u64::from_str_radix(&parts[0][2..], 16).unwrap();
+        let width = parts[1].parse().unwrap();
+        WordLit(Some(width), v)
+    },
+}
+
+Type: Type = {
+    "Word" "<" <n:Nat> ">" => Type::Word(n),
+    "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
+    "Valid" "<" <typ:Type> ">" => Type::Valid(Box::new(typ)),
+    <id:Id> => Type::TypeRef(id.into()),
+}
+
+Nat: u64 = {
+    <n:r"[0-9]+"> => n.parse().unwrap(),
+    <n:r"0b[0-9]+"> => u64::from_str_radix(&n[2..], 2).unwrap(),
+    <n:r"0x[0-9]+"> => u64::from_str_radix(&n[2..], 16).unwrap(),
+}
+
+Str: String = {
+    <s:r#""[^"]*""#> => s[1..s.len()-1].to_string(),
+}
+
+Id: String = {
+    <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
+}
+
+match {
+    r"//[^\n\r]*[\r\n]" => {},
+    r"[\r\n]*" => {},
+    r"/\*[^*]*\*/" => {},
+    r" " => {},
+    _,
+}

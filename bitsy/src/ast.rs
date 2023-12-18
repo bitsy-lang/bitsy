@@ -1,11 +1,23 @@
 #![allow(dead_code)]
 use super::loc::Loc;
+use super::loc::SourceInfo;
 
 use super::{Width, UnOp, BinOp, Name, Length};
+
+// use lalrpop_util::ParseError;
+use lalrpop_util::lalrpop_mod;
+lalrpop_mod!(ast_grammar);
 
 #[derive(Debug, Clone)]
 pub struct Package {
     decls: Vec<Decl>,
+}
+
+#[derive(Debug)]
+enum ModDecl {
+    Component(Component),
+    Wire(Wire),
+    When(When),
 }
 
 /// An expression.
