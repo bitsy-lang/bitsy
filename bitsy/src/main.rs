@@ -51,6 +51,18 @@ fn main() {
 
     let text = std::fs::read_to_string(&filename).unwrap().to_string();
 
+    match bitsy::ast::parse_package_from_string(&text) {
+        Err(errors) => {
+            for error in &errors {
+                eprintln!("{error:?}");
+            }
+            // TODO Remove "PARSER" shoutout
+            eprintln!("PARSER: Circuit has {} errors.", errors.len());
+            std::process::exit(1);
+        },
+        Ok(_package) => (),
+    }
+
     let package = match bitsy::load_package_from_string(&text) {
         Ok(package) => package,
         Err(errors) => {
@@ -68,7 +80,7 @@ fn main() {
             None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
         };
 
-        let circuit = match package.top(&top_name) {
+        let _circuit = match package.top(&top_name) {
             Ok(circuit) => circuit,
             Err(error) => {
                 eprintln!("{error:?}");
