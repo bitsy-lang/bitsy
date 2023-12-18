@@ -171,6 +171,21 @@ impl Expr {
                 }
                 Value::Vec(vs)
             },
+            Expr::IdxField(_loc, _typ, e, field) => {
+                let value = e.eval_with_ctx(bitsy, ctx.clone());
+                if let Value::X = value {
+                    Value::X
+                } else if let Value::Struct(_typ, fields) = e.eval_with_ctx(bitsy, ctx.clone()) {
+                    for (fieldname, fieldval) in fields {
+                        if *field == fieldname {
+                            return fieldval;
+                        }
+                    }
+                    panic!();
+                } else {
+                    panic!();
+                }
+            },
             Expr::Idx(_loc, _typ, e, i) => {
                 let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {

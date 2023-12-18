@@ -42,6 +42,7 @@ pub enum Expr {
     ToWord(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
     Vec(Loc, OnceCell<Arc<Type>>, Vec<Arc<Expr>>),
+    IdxField(Loc, OnceCell<Arc<Type>>, Arc<Expr>, String),
     /// A static index. Eg, `foo[0]`.
     Idx(Loc, OnceCell<Arc<Type>>, Arc<Expr>, u64),
     IdxRange(Loc, OnceCell<Arc<Type>>, Arc<Expr>, u64, u64),
@@ -115,6 +116,7 @@ impl HasLoc for Expr {
             Expr::Sext(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
             Expr::Vec(loc, _typ, _es) => loc.clone(),
+            Expr::IdxField(loc, _typ, _e, _field) => loc.clone(),
             Expr::Idx(loc, _typ, _e, _i) => loc.clone(),
             Expr::IdxRange(loc, _typ, _e, _j, _i) => loc.clone(),
 //            Expr::IdxDyn(loc, _typ, _e, _i) => loc.clone(),
@@ -183,6 +185,7 @@ impl std::fmt::Debug for Expr {
                 }
                 write!(f, "]")
             },
+            Expr::IdxField(_loc, _typ, e, field) => write!(f, "{e:?}->{field}"),
             Expr::Idx(_loc, _typ, e, i) => write!(f, "{e:?}[{i}]"),
             Expr::IdxRange(_loc, _typ, e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
 //            Expr::IdxDyn(_loc, e, i) => write!(f, "{e:?}[{i:?}]"),
@@ -298,6 +301,10 @@ impl Expr {
                     e.with_subexprs(callback);
                 }
             },
+            Expr::IdxField(_loc, _typ, e, _field) => {
+                callback(self);
+                e.with_subexprs(callback);
+            },
             Expr::Idx(_loc, _typ, e, _i) => {
                 callback(self);
                 e.with_subexprs(callback);
@@ -405,6 +412,7 @@ impl Expr {
                 result
             },
             Expr::Sext(_loc, _typ, e) => e.free_vars(),
+            Expr::IdxField(_loc, _typ, e, _field) => e.free_vars(),
             Expr::Idx(_loc, _typ, e, _i) => e.free_vars(),
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.free_vars(),
             //Expr::IdxDyn(_loc, e, i) => e.free_vars().union(&i.free_vars()).cloned().collect(),
@@ -434,6 +442,7 @@ impl Expr {
             Expr::Sext(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::ToWord(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::Vec(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::IdxField(_loc, _typ, e, _field) => e.depends_on_net(net_id),
             Expr::Idx(_loc, _typ, e, _i) => e.depends_on_net(net_id),
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.depends_on_net(net_id),
             //Expr::IdxDyn(_loc, e, i) => e.depends_on_net(net_id) || i.depends_on_net(net_id),
@@ -527,6 +536,7 @@ impl Expr {
             Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
+            Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), field.clone()),
             Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *i),
             Expr::IdxRange(loc, typ, e, j, i) => Expr::IdxRange(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *j, *i),
 /*            Expr::IdxDyn(loc, e, i) => {
@@ -635,6 +645,7 @@ impl Expr {
             Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect()),
+            Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), field.clone()),
             Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *i),
             Expr::IdxRange(loc, typ, e, j, i) => Expr::IdxRange(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *j, *i),
 /*            Expr::IdxDyn(loc, e, i) => {
@@ -671,6 +682,7 @@ impl Expr {
             Expr::ToWord(_loc, typ, _e) => Some(typ),
             Expr::Vec(_loc, typ, _es) => Some(typ),
             Expr::Idx(_loc, typ, _e, _i) => Some(typ),
+            Expr::IdxField(_loc, typ, _e, _field) => Some(typ),
             Expr::IdxRange(_loc, typ, _e, _j, _i) => Some(typ),
             //Expr::IdxDyn(_loc, typ, _e, _i) => Some(typ),
             Expr::Hole(_loc, typ, _opt_name) => Some(typ),

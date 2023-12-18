@@ -165,6 +165,24 @@ impl Expr {
                     Ok(())
                 }
             },
+            (_type_expected, Expr::IdxField(_loc, _typ, e, field)) => {
+                // TODO probably want to infer idx exprs rather than check them.
+                match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
+                    Some(Type::Struct(typedef)) => {
+                        if let Some(type_actual) = typedef.type_of_field(field) {
+                            if type_expected == type_actual {
+                                Ok(())
+                            } else {
+                                return Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()));
+                            }
+                        } else {
+                            Err(TypeError::Other(self.clone(), format!("No such field: {field}")))
+                        }
+                    },
+                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Expected struct type, not {typ:?}"))),
+                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
+                }
+            },
             (_type_expected, Expr::Idx(_loc, _typ, e, i)) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
                     Some(Type::Word(n)) if i < n => Ok(()),
