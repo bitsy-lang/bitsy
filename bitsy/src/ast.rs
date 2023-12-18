@@ -1,12 +1,12 @@
 #![allow(dead_code)]
+use super::error::BitsyError;
 use super::loc::Loc;
 use super::loc::SourceInfo;
-use super::error::BitsyError;
 
-use super::{Width, UnOp, BinOp, Name, Length};
+use super::{BinOp, Length, Name, UnOp, Width};
 
-use lalrpop_util::ParseError;
 use lalrpop_util::lalrpop_mod;
+use lalrpop_util::ParseError;
 lalrpop_mod!(ast_grammar);
 
 pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<BitsyError>> {
