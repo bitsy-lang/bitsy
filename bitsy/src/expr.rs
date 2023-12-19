@@ -1,4 +1,3 @@
-use reference::Reference;
 mod typecheck;
 
 use super::*;

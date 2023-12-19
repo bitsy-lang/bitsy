@@ -1,7 +1,6 @@
 pub mod sim;
 pub mod ast;
 mod types;
-mod reference;
 mod package;
 mod component;
 mod circuit;

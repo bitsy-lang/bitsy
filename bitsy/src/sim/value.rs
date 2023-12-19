@@ -1,6 +1,4 @@
-use crate::reference::Reference;
 use crate::types::*;
-use std::sync::Arc;
 
 /// A value used in the simulator (see [`crate::sim::Sim`]).
 #[derive(Clone, Default, PartialEq)]
