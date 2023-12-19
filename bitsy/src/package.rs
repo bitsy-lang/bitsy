@@ -4,7 +4,6 @@ use once_cell::sync::OnceCell;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 pub use ast::WireType;
 
@@ -19,7 +18,7 @@ pub type Name = String;
 /// and connection checking of components.
 #[derive(Debug, Clone)]
 pub struct Package {
-    decls: Vec<Decl>,
+    items: Vec<Item>,
 }
 
 fn resolve_type(typ: &ast::Type, ctx: Context<String, Arc<Type>>) -> Arc<Type> {
@@ -216,21 +215,21 @@ impl Package {
     pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
         let mut user_types = BTreeMap::new();
         let mut moddefs: BTreeMap<String, Arc<Component>> = BTreeMap::new();
-        let mut decls = vec![];
+        let mut items = vec![];
         for item in &ast.items {
             match item {
                 ast::Item::ModDef(moddef) => {
                     let ctx = Context::from(user_types.clone().into_iter().collect());
                     let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
                     let moddef = resolve_moddef(moddef, ctx, mod_ctx);
-                    decls.push(Decl::ModDef(moddef.clone()));
+                    items.push(Item::ModDef(moddef.clone()));
                     moddefs.insert(moddef.name().to_string(), moddef);
                 },
                 ast::Item::ExtDef(moddef) => {
                     let ctx = Context::from(user_types.clone().into_iter().collect());
                     let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
                     let moddef = resolve_extmoddef(moddef, ctx, mod_ctx);
-                    decls.push(Decl::ExtDef(moddef.clone()));
+                    items.push(Item::ExtDef(moddef.clone()));
                     moddefs.insert(moddef.name().to_string(), moddef);
                 },
                 ast::Item::EnumTypeDef(typedef) => {
@@ -246,7 +245,7 @@ impl Package {
         }
 
         let package = Package {
-            decls,
+            items,
         };
 
         package.check()?;
@@ -263,10 +262,10 @@ impl Package {
 
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
         let mut results = vec![];
-        for decl in &self.decls {
-            if let Decl::ModDef(moddef) = &decl {
+        for items in &self.items {
+            if let Item::ModDef(moddef) = &items {
                 results.push(moddef.clone());
-            } else if let Decl::ExtDef(moddef) = &decl {
+            } else if let Item::ExtDef(moddef) = &items {
                 results.push(moddef.clone());
             }
         }
@@ -274,12 +273,12 @@ impl Package {
     }
 
     pub fn moddef(&self, name: &str) -> Option<Arc<Component>> {
-        for decl in &self.decls {
-            if let Decl::ModDef(moddef) = &decl {
+        for item in &self.items {
+            if let Item::ModDef(moddef) = &item {
                 if moddef.name() == name {
                     return Some(moddef.clone());
                 }
-            } else if let Decl::ExtDef(moddef) = &decl {
+            } else if let Item::ExtDef(moddef) = &item {
                 if moddef.name() == name {
                     return Some(moddef.clone());
                 }
@@ -289,8 +288,8 @@ impl Package {
     }
 
     pub fn extdef(&self, name: &str) -> Option<Arc<Component>> {
-        for decl in &self.decls {
-            if let Decl::ExtDef(extdef) = &decl {
+        for item in &self.items {
+            if let Item::ExtDef(extdef) = &item {
                 if extdef.name() == name {
                     return Some(extdef.clone());
                 }
@@ -300,8 +299,8 @@ impl Package {
     }
 
     pub fn typedef(&self, name: &str) -> Option<Arc<EnumTypeDef>> {
-        for decl in &self.decls {
-            if let Decl::EnumTypeDef(typedef) = &decl {
+        for item in &self.items {
+            if let Item::EnumTypeDef(typedef) = &item {
                 if typedef.name == name {
                     return Some(typedef.clone());
                 }
@@ -475,7 +474,7 @@ impl Package {
 
 /// A top-level declaration in a [`Package`].
 #[derive(Debug, Clone)]
-pub enum Decl {
+pub enum Item {
     ModDef(Arc<Component>),
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
