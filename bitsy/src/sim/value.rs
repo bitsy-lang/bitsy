@@ -187,7 +187,7 @@ impl std::fmt::LowerHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-            Value::Struct(typedef, fields) => write!(f, "{self}"),
+            Value::Struct(_typedef, _fields) => write!(f, "{self}"), // TODO
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {

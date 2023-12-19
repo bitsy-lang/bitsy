@@ -8,7 +8,7 @@ use once_cell::sync::OnceCell;
 
 
 /// An expression.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
     Reference(Loc, OnceCell<Type>, Path),
@@ -128,74 +128,6 @@ impl HasLoc for Arc<Expr> {
     fn loc(&self) -> Loc {
         let e: &Expr = &*self;
         e.loc()
-    }
-}
-
-impl std::fmt::Debug for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            Expr::Net(_loc, _typ, netid) => write!(f, "#{netid:?}"),
-            Expr::Reference(_loc, _typ, path) => write!(f, "{path}"),
-            Expr::Word(_loc, _typ, None, val) => write!(f, "{val}"),
-            Expr::Word(_loc, _typ, Some(width), val) => write!(f, "{val}w{width}"),
-            Expr::Enum(_loc, _typ, typedef, name) => write!(f, "{typedef:?}::{name}"),
-            Expr::Let(_loc, _typ, name, e, b) => write!(f, "let {name} = {e:?} {{ {b:?} }}"),
-            Expr::Ctor(_loc, _typ, name, e) => write!(f, "@{name}({e:?})"),
-            Expr::Struct(_loc, _typ, fields) => write!(f, "{{ .. }}"), // TODO
-            Expr::UnOp(_loc, _typ, op, e) => {
-                let op_symbol = match op {
-                    UnOp::Not => "!",
-                };
-                write!(f, "({op_symbol}{e:?})")
-            },
-            Expr::BinOp(_loc, _typ, op, e1, e2) => {
-                let op_symbol = match op {
-                    BinOp::Add => "+",
-                    BinOp::AddCarry => "+%",
-                    BinOp::Sub => "-",
-//                    BinOp::SubBorrow => "-%",
-                    BinOp::And => "&&",
-                    BinOp::Or => "||",
-                    BinOp::Xor => "^",
-                    BinOp::Eq => "==",
-                    BinOp::Neq => "!=",
-                    BinOp::Lt => "<",
-                };
-                write!(f, "({e1:?} {op_symbol} {e2:?})")
-            },
-            Expr::If(_loc, _typ, cond, e1, e2) => {
-                write!(f, "if {cond:?} {{ {e1:?} }} else {{ {e2:?} }}")
-            },
-            Expr::Match(_loc, _typ, e, arms) => {
-                write!(f, "match {e:?} {{ ... }}") // TODO
-            },
-            Expr::Mux(_loc, _typ, cond, e1, e2) => write!(f, "mux({cond:?}, {e1:?}, {e2:?})"),
-            Expr::Cat(_loc, _typ, es) => write!(f, "cat({})", es.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>().join(", ")),
-            Expr::Sext(_loc, _typ, e) => write!(f, "sext({e:?})"),
-            Expr::ToWord(_loc, _typ, e) => write!(f, "word({e:?})"),
-            Expr::Vec(_loc, _typ, es) => {
-                write!(f, "[")?;
-                for (i, e) in es.iter().enumerate() {
-                    if i + 1 < es.len() {
-                        write!(f, "{e:?}, ")?;
-                    } else {
-                        write!(f, "{e:?}")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            Expr::IdxField(_loc, _typ, e, field) => write!(f, "{e:?}->{field}"),
-            Expr::Idx(_loc, _typ, e, i) => write!(f, "{e:?}[{i}]"),
-            Expr::IdxRange(_loc, _typ, e, j, i) => write!(f, "{e:?}[{j}..{i}]"),
-//            Expr::IdxDyn(_loc, e, i) => write!(f, "{e:?}[{i:?}]"),
-            Expr::Hole(_loc, _typ, opt_name) => {
-                if let Some(name) = opt_name {
-                    write!(f, "?{name}")
-                } else {
-                    write!(f, "?")
-                }
-            }
-        }
     }
 }
 
