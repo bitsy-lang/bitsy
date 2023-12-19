@@ -26,9 +26,9 @@ pub enum Type {
 impl Type {
     pub fn name(&self) -> &str {
         match self {
-            Type::Word(width) => "Word",
-            Type::Vec(typ, length) => "Vec",
-            Type::Valid(typ) => "Valid",
+            Type::Word(_width) => "Word",
+            Type::Vec(_typ, _length) => "Vec",
+            Type::Valid(_typ) => "Valid",
             Type::Enum(typedef) => &typedef.name,
             Type::Struct(typedef) => &typedef.name,
         }

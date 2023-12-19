@@ -153,9 +153,58 @@ fn type_dependencies(typ: &ast::Type) -> BTreeSet<String> {
 
 fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
     match expr {
-        ast::Expr::Enum(loc, typ, value) => type_dependencies(typ),
-//        ast::Expr::Struct(loc, fields) => { },
-        _ => BTreeSet::new(),
+        ast::Expr::Ref(_loc, _target) => BTreeSet::new(),
+        ast::Expr::Word(_loc, _w, _v) => BTreeSet::new(),
+        ast::Expr::Enum(_loc, typ, _value) => type_dependencies(typ),
+        ast::Expr::Struct(_loc, _fields) => BTreeSet::new(),
+        ast::Expr::Vec(_loc, es) => {
+            let mut results = BTreeSet::new();
+            for e in es {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::Call(_loc, _func, es) => {
+            let mut results = BTreeSet::new();
+            for e in es {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::Let(_loc, _x, e, b) => {
+            let mut results = BTreeSet::new();
+            for e in &[e, b] {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::UnOp(_loc, _op, e1) => expr_dependencies(e1),
+        ast::Expr::BinOp(_loc, _op, e1, e2) => {
+            let mut results = BTreeSet::new();
+            for e in &[e1, e2] {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::If(_loc, c, e1, e2) => {
+            let mut results = BTreeSet::new();
+            for e in &[c, e1, e2] {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::Match(_loc, e, arms) => {
+            let mut results = BTreeSet::new();
+            results.extend(expr_dependencies(e).into_iter());
+            for ast::MatchArm(_pat, e) in arms {
+                results.extend(expr_dependencies(e).into_iter());
+            }
+            results
+        },
+        ast::Expr::IdxField(_loc, e, _field) => expr_dependencies(e),
+        ast::Expr::Idx(_loc, e, _i) => expr_dependencies(e),
+        ast::Expr::IdxRange(_loc, e, _j, _i) => expr_dependencies(e),
+        ast::Expr::Hole(_loc, _name) => BTreeSet::new(),
     }
 }
 
@@ -165,7 +214,6 @@ fn resolve_type(typ: &ast::Type, ctx: Context<String, Type>) -> Type {
         ast::Type::Vec(t, n) => Type::vec(resolve_type(t, ctx), *n),
         ast::Type::Valid(t) => Type::valid(resolve_type(t, ctx)),
         ast::Type::TypeRef(r) => ctx.lookup(r).expect(&format!("Couldn't find {r}")).clone(),
-            //ctx.lookup(r).unwrap().clone(),
     }
 }
 
@@ -351,5 +399,3 @@ fn target_to_path(target: &ast::Target) -> Path {
         ast::Target::Nonlocal(path, port) => format!("{path}.{port}").into(),
     }
 }
-
-
