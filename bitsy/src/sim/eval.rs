@@ -81,7 +81,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Match(_loc, _typ, _e, arms) => {
+            Expr::Match(_loc, _typ, _e, _arms) => {
                 todo!()
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {

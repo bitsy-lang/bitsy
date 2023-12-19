@@ -110,7 +110,7 @@ impl std::fmt::Debug for Value {
                 write!(f, "]")
             },
             Value::Enum(typ, name) => write!(f, "{}::{}", typ.name(), name),
-            Value::Struct(typedef, fields) => {
+            Value::Struct(_typedef, fields) => {
                 let field_strs: Vec<_> = fields.iter().map(|(name, val)| format!("{name} = {val:?}")).collect();
                 write!(f, "{{ {} }}", field_strs.join(", "))
             },
@@ -150,7 +150,7 @@ impl std::fmt::Display for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-            Value::Struct(typedef, fields) => write!(f, "{self}"),
+            Value::Struct(_typedef, _fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -224,7 +224,7 @@ impl std::fmt::UpperHex for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-            Value::Struct(typedef, fields) => write!(f, "{self}"),
+            Value::Struct(_typedef, _fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {
@@ -261,7 +261,7 @@ impl std::fmt::Binary for Value {
                 write!(f, "]")
             },
             Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
-            Value::Struct(typedef, fields) => write!(f, "{self}"),
+            Value::Struct(_typedef, _fields) => write!(f, "{self}"),
             Value::Ctor(ctor, vs) => {
                 write!(f, "@{ctor}")?;
                 if vs.len() > 0 {

@@ -4,7 +4,6 @@ use crate::sim::ext::ExtInstance;
 use crate::sim::ext::monitor::Monitor;
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 #[test]
 fn buffer() {
