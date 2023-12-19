@@ -156,6 +156,7 @@ dependencies = [
  "lazy_static",
  "log",
  "once_cell",
+ "petgraph",
  "riscy",
  "rustyline",
  "serde_json",

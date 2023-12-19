@@ -23,6 +23,17 @@ pub enum Item {
     StructTypeDef(StructTypeDef),
 }
 
+impl Item {
+    pub fn name(&self) -> &str {
+        match self {
+            Item::ModDef(ModDef(_loc, name, _decls)) => name,
+            Item::ExtDef(ModDef(_loc, name, _decls)) => name,
+            Item::EnumTypeDef(typedef) => typedef.name.as_str(),
+            Item::StructTypeDef(typedef) => typedef.name.as_str(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ModDef(pub Loc, pub Name, pub Vec<Decl>);
 

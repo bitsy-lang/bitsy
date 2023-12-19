@@ -51,20 +51,6 @@ fn main() {
 
     let text = std::fs::read_to_string(&filename).unwrap().to_string();
 
-    match bitsy::ast::parse_package_from_string(&text) {
-        Err(errors) => {
-            for error in &errors {
-                eprintln!("{error:?}");
-            }
-            // TODO Remove "PARSER" shoutout
-            eprintln!("PARSER: Circuit has {} errors.", errors.len());
-            std::process::exit(1);
-        },
-        Ok(package_ast) => {
-            let package = Package::from(&package_ast).unwrap();
-        },
-    }
-
     let package = match bitsy::load_package_from_string(&text) {
         Ok(package) => package,
         Err(errors) => {
