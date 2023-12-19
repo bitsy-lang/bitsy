@@ -2,7 +2,7 @@ use super::error::BitsyError;
 use super::loc::Loc;
 use super::loc::SourceInfo;
 
-use super::{BinOp, Length, Name, UnOp, Width};
+use super::{BinOp, Length, Name, UnOp, Width, Pat};
 
 use lalrpop_util::lalrpop_mod;
 use lalrpop_util::ParseError;
@@ -113,14 +113,6 @@ pub struct Wire(pub Loc, pub Target, pub Box<Expr>, pub WireType);
 /// A [`MatchArm`] is a case for a match expression.
 #[derive(Clone, Debug)]
 pub struct MatchArm(pub Pat, pub Box<Expr>);
-
-/// A [`Pat`] is a pattern for use in match statements and let bindings.
-#[derive(Clone, Debug)]
-pub enum Pat {
-    At(String, Vec<Pat>),
-    Bind(String),
-    Otherwise,
-}
 
 /// A [`WordLit`] is a literal for a hardware integer with an optional width ascription.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -105,18 +105,67 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Arc<Type>>) -> Arc<Expr> 
         ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
         ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
         ast::Expr::Enum(loc, type_name, value) => Expr::Enum(loc.clone(), OnceCell::new(), ctx.lookup(type_name).unwrap(), value.clone()),
-//        ast::Expr::Struct(loc fields) => todo!(),
-//        ast::Expr::Vec(loc, e) => todo!(),
-//        ast::Expr::Call(loc, func, es) => todo!(),
-//        ast::Expr::Let(loc, string, Box<Expr>, Box<Expr>) => todo!(),
+        ast::Expr::Struct(loc, fields) => {
+            let package_fields = fields
+                .into_iter()
+                .map(|(name, expr)| {
+                    (name.to_string(), resolve_expr(expr, ctx.clone()))
+                })
+                .collect();
+            Expr::Struct(loc.clone(), OnceCell::new(), package_fields)
+        },
+        ast::Expr::Vec(loc, es) => {
+            let package_es = es
+                .into_iter()
+                .map(|expr| {
+                    resolve_expr(expr, ctx.clone())
+                })
+                .collect();
+            Expr::Vec(loc.clone(), OnceCell::new(), package_es)
+        },
+        ast::Expr::Call(loc, func, es) => {
+            let package_es = es
+                .into_iter()
+                .map(|expr| {
+                    resolve_expr(expr, ctx.clone())
+                })
+                .collect();
+            match func.as_str() {
+                "cat" => Expr::Cat(loc.clone(), OnceCell::new(), package_es),
+                "mux" => Expr::Mux(loc.clone(), OnceCell::new(), package_es[0].clone(), package_es[1].clone(), package_es[2].clone()),
+                "sext" => Expr::Sext(loc.clone(), OnceCell::new(), package_es[0].clone()),
+                "word" => Expr::Sext(loc.clone(), OnceCell::new(), package_es[0].clone()),
+                _ => panic!("Unknown call: {func}"), // TODO Expr::Call(loc.clone(), OnceCell::new(), func.clone(), package_es),
+            }
+        },
+        ast::Expr::Let(loc, x, e, b) => {
+            let package_e = resolve_expr(e, ctx.clone());
+            let package_b = resolve_expr(b, ctx.clone());
+            Expr::Let(loc.clone(), OnceCell::new(), x.clone(), package_e, package_b)
+        },
         ast::Expr::UnOp(loc, op, e1) => Expr::UnOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone())),
         ast::Expr::BinOp(loc, op, e1, e2) => Expr::BinOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone()), resolve_expr(&e2, ctx.clone())),
-//        ast::Expr::If(loc, box<Expr>, Box<Expr>, Box<Expr>) => todo!(),
-//        ast::Expr::Match(loc, box<Expr>, Vec<MatchArm>) => todo!(),
-//        ast::Expr::IdxField(loc, box<Expr>, String) => todo!(),
-//        ast::Expr::Idx(loc, box<Expr>, u64) => todo!(),
-//        ast::Expr::IdxRange(loc, box<Expr>, u64, u64) => todo!(),
-//        ast::Expr::Hole(loc, option<String>) => todo!(),
+        ast::Expr::If(loc, c, e1, e2) => {
+            let package_c  = resolve_expr(c, ctx.clone());
+            let package_e1 = resolve_expr(e1, ctx.clone());
+            let package_e2 = resolve_expr(e2, ctx.clone());
+            Expr::If(loc.clone(), OnceCell::new(), package_c, package_e1, package_e2)
+        },
+        ast::Expr::Match(loc, e, arms) => {
+            let package_e  = resolve_expr(e, ctx.clone());
+            let package_arms = arms
+                .into_iter()
+                .map(|ast::MatchArm(pat, expr)| {
+                    let package_expr = resolve_expr(expr, ctx.clone());
+                    MatchArm(pat.clone(), package_expr)
+                })
+                .collect();
+            Expr::Match(loc.clone(), OnceCell::new(), package_e, package_arms)
+        },
+        ast::Expr::IdxField(loc, e, field) => Expr::IdxField(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), field.clone()),
+        ast::Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *i),
+        ast::Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *j, *i),
+        ast::Expr::Hole(loc, name) => Expr::Hole(loc.clone(), OnceCell::new(), name.clone()),
         _ => todo!(),
     })
 }
