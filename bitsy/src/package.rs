@@ -20,7 +20,6 @@ pub type Name = String;
 #[derive(Debug, Clone)]
 pub struct Package {
     decls: Vec<Decl>,
-    user_types: BTreeMap<String, Arc<Type>>,
 }
 
 fn resolve_type(typ: &ast::Type, ctx: Context<String, Arc<Type>>) -> Arc<Type> {
@@ -248,28 +247,8 @@ impl Package {
 
         let package = Package {
             decls,
-            user_types,
         };
 
-        package.check()?;
-        Ok(package)
-    }
-
-    pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<BitsyError>> {
-        let mut user_types: BTreeMap<String, Arc<Type>> = BTreeMap::new();
-        for decl in &decls {
-            if let Decl::EnumTypeDef(typedef) = decl {
-                user_types.insert(typedef.name.clone(), Arc::new(Type::Enum(typedef.clone())));
-            } else if let Decl::StructTypeDef(typedef) = decl {
-                user_types.insert(typedef.name.clone(), Arc::new(Type::Struct(typedef.clone())));
-            }
-        }
-
-        let package = Package {
-            decls,
-            user_types,
-        };
-        //package.resolve_references()?;
         package.check()?;
         Ok(package)
     }

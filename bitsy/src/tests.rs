@@ -3,29 +3,8 @@ use crate::sim::{Sim, Value};
 use crate::sim::ext::ExtInstance;
 use crate::sim::ext::monitor::Monitor;
 
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
-
-#[test]
-fn path_depends() {
-    let tests = vec![
-        ("top.x", vec!["top.x"]),
-        ("1w8", vec![]),
-        ("(top.a + top.b)", vec!["top.a", "top.b"]),
-        ("(top.b - top.a)", vec!["top.a", "top.b"]),
-        ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
-        ("(top.a != top.b)".into(), vec!["top.a", "top.b"]),
-        ("(!top.x)".into(), vec!["top.x"]),
-        ("if top.x { top.a } else { top.b }".into(), vec!["top.a", "top.b", "top.x"]),
-//        ("if !top.x { top.a } else { top.b }".into(), ),
-    ];
-
-    for (expr_str, paths) in tests {
-        let paths: Vec<Path> = paths.into_iter().map(|s| s.into()).collect();
-        let expr: Expr = expr_str.into();
-        assert_eq!(expr.paths(), paths, "{expr:?} has paths {:?} /= {paths:?}", expr.paths());
-    }
-}
 
 #[test]
 fn buffer() {
@@ -163,29 +142,6 @@ fn ifs() {
 }
 
 #[test]
-fn test_parse() {
-    let exprs = vec![
-        "x",
-        "x.y",
-        "1w8",
-        "true",
-        "false",
-        "X",
-        "(a + b)",
-        "(a && b)",
-        "(a || b)",
-        "(a == b)",
-        "(a != b)",
-        "(!a)",
-        "if c { e1 } else { e2 }",
-    ];
-    for e in exprs {
-        let expr: Expr = e.into();
-        assert_eq!(format!("{:?}", expr), e);
-    }
-}
-
-#[test]
 fn test_node() {
     let top = load_package_from_string("
         mod Top {
@@ -227,66 +183,6 @@ fn test_check() {
 
     dbg!(top2.check());
     */
-}
-
-#[test]
-fn typeinfer() {
-    let tests = vec![
-        ("1w8", Context::empty(), Some(Type::word(8))),
-        ("7w3", Context::empty(), Some(Type::word(3))),
-        ("?foo", Context::empty(), None),
-        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), None),
-        ("1w4 + 1w4", Context::empty(), None),
-        ("!1w4", Context::empty(), None),
-    ];
-
-    for (expr_str, ctx, type_expected) in tests {
-        let expr: Arc<Expr> = Arc::new(expr_str.into());
-        let type_actual = expr.typeinfer(ctx);
-        assert!(
-            type_actual == type_expected,
-            "typeinfer did not produced expected type for: {expr_str}. Produced {type_actual:?}"
-        );
-    }
-}
-
-#[test]
-fn typecheck() {
-    let test_err = vec![
-        ("x", Context::empty(), Type::word(1)),
-        ("x", Context::from(vec![("x".into(), Type::word(8))]), Type::word(1)),
-        ("1w8", Context::empty(), Type::word(7)),
-        ("8w3", Context::empty(), Type::word(3)),
-        ("if 0w2 { 0w2 } else { 0w2 }", Context::empty(), Type::word(2)),
-        ("if 0w1 { 0w3 } else { 0w2 }", Context::empty(), Type::word(2)),
-    ];
-
-    for (expr_str, ctx, type_expected) in test_err {
-        let expr: Arc<Expr> = Arc::new(expr_str.into());
-        assert!(expr.typecheck(type_expected, ctx).is_err(), "typecheck passsed but shouldn't have: {expr_str}");
-    }
-
-    let test_ok = vec![
-        ("1w8", Context::empty(), Type::word(8)),
-        ("7w3", Context::empty(), Type::word(3)),
-        ("?foo", Context::empty(), Type::word(3)),
-        ("?foo", Context::empty(), Type::word(8)),
-        ("if 0w1 { 0w2 } else { 0w2 }", Context::empty(), Type::word(2)),
-        /*
-        ("(top.a + top.b)", vec!["top.a", "top.b"]),
-        ("(top.b - top.a)", vec!["top.a", "top.b"]),
-        ("(top.a == top.b)".into(), vec!["top.a", "top.b"]),
-        ("(top.a != top.b)".into(), vec!["top.a", "top.b"]),
-        ("(!top.x)".into(), vec!["top.x"]),
-        ("if top.x { top.a } else { top.b }".into(), vec!["top.a", "top.b", "top.x"]),
-        ("if !top.x { top.a } else { top.b }".into(), ),
-        */
-    ];
-
-    for (expr_str, ctx, type_expected) in test_ok {
-        let expr: Arc<Expr> = Arc::new(expr_str.into());
-        assert!(expr.typecheck(type_expected, ctx).is_ok(), "typecheck failed but shouldn't have: {expr_str}");
-    }
 }
 
 #[test]

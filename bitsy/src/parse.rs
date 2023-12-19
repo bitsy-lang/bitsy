@@ -29,9 +29,3 @@ fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Pa
     let package_ast = crate::ast::parse_package_from_string(package_text)?;
     Package::from(&package_ast)
 }
-
-impl From<&str> for Expr {
-    fn from(expr: &str) -> Expr {
-        todo!()
-    }
-}
