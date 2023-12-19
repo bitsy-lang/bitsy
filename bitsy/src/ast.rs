@@ -6,7 +6,7 @@ use super::{BinOp, Length, Name, UnOp, Width, Pat};
 
 use lalrpop_util::lalrpop_mod;
 use lalrpop_util::ParseError;
-lalrpop_mod!(ast_grammar);
+lalrpop_mod!(grammar);
 
 /// A `Package` is a compilation unit built from a single file.
 #[derive(Debug, Clone)]
@@ -148,7 +148,7 @@ pub struct When(pub Box<Expr>, pub Vec<Wire>);
 
 pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<BitsyError>> {
     let source_info = SourceInfo::from_string(package_text);
-    match ast_grammar::PackageParser::new().parse(&source_info, &package_text) {
+    match grammar::PackageParser::new().parse(&source_info, &package_text) {
         Err(ParseError::UnrecognizedToken { token, expected }) => {
             let start_idx = token.0;
             let end_idx = token.2;
