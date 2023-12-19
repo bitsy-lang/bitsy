@@ -15,7 +15,7 @@ pub enum Value {
     /// An element of `Valid<T>`.
     Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
-    Enum(Reference<Type>, String),
+    Enum(Arc<Type>, String),
     Struct(Arc<Type>, Vec<(String, Value)>),
 }
 
@@ -111,7 +111,7 @@ impl std::fmt::Debug for Value {
                 }
                 write!(f, "]")
             },
-            Value::Enum(typedef, name) => write!(f, "{}::{}", typedef.name(), name),
+            Value::Enum(typ, name) => write!(f, "{}::{}", typ.name(), name),
             Value::Struct(typedef, fields) => {
                 let field_strs: Vec<_> = fields.iter().map(|(name, val)| format!("{name} = {val:?}")).collect();
                 write!(f, "{{ {} }}", field_strs.join(", "))

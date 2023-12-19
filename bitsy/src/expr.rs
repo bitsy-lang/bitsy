@@ -18,7 +18,7 @@ pub enum Expr {
     /// A literal Word.
     Word(Loc, OnceCell<Arc<Type>>, Option<Width>, u64),
     /// A literal enum value.
-    Enum(Loc, OnceCell<Arc<Type>>, Reference<Type>, String),
+    Enum(Loc, OnceCell<Arc<Type>>, Arc<Type>, String),
     /// Constructor (for `Valid<T>`)
     Ctor(Loc, OnceCell<Arc<Type>>, String, Vec<Arc<Expr>>),
     Struct(Loc, OnceCell<Arc<Type>>, Vec<(String, Arc<Expr>)>),

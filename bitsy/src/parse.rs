@@ -2,9 +2,9 @@ use super::*;
 
 use std::sync::Arc;
 
-use lalrpop_util::ParseError;
-use lalrpop_util::lalrpop_mod;
-lalrpop_mod!(grammar);
+//use lalrpop_util::ParseError;
+//use lalrpop_util::lalrpop_mod;
+//lalrpop_mod!(grammar);
 
 #[derive(Debug)]
 enum ModDecl {
@@ -25,45 +25,13 @@ pub fn load_package_from_string(package_text: &str) -> Result<Package, Vec<Bitsy
 }
 
 fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Package, Vec<BitsyError>> {
-    match grammar::PackageParser::new().parse(&source_info, &package_text) {
-        Ok(decls) => {
-            Package::new(decls)
-        },
-        Err(ParseError::UnrecognizedToken { token, expected }) => {
-            let start_idx = token.0;
-            let end_idx = token.2;
-            let loc = Loc::from(&source_info, start_idx, end_idx);
-
-            let message = format!("Parse error: Expected one of {}", expected.join(" "));
-            return Err(vec![BitsyError::ParseError(loc, message)]);
-        },
-        Err(ParseError::InvalidToken { location }) => {
-            let loc = Loc::from(&source_info, location, location + 1);
-            let message = format!("Parse error");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
-        },
-        Err(ParseError::ExtraToken { token }) => {
-            let start_idx = token.0;
-            let end_idx = token.2;
-            let loc = Loc::from(&source_info, start_idx, end_idx);
-            let message = format!("Parse error: extra token: {token:?}");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
-        },
-        Err(ParseError::UnrecognizedEof { location, expected }) => {
-            let loc = Loc::from(&source_info, location, location + 1);
-            let message = format!("Parse error: Unexpected end of file: Expected {expected:?}");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
-        },
-        Err(ParseError::User { error }) => {
-            let message = format!("Parse error: {error:?}");
-            return Err(vec![BitsyError::ParseError(Loc::unknown(), message)]);
-        },
-    }
+    // TODO source info
+    let package_ast = crate::ast::parse_package_from_string(package_text)?;
+    Package::from(&package_ast)
 }
 
 impl From<&str> for Expr {
     fn from(expr: &str) -> Expr {
-        let source_info = SourceInfo::from_string(expr);
-        Expr::clone(&grammar::ExprParser::new().parse(&source_info, expr).unwrap())
+        todo!()
     }
 }

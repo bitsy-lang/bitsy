@@ -32,7 +32,7 @@ impl Expr {
                 }
             },
             (_type_expected, Expr::Enum(_loc, _typ, typedef, _name)) => {
-                if type_expected == typedef.get().unwrap() {
+                if type_expected == *typedef {
                     Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
@@ -227,7 +227,7 @@ impl Expr {
                 None
             },
             Expr::Enum(loc, _typ, typedef, _name) => {
-                Some(typedef.get().unwrap().clone())
+                Some(typedef.clone())
             },
             Expr::Cat(_loc, _typ, es) => {
                 let mut w = 0u64;
@@ -242,12 +242,8 @@ impl Expr {
             },
             Expr::ToWord(loc, _typ, e) => {
                 match e.typeinfer(ctx.clone()).as_ref().map(|arc| &**arc) {
-                    Some(Type::TypeRef(typedef)) => {
-                        if let Some(typedef) = typedef.get() {
-                            Some(Type::word(typedef.bitwidth()))
-                        } else {
-                            panic!("Unresolved typedef: {:?} location: {loc:?}", typedef.name())
-                        }
+                    Some(Type::Enum(typedef)) => {
+                        Some(Type::word(typedef.bitwidth()))
                     }
                     _ => None,
                 }

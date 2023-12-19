@@ -1,8 +1,12 @@
 use super::*;
 
+use once_cell::sync::OnceCell;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+pub use ast::WireType;
 
 pub type Name = String;
 
@@ -19,7 +23,144 @@ pub struct Package {
     user_types: BTreeMap<String, Arc<Type>>,
 }
 
+fn resolve_type(typ: &ast::Type, ctx: Context<String, Arc<Type>>) -> Arc<Type> {
+    match typ {
+        ast::Type::Word(n) => Type::word(*n),
+        ast::Type::Vec(t, n) => Type::vec(resolve_type(t, ctx), *n),
+        ast::Type::Valid(t) => Type::valid(resolve_type(t, ctx)),
+        ast::Type::TypeRef(r) => ctx.lookup(r).unwrap().clone(),
+    }
+}
+
+fn resolve_struct_typedef(typedef: &ast::StructTypeDef, ctx: Context<String, Arc<Type>>) -> Arc<StructTypeDef> {
+    let mut fields: BTreeMap<String, Arc<Type>> = BTreeMap::new();
+    for (name, typ) in &typedef.fields {
+        fields.insert(name.to_string(), resolve_type(typ, ctx.clone()));
+    }
+
+    let package_typedef = Arc::new(StructTypeDef {
+        name: typedef.name.to_string(),
+        fields: fields.into_iter().collect(),
+    });
+    package_typedef
+}
+
+fn resolve_enum_typedef(typedef: &ast::EnumTypeDef) -> Arc<EnumTypeDef> {
+    let package_typedef = Arc::new(EnumTypeDef {
+        name: typedef.name.to_string(),
+        values: typedef.values.clone(),
+    });
+    package_typedef
+}
+
+fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Arc<Type>>) -> Arc<Component> {
+    let ast::ModDef(loc, name, decls) = moddef;
+    let mut children = vec![];
+    let mut wires = vec![];
+    let mut whens = vec![];
+
+    for decl in decls {
+        match decl {
+            ast::Decl::Mod(loc, name, decls) => todo!(),
+            ast::Decl::ModInst(loc, name, moddef_name) => todo!(),
+            ast::Decl::Incoming(loc, name, typ) => {
+                let child = Component::Incoming(loc.clone(), name.clone(), resolve_type(typ, ctx.clone()));
+                children.push(Arc::new(child));
+            },
+            ast::Decl::Outgoing(loc, name, typ) => {
+                let child = Component::Outgoing(loc.clone(), name.clone(), resolve_type(typ, ctx.clone()));
+                children.push(Arc::new(child));
+            },
+            ast::Decl::Node(loc, name, typ) => {
+                let child = Component::Node(loc.clone(), name.clone(), resolve_type(typ, ctx.clone()));
+                children.push(Arc::new(child));
+            },
+            ast::Decl::Reg(loc, name, typ, reset) => {
+                let child = Component::Reg(
+                    loc.clone(),
+                    name.clone(),
+                    resolve_type(typ, ctx.clone()),
+                    reset.clone().map(|e| resolve_expr(&e, ctx.clone())),
+                );
+                children.push(Arc::new(child));
+            },
+            ast::Decl::Wire(loc, ast::Wire(_loc, target, expr, wire_type)) => {
+                let wire = Wire(
+                    loc.clone(),
+                    target_to_path(target),
+                    resolve_expr(expr, ctx.clone()),
+                    wire_type.clone(),
+                );
+                wires.push(wire);
+            },
+            ast::Decl::When(loc, when) => todo!(),
+        }
+    }
+
+    Arc::new(Component::Mod(loc.clone(), name.clone(), children, wires, whens))
+}
+
+fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Arc<Type>>) -> Arc<Expr> {
+    Arc::new(match expr {
+        ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
+        ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
+        ast::Expr::Enum(loc, type_name, value) => Expr::Enum(loc.clone(), OnceCell::new(), ctx.lookup(type_name).unwrap(), value.clone()),
+//        ast::Expr::Struct(loc fields) => todo!(),
+//        ast::Expr::Vec(loc, e) => todo!(),
+//        ast::Expr::Call(loc, func, es) => todo!(),
+//        ast::Expr::Let(loc, string, Box<Expr>, Box<Expr>) => todo!(),
+        ast::Expr::UnOp(loc, op, e1) => Expr::UnOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone())),
+        ast::Expr::BinOp(loc, op, e1, e2) => Expr::BinOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone()), resolve_expr(&e2, ctx.clone())),
+//        ast::Expr::If(loc, box<Expr>, Box<Expr>, Box<Expr>) => todo!(),
+//        ast::Expr::Match(loc, box<Expr>, Vec<MatchArm>) => todo!(),
+//        ast::Expr::IdxField(loc, box<Expr>, String) => todo!(),
+//        ast::Expr::Idx(loc, box<Expr>, u64) => todo!(),
+//        ast::Expr::IdxRange(loc, box<Expr>, u64, u64) => todo!(),
+//        ast::Expr::Hole(loc, option<String>) => todo!(),
+        _ => todo!(),
+    })
+}
+
+fn target_to_path(target: &ast::Target) -> Path {
+    match target {
+        ast::Target::Local(path) => path.to_string().into(),
+        ast::Target::Nonlocal(path, port) => format!("{path}.{port}").into(),
+    }
+}
+
 impl Package {
+    pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
+        let mut user_types = BTreeMap::new();
+        let mut decls = vec![];
+        for item in &ast.items {
+            match item {
+                ast::Item::ModDef(moddef) => {
+                    let ctx = Context::from(user_types.clone().into_iter().collect());
+                    let moddef = resolve_moddef(moddef, ctx);
+                    decls.push(Decl::ModDef(moddef));
+                },
+                ast::Item::ExtDef(moddef) => todo!(),
+                ast::Item::EnumTypeDef(typedef) => {
+                    let typedef = resolve_enum_typedef(typedef);
+                    user_types.insert(typedef.name.to_string(), Arc::new(Type::Enum(typedef)));
+                },
+                ast::Item::StructTypeDef(typedef) => {
+                    let ctx = Context::from(user_types.clone().into_iter().collect());
+                    let typedef = resolve_struct_typedef(typedef, ctx);
+                    user_types.insert(typedef.name.to_string(), Arc::new(Type::Struct(typedef)));
+                },
+            }
+        }
+
+        let package = Package {
+            decls,
+            user_types,
+        };
+
+        package.check()?;
+        Ok(package)
+    }
+
     pub fn new(decls: Vec<Decl>) -> Result<Package, Vec<BitsyError>> {
         let mut user_types: BTreeMap<String, Arc<Type>> = BTreeMap::new();
         for decl in &decls {
@@ -34,7 +175,7 @@ impl Package {
             decls,
             user_types,
         };
-        package.resolve_references()?;
+        //package.resolve_references()?;
         package.check()?;
         Ok(package)
     }
@@ -96,6 +237,7 @@ impl Package {
         None
     }
 
+    /*
     /// Iterate over all declarations and resolve references.
     ///
     /// Submodule instances (eg, `mod foo of Foo`) will resolve the module definition (eg, `Foo`).
@@ -185,6 +327,7 @@ impl Package {
             },
         }
     }
+    */
 
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
     pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Arc<Type>> {
@@ -234,7 +377,7 @@ impl Package {
     }
 
     pub fn type_of(&self, component: Arc<Component>) -> Option<Arc<Type>> {
-        let typ = match &*component {
+        match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,
             Component::Ext(_loc, _name, _children) => None,
@@ -242,14 +385,6 @@ impl Package {
             Component::Outgoing(_loc, _name, typ) => Some(typ.clone()),
             Component::Incoming(_loc, _name, typ) => Some(typ.clone()),
             Component::Reg(_loc, _name, typ, _reset) => Some(typ.clone()),
-        };
-        if let Some(mut typ) = typ {
-            while let Type::TypeRef(r) = &*typ {
-                typ = r.get().unwrap();
-            }
-            Some(typ)
-        } else {
-            None
         }
     }
 
@@ -276,17 +411,6 @@ pub enum Decl {
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
     StructTypeDef(Arc<StructTypeDef>),
-}
-
-/// The different kinds of [`Wire`]s in Bitsy.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum WireType {
-    /// Direct wire. Written `:=` in the syntax. Connects one terminal to another.
-    Direct,
-    /// Latched wire. Written `<=` in the syntax. Connects one terminal to the data pin of a register.
-    Latch,
-    /// Procedural. Written `<=!` in the syntax. Connects one terminal to the data pin of a register.
-    Proc,
 }
 
 /// [`Wire`]s drive the value of port, node, or register.

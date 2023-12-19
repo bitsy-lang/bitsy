@@ -272,8 +272,8 @@ impl Expr {
 fn type_to_mlir(typ: Arc<Type>) -> String {
     match &*typ {
         Type::Word(n) => format!("i{n}"),
-        Type::TypeRef(typedef) => {
-            let typedef = typedef.get().unwrap();
+        Type::Struct(typedef) => {
+            let typedef = typedef;
             let n = typedef.bitwidth();
             format!("i{n}")
         },

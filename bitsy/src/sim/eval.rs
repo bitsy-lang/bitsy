@@ -150,9 +150,9 @@ impl Expr {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
-                    Value::Enum(typedef, name) => {
-                        if let Type::Enum(typedef) = &*typedef.get().unwrap() {
-                            Value::Word(typedef.bitwidth(), typedef.value_of(&name).unwrap())
+                    Value::Enum(typ, name) => {
+                        if let Type::Enum(typ) = &*typ {
+                            Value::Word(typ.bitwidth(), typ.value_of(&name).unwrap())
                         } else {
                             panic!();
                         }

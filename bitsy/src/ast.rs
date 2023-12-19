@@ -24,7 +24,7 @@ pub enum Item {
 }
 
 #[derive(Debug, Clone)]
-pub struct ModDef(Loc, Name, Vec<Decl>);
+pub struct ModDef(pub Loc, pub Name, pub Vec<Decl>);
 
 /// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]

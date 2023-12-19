@@ -60,7 +60,9 @@ fn main() {
             eprintln!("PARSER: Circuit has {} errors.", errors.len());
             std::process::exit(1);
         },
-        Ok(_package) => (),
+        Ok(package_ast) => {
+            let package = Package::from(&package_ast).unwrap();
+        },
     }
 
     let package = match bitsy::load_package_from_string(&text) {

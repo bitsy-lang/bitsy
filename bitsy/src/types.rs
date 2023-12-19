@@ -1,6 +1,8 @@
 use crate::reference::Reference;
 use std::sync::Arc;
 
+pub use crate::ast::WordLit; // re-export
+
 /// The bitwidth of a [`Type::Word`].
 pub type Width = u64;
 
@@ -20,17 +22,29 @@ pub enum Type {
     Enum(Arc<EnumTypeDef>),
     /// A user-defined `struct`.
     Struct(Arc<StructTypeDef>),
-    /// An unresolved reference to a user-defined type.
-    TypeRef(Reference<Type>),
 }
 
 impl Type {
+    pub fn name(&self) -> &str {
+        match self {
+            Type::Word(width) => "Word",
+            Type::Vec(typ, length) => "Vec",
+            Type::Valid(typ) => "Valid",
+            Type::Enum(typedef) => &typedef.name,
+            Type::Struct(typedef) => &typedef.name,
+        }
+    }
+
     pub fn word(w: Width) -> Arc<Type> {
         Arc::new(Type::Word(w))
     }
 
     pub fn vec(typ: Arc<Type>, n: Length) -> Arc<Type> {
         Arc::new(Type::Vec(typ, n))
+    }
+
+    pub fn valid(typ: Arc<Type>) -> Arc<Type> {
+        Arc::new(Type::Valid(typ))
     }
 
     pub fn bitwidth(&self) -> Width {
@@ -40,13 +54,9 @@ impl Type {
             Type::Vec(typ, n) => typ.bitwidth() * n,
             Type::Enum(typedef) => typedef.bitwidth(),
             Type::Struct(typedef) => typedef.bitwidth(),
-            Type::TypeRef(typeref) => typeref.get().unwrap().bitwidth(),
         }
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WordLit(pub Option<Width>, pub u64);
 
 /// A user-defined `enum` type.
 #[derive(Debug, Clone, PartialEq)]
@@ -63,7 +73,7 @@ pub struct StructTypeDef {
 }
 
 impl StructTypeDef {
-    fn bitwidth(&self) -> Width {
+    pub fn bitwidth(&self) -> Width {
         self.fields.iter().map(|(_name, typ)| typ.bitwidth()).sum()
     }
 
@@ -112,7 +122,6 @@ impl std::fmt::Debug for Type {
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
             Type::Struct(typedef) => write!(f, "{}", typedef.name),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
-            Type::TypeRef(reference) => write!(f, "{}", reference.name()),
         }
     }
 }

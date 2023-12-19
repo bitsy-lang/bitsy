@@ -106,7 +106,7 @@ ModInst: Decl = {
     <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Loc::from(source_info, ll, rr), id, modname.into()),
 }
 
-pub Expr: Box<Expr> = {
+Expr: Box<Expr> = {
     <e:ExprOr> => e,
 }
 
@@ -268,7 +268,7 @@ WordLit: WordLit = {
     },
 }
 
-pub Ctor: String = {
+Ctor: String = {
     <id:r"@[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
 }
 
