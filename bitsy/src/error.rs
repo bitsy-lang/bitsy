@@ -19,7 +19,7 @@ pub enum BitsyError {
 #[derive(Clone, Debug)]
 pub enum TypeError {
     UndefinedReference(Arc<Expr>),
-    NotExpectedType(Arc<Type>, Arc<Type>, Arc<Expr>),
+    NotExpectedType(Type, Type, Arc<Expr>),
     InvalidWord(Arc<Expr>),
     CantInferType(Arc<Expr>),
     Other(Arc<Expr>, String),

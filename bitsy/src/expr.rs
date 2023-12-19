@@ -12,44 +12,44 @@ use once_cell::sync::OnceCell;
 #[derive(Clone)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Reference(Loc, OnceCell<Arc<Type>>, Path),
+    Reference(Loc, OnceCell<Type>, Path),
     /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
-    Net(Loc, OnceCell<Arc<Type>>, NetId),
+    Net(Loc, OnceCell<Type>, NetId),
     /// A literal Word.
-    Word(Loc, OnceCell<Arc<Type>>, Option<Width>, u64),
+    Word(Loc, OnceCell<Type>, Option<Width>, u64),
     /// A literal enum value.
-    Enum(Loc, OnceCell<Arc<Type>>, Arc<Type>, String),
+    Enum(Loc, OnceCell<Type>, Type, String),
     /// Constructor (for `Valid<T>`)
-    Ctor(Loc, OnceCell<Arc<Type>>, String, Vec<Arc<Expr>>),
-    Struct(Loc, OnceCell<Arc<Type>>, Vec<(String, Arc<Expr>)>),
+    Ctor(Loc, OnceCell<Type>, String, Vec<Arc<Expr>>),
+    Struct(Loc, OnceCell<Type>, Vec<(String, Arc<Expr>)>),
     /// Let binding. Eg, `let x = a + b in x + x`.
-    Let(Loc, OnceCell<Arc<Type>>, String, Arc<Expr>, Arc<Expr>),
+    Let(Loc, OnceCell<Type>, String, Arc<Expr>, Arc<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
-    UnOp(Loc, OnceCell<Arc<Type>>, UnOp, Arc<Expr>),
+    UnOp(Loc, OnceCell<Type>, UnOp, Arc<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
-    BinOp(Loc, OnceCell<Arc<Type>>, BinOp, Arc<Expr>, Arc<Expr>),
+    BinOp(Loc, OnceCell<Type>, BinOp, Arc<Expr>, Arc<Expr>),
     /// An `if` expression.
-    If(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
+    If(Loc, OnceCell<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A `match` expression.
-    Match(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Vec<MatchArm>),
+    Match(Loc, OnceCell<Type>, Arc<Expr>, Vec<MatchArm>),
     /// A multiplexer. Eg, `mux(cond, a, b)`.
-    Mux(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
+    Mux(Loc, OnceCell<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A concatenate expression. Eg, `cat(foo, 0w1)`.
-    Cat(Loc, OnceCell<Arc<Type>>, Vec<Arc<Expr>>),
+    Cat(Loc, OnceCell<Type>, Vec<Arc<Expr>>),
     /// A sign extension expression.
-    Sext(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
+    Sext(Loc, OnceCell<Type>, Arc<Expr>),
     /// A word expression. Used to cast user-defined `enum` types to their bit values.
-    ToWord(Loc, OnceCell<Arc<Type>>, Arc<Expr>),
+    ToWord(Loc, OnceCell<Type>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
-    Vec(Loc, OnceCell<Arc<Type>>, Vec<Arc<Expr>>),
-    IdxField(Loc, OnceCell<Arc<Type>>, Arc<Expr>, String),
+    Vec(Loc, OnceCell<Type>, Vec<Arc<Expr>>),
+    IdxField(Loc, OnceCell<Type>, Arc<Expr>, String),
     /// A static index. Eg, `foo[0]`.
-    Idx(Loc, OnceCell<Arc<Type>>, Arc<Expr>, u64),
-    IdxRange(Loc, OnceCell<Arc<Type>>, Arc<Expr>, u64, u64),
+    Idx(Loc, OnceCell<Type>, Arc<Expr>, u64),
+    IdxRange(Loc, OnceCell<Type>, Arc<Expr>, u64, u64),
 //    /// A static index range. Eg, `foo[8..4]`.
-//    IdxDyn(Loc, OnceCell<Arc<Type>>, Arc<Expr>, Arc<Expr>),
+//    IdxDyn(Loc, OnceCell<Type>, Arc<Expr>, Arc<Expr>),
     /// A hole. Eg, `?foo`.
-    Hole(Loc, OnceCell<Arc<Type>>, Option<String>),
+    Hole(Loc, OnceCell<Type>, Option<String>),
 }
 
 #[derive(Clone, Debug)]
@@ -659,11 +659,11 @@ impl Expr {
         })
     }
 
-    pub fn type_of(&self) -> Arc<Type> {
+    pub fn type_of(&self) -> Type {
         self.type_of_cell().unwrap().get().unwrap().clone()
     }
 
-    fn type_of_cell(&self) -> Option<&OnceCell<Arc<Type>>> {
+    fn type_of_cell(&self) -> Option<&OnceCell<Type>> {
         match self {
             Expr::Net(_loc, typ, _netid) => Some(typ),
             Expr::Reference(_loc, typ, _path) => Some(typ),

@@ -18,7 +18,7 @@ impl Expr {
             }
             Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
             Expr::Word(_loc, typ, _width, value) => {
-                if let Type::Word(width) = &**typ.get().unwrap() {
+                if let Type::Word(width) = typ.get().unwrap() {
                     Value::Word(*width, *value)
                 } else {
                     unreachable!()
@@ -120,7 +120,7 @@ impl Expr {
                 }
             },
             Expr::Sext(_loc, typ, e) => {
-                let n = if let Type::Word(n) = **typ.get().unwrap() {
+                let n = if let Type::Word(n) = typ.get().unwrap() {
                     n
                 } else {
                     unreachable!()
@@ -129,13 +129,13 @@ impl Expr {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
                     Value::Word(w, x) => {
-                        if w <= n {
+                        if w <= *n {
                             let is_negative = x & (1 << (w - 1)) > 0;
                             if is_negative {
                                 let flips = ((1 << (n - w)) - 1) << w;
-                                Value::Word(n, flips | x)
+                                Value::Word(*n, flips | x)
                             } else {
-                                Value::Word(n, x)
+                                Value::Word(*n, x)
                             }
                         } else {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
@@ -151,7 +151,7 @@ impl Expr {
                 match v {
                     Value::X => Value::X,
                     Value::Enum(typ, name) => {
-                        if let Type::Enum(typ) = &*typ {
+                        if let Type::Enum(typ) = typ {
                             Value::Word(typ.bitwidth(), typ.value_of(&name).unwrap())
                         } else {
                             panic!();

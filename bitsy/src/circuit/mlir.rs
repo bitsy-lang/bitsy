@@ -12,10 +12,10 @@ impl Package {
     }
 
     fn emit_mlir_moddef(&self, moddef: Arc<Component>) {
-        let mut ports: Vec<(bool, String, Arc<Type>)> = vec![];
+        let mut ports: Vec<(bool, String, Type)> = vec![];
         let mut output_ports: Vec<String> = vec![];
         let mut output_port_ssas: BTreeMap<String, String> = BTreeMap::new();
-        let mut output_port_types: Vec<Arc<Type>> = vec![];
+        let mut output_port_types: Vec<Type> = vec![];
 
         for (_path, port) in moddef.port_paths() {
             let name = port.name().to_string();
@@ -70,7 +70,7 @@ impl Package {
         println!("}}");
     }
 
-    fn emit_mlir_moddef_portlist(&self, ports: &[(bool, String, Arc<Type>)]) {
+    fn emit_mlir_moddef_portlist(&self, ports: &[(bool, String, Type)]) {
         println!("    in %_clock : !seq.clock,");
         print!("    in %_reset : i1");
         if ports.len() > 0 {
@@ -96,8 +96,8 @@ impl Package {
 }
 
 impl Expr {
-    fn emit_mlir(&self, prefix: String, ctx: Context<Path, Arc<Type>>) -> String {
-        let typ: Arc<Type> = self.type_of();
+    fn emit_mlir(&self, prefix: String, ctx: Context<Path, Type>) -> String {
+        let typ: Type = self.type_of();
         let type_name = type_to_mlir(typ.clone());
 
         match self {
@@ -111,7 +111,7 @@ impl Expr {
             },
             Expr::Enum(_loc, typ, _typedef, valname) => {
                 let name = format!("%{prefix}_enum");
-                let typedef = if let Type::Enum(typedef) = &**typ.get().unwrap() {
+                let typedef = if let Type::Enum(typedef) = typ.get().unwrap() {
                     typedef
                 } else {
                     panic!();
@@ -223,7 +223,7 @@ impl Expr {
             },
             Expr::Sext(_loc, _typ, e1) => {
                 let name = format!("%{prefix}_sext");
-                match (&*typ, &*e1.type_of()) {
+                match (typ, e1.type_of()) {
                     (Type::Word(outer_width), Type::Word(inner_width)) => {
                         assert!(outer_width >= inner_width);
                         let extension_width = outer_width - inner_width;
@@ -269,8 +269,8 @@ impl Expr {
     }
 }
 
-fn type_to_mlir(typ: Arc<Type>) -> String {
-    match &*typ {
+fn type_to_mlir(typ: Type) -> String {
+    match typ {
         Type::Word(n) => format!("i{n}"),
         Type::Struct(typedef) => {
             let typedef = typedef;

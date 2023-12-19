@@ -160,7 +160,7 @@ impl Package {
         }
     }
 
-    fn resolve_references_type(&self, typ: Arc<Type>) {
+    fn resolve_references_type(&self, typ: Type) {
         match &*typ {
             Type::Word(_width) => (),
             Type::Enum(_typedef) => (),
@@ -180,7 +180,7 @@ impl Package {
     */
 
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
-    pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Arc<Type>> {
+    pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Type> {
         // TODO Remove this anyhow
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
@@ -222,7 +222,7 @@ impl Package {
         results
     }
 
-    pub fn type_of(&self, component: Arc<Component>) -> Option<Arc<Type>> {
+    pub fn type_of(&self, component: Arc<Component>) -> Option<Type> {
         match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => None,
             Component::ModInst(_loc, _name, _defname) => None,
@@ -260,6 +260,15 @@ pub enum Item {
 }
 
 impl Item {
+    pub fn name(&self) -> &str {
+        match self {
+            Item::ModDef(component) => component.name(),
+            Item::ExtDef(component) => component.name(),
+            Item::EnumTypeDef(typedef) => &typedef.name,
+            Item::StructTypeDef(typedef) => &typedef.name,
+        }
+    }
+
     pub fn is_moddef(&self) -> bool {
         match self {
             Item::ModDef(_component) => true,
@@ -273,6 +282,22 @@ impl Item {
             Item::EnumTypeDef(_typedef) => true,
             Item::StructTypeDef(_typedef) => true,
             _ => false,
+        }
+    }
+
+    pub fn as_type(&self) -> Option<Type> {
+        match self {
+            Item::EnumTypeDef(typedef) => Some(Type::Enum(typedef.clone())),
+            Item::StructTypeDef(typedef) => Some(Type::Struct(typedef.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn as_component(&self) -> Option<Arc<Component>> {
+        match self {
+            Item::ModDef(component) => Some(component.clone()),
+            Item::ExtDef(component) => Some(component.clone()),
+            _ => None,
         }
     }
 }

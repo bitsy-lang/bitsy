@@ -15,8 +15,8 @@ pub enum Value {
     /// An element of `Valid<T>`.
     Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
-    Enum(Arc<Type>, String),
-    Struct(Arc<Type>, Vec<(String, Value)>),
+    Enum(Type, String),
+    Struct(Type, Vec<(String, Value)>),
 }
 
 impl Value {

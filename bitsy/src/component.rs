@@ -7,10 +7,10 @@ pub enum Component {
     Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
     ModInst(Loc, Name, Arc<Component>),
     Ext(Loc, Name, Vec<Arc<Component>>),
-    Incoming(Loc, Name, Arc<Type>),
-    Outgoing(Loc, Name, Arc<Type>),
-    Node(Loc, Name, Arc<Type>),
-    Reg(Loc, Name, Arc<Type>, Option<Arc<Expr>>),
+    Incoming(Loc, Name, Type),
+    Outgoing(Loc, Name, Type),
+    Node(Loc, Name, Type),
+    Reg(Loc, Name, Type, Option<Arc<Expr>>),
 }
 
 impl Component {
@@ -118,7 +118,7 @@ impl Component {
         }
     }
 
-    pub fn type_of(&self) -> Option<Arc<Type>> {
+    pub fn type_of(&self) -> Option<Type> {
         match self {
             Component::Node(_loc,_name, typ) => Some(typ.clone()),
             Component::Reg(_loc,_name, typ, _reset) => Some(typ.clone()),

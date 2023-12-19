@@ -1,4 +1,3 @@
-use crate::reference::Reference;
 use std::sync::Arc;
 
 pub use crate::ast::WordLit; // re-export
@@ -15,9 +14,9 @@ pub enum Type {
     /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
     Word(Width),
     /// A n-element vector. Written `Vec<T, n>`.
-    Vec(Arc<Type>, Length),
+    Vec(Box<Type>, Length),
     /// An optional value. Written `Valid<T>`.
-    Valid(Arc<Type>),
+    Valid(Box<Type>),
     /// A user-defined `enum`.
     Enum(Arc<EnumTypeDef>),
     /// A user-defined `struct`.
@@ -35,16 +34,16 @@ impl Type {
         }
     }
 
-    pub fn word(w: Width) -> Arc<Type> {
-        Arc::new(Type::Word(w))
+    pub fn word(w: Width) -> Type {
+        Type::Word(w)
     }
 
-    pub fn vec(typ: Arc<Type>, n: Length) -> Arc<Type> {
-        Arc::new(Type::Vec(typ, n))
+    pub fn vec(typ: Type, n: Length) -> Type {
+        Type::Vec(Box::new(typ), n)
     }
 
-    pub fn valid(typ: Arc<Type>) -> Arc<Type> {
-        Arc::new(Type::Valid(typ))
+    pub fn valid(typ: Type) -> Type {
+        Type::Valid(Box::new(typ))
     }
 
     pub fn bitwidth(&self) -> Width {
@@ -69,7 +68,7 @@ pub struct EnumTypeDef {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StructTypeDef {
     pub name: String,
-    pub fields: Vec<(String, Arc<Type>)>,
+    pub fields: Vec<(String, Type)>,
 }
 
 impl StructTypeDef {
@@ -77,7 +76,7 @@ impl StructTypeDef {
         self.fields.iter().map(|(_name, typ)| typ.bitwidth()).sum()
     }
 
-    pub fn type_of_field(&self, fieldname: &str) -> Option<Arc<Type>> {
+    pub fn type_of_field(&self, fieldname: &str) -> Option<Type> {
         for (name, typ) in &self.fields {
             if name == fieldname {
                 return Some(typ.clone())
