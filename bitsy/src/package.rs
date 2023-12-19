@@ -25,9 +25,11 @@ pub struct Package {
 impl Package {
     pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
         let items = resolve::resolve(ast);
-        Ok(Package {
+        let package = Package {
             items,
-        })
+        };
+        package.check()?;
+        Ok(package)
     }
 
     pub fn top(&self, top_name: &str) -> Result<Circuit, BitsyError>  {
