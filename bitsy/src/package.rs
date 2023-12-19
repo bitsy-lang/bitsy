@@ -140,7 +140,7 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Arc<Type>>) -> Arc<Expr> 
     Arc::new(match expr {
         ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
         ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
-        ast::Expr::Enum(loc, type_name, value) => Expr::Enum(loc.clone(), OnceCell::new(), ctx.lookup(type_name).unwrap(), value.clone()),
+        ast::Expr::Enum(loc, typ, value) => Expr::Enum(loc.clone(), OnceCell::new(), resolve_type(typ, ctx.clone()), value.clone()),
         ast::Expr::Struct(loc, fields) => {
             let package_fields = fields
                 .into_iter()

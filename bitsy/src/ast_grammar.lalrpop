@@ -208,7 +208,7 @@ ExprLet: Box<Expr> = {
 }
 
 ExprLit: Box<Expr> = {
-    <ll:@L> <typename:Id> "::" <name:Id> <rr:@R> => Box::new(Expr::Enum(Loc::from(source_info, ll, rr), typename.into(), name.to_string())),
+    <ll:@L> <typ:Type> "::" <name:Id> <rr:@R> => Box::new(Expr::Enum(Loc::from(source_info, ll, rr), typ, name.to_string())),
 
     <ll:@L> <lit:WordLit> <rr:@R> => {
         let WordLit(w, v) = lit;

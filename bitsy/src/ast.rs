@@ -61,7 +61,7 @@ pub enum Expr {
     /// A literal Word.
     Word(Loc, Option<Width>, u64),
     /// A literal enum value.
-    Enum(Loc, String, String),
+    Enum(Loc, Type, String),
     /// A constructor for a struct type.
     Struct(Loc, Vec<(String, Box<Expr>)>),
     /// A constructor for a Vec
