@@ -1,18 +1,5 @@
 use super::*;
 
-use std::sync::Arc;
-
-//use lalrpop_util::ParseError;
-//use lalrpop_util::lalrpop_mod;
-//lalrpop_mod!(grammar);
-
-#[derive(Debug)]
-enum ModDecl {
-    Component(Arc<Component>),
-    Wire(Wire),
-    When(When),
-}
-
 pub fn load_package_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Package, Vec<BitsyError>> {
     let package_text = std::fs::read_to_string(path.as_ref()).unwrap();
     let source_info = SourceInfo::from_file(path.as_ref(), &package_text);
@@ -24,7 +11,7 @@ pub fn load_package_from_string(package_text: &str) -> Result<Package, Vec<Bitsy
     package_from_string(source_info, package_text)
 }
 
-fn package_from_string(source_info: SourceInfo, package_text: &str) -> Result<Package, Vec<BitsyError>> {
+fn package_from_string(_source_info: SourceInfo, package_text: &str) -> Result<Package, Vec<BitsyError>> {
     // TODO source info
     let package_ast = crate::ast::parse_package_from_string(package_text)?;
     Package::from(&package_ast)
