@@ -41,7 +41,7 @@ impl Circuit {
         for part in path.split(".") {
             if let Some(child) = result.child(part) {
                 if let Component::ModInst(_loc, _name, moddef) = &*child {
-                    result = moddef.get().unwrap().clone();
+                    result = moddef.clone();
                 } else {
                     result = child.clone();
                 }

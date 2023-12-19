@@ -1,12 +1,11 @@
 use super::*;
-use crate::reference::Reference;
 use std::sync::Arc;
 
 /// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]
 pub enum Component {
     Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
-    ModInst(Loc, Name, Reference<Component>),
+    ModInst(Loc, Name, Arc<Component>),
     Ext(Loc, Name, Vec<Arc<Component>>),
     Incoming(Loc, Name, Arc<Type>),
     Outgoing(Loc, Name, Arc<Type>),
@@ -69,12 +68,8 @@ impl Component {
                 Component::Incoming(_loc, name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Outgoing(_loc, name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Mod(_loc, name, _children, _wires, _whens) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
-                Component::ModInst(_loc, name, defname) => {
-                    if let Some(moddef) = defname.get() {
-                        results.extend(moddef.terminals_rec(path.join(name.clone().into())))
-                    } else {
-                        panic!("Module {name} hasn't been resolved.")
-                    }
+                Component::ModInst(_loc, name, moddef) => {
+                    results.extend(moddef.terminals_rec(path.join(name.clone().into())))
                 }
                 Component::Ext(_loc, name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
             }

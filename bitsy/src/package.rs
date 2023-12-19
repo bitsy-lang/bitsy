@@ -53,16 +53,22 @@ fn resolve_enum_typedef(typedef: &ast::EnumTypeDef) -> Arc<EnumTypeDef> {
     package_typedef
 }
 
-fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Arc<Type>>) -> Arc<Component> {
-    let ast::ModDef(loc, name, decls) = moddef;
+fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Arc<Type>>, mod_ctx: Context<String, Arc<Component>>) -> (Vec<Arc<Component>>, Vec<Wire>, Vec<When>) {
     let mut children = vec![];
     let mut wires = vec![];
     let mut whens = vec![];
 
     for decl in decls {
         match decl {
-            ast::Decl::Mod(loc, name, decls) => todo!(),
-            ast::Decl::ModInst(loc, name, moddef_name) => todo!(),
+            ast::Decl::Mod(loc, name, decls) => {
+                let (inner_children, wires, whens) = resolve_decls(&decls.iter().collect::<Vec<_>>(), ctx.clone(), mod_ctx.clone());
+                let child = Component::Mod(loc.clone(), name.clone(), inner_children, wires, whens);
+                children.push(Arc::new(child));
+            },
+            ast::Decl::ModInst(loc, name, moddef_name) => {
+                let child = Component::ModInst(loc.clone(), name.clone(), mod_ctx.lookup(moddef_name).unwrap());
+                children.push(Arc::new(child));
+            },
             ast::Decl::Incoming(loc, name, typ) => {
                 let child = Component::Incoming(loc.clone(), name.clone(), resolve_type(typ, ctx.clone()));
                 children.push(Arc::new(child));
@@ -93,11 +99,42 @@ fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Arc<Type>>) -> Arc<
                 );
                 wires.push(wire);
             },
-            ast::Decl::When(loc, when) => todo!(),
+            ast::Decl::When(_loc, ast::When(cond, wires)) => {
+                let mut package_wires = vec![];
+                let package_cond = resolve_expr(&*cond, ctx.clone());
+
+                for ast::Wire(loc, target, expr, wire_type) in wires {
+                    let package_wire = Wire(
+                        loc.clone(),
+                        target_to_path(target),
+                        resolve_expr(expr, ctx.clone()),
+                        wire_type.clone(),
+                    );
+                    package_wires.push(package_wire);
+                }
+                let package_when = When(package_cond, package_wires);
+                whens.push(package_when);
+            },
         }
     }
 
+    (children, wires, whens)
+}
+
+fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Arc<Type>>, mod_ctx: Context<String, Arc<Component>>) -> Arc<Component> {
+    let ast::ModDef(loc, name, decls) = moddef;
+    let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
+    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx);
     Arc::new(Component::Mod(loc.clone(), name.clone(), children, wires, whens))
+}
+
+fn resolve_extmoddef(moddef: &ast::ModDef, ctx: Context<String, Arc<Type>>, mod_ctx: Context<String, Arc<Component>>) -> Arc<Component> {
+    let ast::ModDef(loc, name, decls) = moddef;
+    let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
+    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx);
+    assert!(wires.is_empty());
+    assert!(whens.is_empty());
+    Arc::new(Component::Ext(loc.clone(), name.clone(), children))
 }
 
 fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Arc<Type>>) -> Arc<Expr> {
@@ -166,7 +203,6 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Arc<Type>>) -> Arc<Expr> 
         ast::Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *i),
         ast::Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *j, *i),
         ast::Expr::Hole(loc, name) => Expr::Hole(loc.clone(), OnceCell::new(), name.clone()),
-        _ => todo!(),
     })
 }
 
@@ -180,15 +216,24 @@ fn target_to_path(target: &ast::Target) -> Path {
 impl Package {
     pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
         let mut user_types = BTreeMap::new();
+        let mut moddefs: BTreeMap<String, Arc<Component>> = BTreeMap::new();
         let mut decls = vec![];
         for item in &ast.items {
             match item {
                 ast::Item::ModDef(moddef) => {
                     let ctx = Context::from(user_types.clone().into_iter().collect());
-                    let moddef = resolve_moddef(moddef, ctx);
-                    decls.push(Decl::ModDef(moddef));
+                    let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
+                    let moddef = resolve_moddef(moddef, ctx, mod_ctx);
+                    decls.push(Decl::ModDef(moddef.clone()));
+                    moddefs.insert(moddef.name().to_string(), moddef);
                 },
-                ast::Item::ExtDef(moddef) => todo!(),
+                ast::Item::ExtDef(moddef) => {
+                    let ctx = Context::from(user_types.clone().into_iter().collect());
+                    let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
+                    let moddef = resolve_extmoddef(moddef, ctx, mod_ctx);
+                    decls.push(Decl::ExtDef(moddef.clone()));
+                    moddefs.insert(moddef.name().to_string(), moddef);
+                },
                 ast::Item::EnumTypeDef(typedef) => {
                     let typedef = resolve_enum_typedef(typedef);
                     user_types.insert(typedef.name.to_string(), Arc::new(Type::Enum(typedef)));
@@ -404,14 +449,10 @@ impl Package {
                         results.push((mod_path.join(path), component.clone()));
                     }
                 },
-                Component::ModInst(_loc, name, defname) => {
+                Component::ModInst(_loc, name, moddef) => {
                     let mod_path: Path = name.to_string().into();
-                    if let Some(moddef) = defname.get() {
-                        for (path, component) in moddef.port_paths() {
-                            results.push((mod_path.join(path), component.clone()));
-                        }
-                    } else {
-                        panic!("Module {name} hasn't been resolved.")
+                    for (path, component) in moddef.port_paths() {
+                        results.push((mod_path.join(path), component.clone()));
                     }
                 },
                 Component::Ext(_loc, name, _children) => {
@@ -442,7 +483,7 @@ impl Package {
         for part in path.split(".") {
             if let Some(child) = result.child(part) {
                 if let Component::ModInst(_loc, _name, moddef) = &*child {
-                    result = moddef.get().unwrap().clone();
+                    result = moddef.clone();
                 } else {
                     result = child.clone();
                 }
