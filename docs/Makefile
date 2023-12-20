@@ -14,7 +14,7 @@ auto: examples $(EXAMPLES) typesystem.pdf
 	cp ../bitsy/examples/*.bitsy ./source/examples/
 	poetry run make html
 
-.PHONY: auto clean examples
+.PHONY: auto clean examples push
 
 html: Makefile
 	$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -29,3 +29,6 @@ clean:
 	mkdir -p ./latexbuild/
 	pdflatex -output-directory=./latexbuild/ $<
 	cp ./latexbuild/$@ $(BUILDDIR)/html/
+
+push: auto
+	rsync -azvhP $(BUILDDIR)/html/* digitalocean:/root/projects/bitsy/docs/build/html
