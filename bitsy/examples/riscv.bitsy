@@ -67,7 +67,29 @@ enum type AluOp {
 }
 
 /*
-    `Core` is the top-level module.
+    `Top` is a simple system to demonstrate the use of `Core`.
+*/
+pub mod Top {
+    mod core of Core;
+    mod instr_mem of InstrMem;
+    mod mem of MemorySubsystem;
+
+    instr_mem.write_enable := 0w1;
+    instr_mem.write_addr := 0w32;
+    instr_mem.write_data := 0w32;
+
+    mem.read_addr    := core.mem_read_addr;
+    mem.write_addr   := core.mem_write_addr;
+    mem.write_data   := core.mem_write_data;
+    mem.write_enable := core.mem_write_enable;
+
+    instr_mem.read_addr := core.instr_mem_read_addr;
+    core.instr_mem_read_data := instr_mem.read_data;
+    core.mem_read_data := mem.read_data;
+}
+
+/*
+    `Core` is the top-level processor core.
 */
 pub mod Core {
     mod rf of Rf;
@@ -76,31 +98,35 @@ pub mod Core {
     mod immgen of Immgen;
     mod decoder of Decoder;
     mod ifetch of Ifetch;
+
     mod riscv_decoder of RiscvDecoder;
-    mod instr_mem of InstrMem;
-    mod mem of MemorySubsystem;
 
-    instr_mem.write_enable := 0w1;
-    instr_mem.write_addr := 0w32;
-    instr_mem.write_data := 0w32;
+    outgoing instr_mem_read_addr of Word<32>;
+    incoming instr_mem_read_data of Word<32>;
 
-    mem.read_addr  := rf.rs1_val + immgen.imm;
-    mem.write_addr := rf.rs1_val + immgen.imm;
-    mem.write_data := alu.r;
-    mem.write_enable := control.mem_write;
+    outgoing mem_write_enable of Word<1>;
+    outgoing mem_write_addr   of Word<32>;
+    outgoing mem_write_data   of Word<32>;
+    outgoing mem_read_addr    of Word<32>;
+    incoming mem_read_data    of Word<32>;
+
+    mem_read_addr  := rf.rs1_val + immgen.imm;
+    mem_write_addr := rf.rs1_val + immgen.imm;
+    mem_write_data := alu.r;
+    mem_write_enable := control.mem_write;
 
     ifetch.branch_offset := immgen.imm;
     ifetch.branch_enable := control.branch;
 
-    instr_mem.read_addr := ifetch.instr_mem_addr;
-    ifetch.instr_mem_data := instr_mem.read_data;
+    instr_mem_read_addr := ifetch.instr_mem_addr;
+    ifetch.instr_mem_data := instr_mem_read_data;
 
     rf.rs1 := decoder.rs1;
     rf.rs2 := decoder.rs2;
     rf.rd := decoder.rd;
     rf.write_enable := control.reg_write;
     rf.write_data := if control.mem_to_reg {
-        mem.read_data
+        mem_read_data
     } else if decoder.opcode == Opcode::LUI {
         immgen.imm
     } else {

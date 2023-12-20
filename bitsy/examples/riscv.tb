@@ -1,5 +1,5 @@
-top Core
-link top.riscv_decoder = RiscVDecoder {
+top Top
+link top.core.riscv_decoder = RiscVDecoder {
 }
 
 link top.instr_mem = Mem {
@@ -13,4 +13,4 @@ link top.mem.mem = Mem {
 link top.mem.term = Terminal {}
 
 reset
-debug
+run
