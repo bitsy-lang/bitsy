@@ -12,5 +12,5 @@ Types also tell you what kinds of values may be stored in registers.
 .. toctree::
   :maxdepth: 1
 
-  builtin-shapes
+  builtin-types
   user-defined
