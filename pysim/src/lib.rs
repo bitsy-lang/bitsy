@@ -6,7 +6,8 @@ use std::collections::BTreeMap;
 //use bitsy::sim::Value;
 
 #[pymodule]
-fn pysim(py: Python, m: &PyModule) -> PyResult<()> {
+#[pyo3(name = "bitsy")]
+fn pybitsy(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Package>()?;
     m.add_class::<Sim>()?;
     m.add_class::<Ext>()?;
