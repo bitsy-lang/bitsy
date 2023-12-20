@@ -1,3 +1,8 @@
+enum type AluSource {
+    IMM = 0w1;
+    RS2 = 0w1;
+}
+
 enum type InstrType {
     I = 1w3;
     S = 2w3;
@@ -93,11 +98,9 @@ mod Core {
     control.funct7 := decoder.funct7;
 
     alu.a := rf.rs1_val;
-    alu.b := if control.alu_source {
-        immgen.imm
-    } else {
-        rf.rs2_val
-
+    alu.b := match control.alu_source {
+        @IMM => immgen.imm;
+        @RS2 => rf.rs2_val;
     };
     alu.op := control.alu_op;
 }
@@ -257,7 +260,7 @@ mod Control {
     outgoing mem_write of Word<1>;
     outgoing mem_to_reg of Word<1>;
     outgoing alu_op of AluOp;
-    outgoing alu_source of Word<1>;
+    outgoing alu_source of AluSource;
     outgoing reg_write of Word<1>;
 
     branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
@@ -272,7 +275,11 @@ mod Control {
     } else {
         AluOp::ADD
     };
-    alu_source := opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE;
+    alu_source := if opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE {
+        AluSource::IMM
+    } else {
+        AluSource::RS2
+    };
     reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::LUI;
 }
 
@@ -282,16 +289,11 @@ mod Alu {
     incoming op of AluOp;
     outgoing r of Word<32>;
 
-    r := if op == AluOp::AND {
-        a && b
-    } else if op == AluOp::OR {
-        a || b
-    } else if op == AluOp::ADD {
-        a + b
-    } else if op == AluOp::SUB {
-        a - b
-    } else {
-        0w32
+    r := match op {
+        @AND => a && b;
+        @OR => a || b;
+        @ADD => a + b;
+        @SUB => a - b;
     };
 }
 
@@ -301,38 +303,23 @@ mod Immgen {
     outgoing imm of Word<32>;
 
     node typ of InstrType;
-    typ := if opcode == Opcode::OP_IMM {
-        InstrType::I
-    } else if opcode == Opcode::LOAD {
-        InstrType::I
-    } else if opcode == Opcode::STORE {
-        InstrType::S
-    } else if opcode == Opcode::JAL {
-        InstrType::J
-    } else if opcode == Opcode::BRANCH {
-        InstrType::B
-    } else if opcode == Opcode::LUI {
-        InstrType::U
-    } else if opcode == Opcode::AUIPC {
-        InstrType::U
-    } else if opcode == Opcode::JALR {
-        InstrType::I
-    } else {
-        InstrType::I
+    typ := match opcode {
+        @OP_IMM => InstrType::I;
+        @LOAD => InstrType::I;
+        @STORE => InstrType::S;
+        @JAL => InstrType::J;
+        @BRANCH => InstrType::B;
+        @LUI => InstrType::U;
+        @AUIPC => InstrType::U;
+        @JALR => InstrType::I;
     };
 
-    imm := if typ == InstrType::I {
-        sext(cat(instr[31], instr[32..20]))
-    } else if typ == InstrType::S {
-        sext(cat(instr[31], instr[32..25], instr[12..7]))
-    } else if typ == InstrType::B {
-        sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1))
-    } else if typ == InstrType::U {
-        sext(cat(instr[32..12], 0w12))
-    } else if typ == InstrType::J {
-        sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1))
-    } else {
-        0w32
+    imm := match typ {
+        @I => sext(cat(instr[31], instr[32..20]));
+        @S => sext(cat(instr[31], instr[32..25], instr[12..7]));
+        @B => sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1));
+        @U => sext(cat(instr[32..12], 0w12));
+        @J => sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1));
     };
 }
 
