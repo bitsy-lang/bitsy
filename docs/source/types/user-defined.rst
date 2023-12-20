@@ -4,7 +4,7 @@ There are two classes of user-defined types in Bitsy.
 
 Enums
 -----
-You can define your own enumerations with `enum`.
+You can define your own enumerations with `enum type`.
 
 For example, in a RISC-V core, you might find the following definition
 to capture the list of 7-bit instruction opcodes:
@@ -26,3 +26,18 @@ to capture the list of 7-bit instruction opcodes:
 You can create a constant literal for any `enum` with the syntax `Opcode::OP_IMM`.
 You can convert an enum value to a `Word` of the appropriate size with `word`.
 For example, `word(Opcode::OP_IMM)` would equal `0b0010011w7`.
+
+Structs
+-------
+You can define your own struct types with `struct type`.
+
+For example, if you were writing hardware which made heavy use of 24-bit RGB color values,
+you could define `Color` as:
+
+.. code-block:: bitsy
+
+    struct type Color {
+        red   of Word<8>;
+        green of Word<8>;
+        blue  of Word<8>;
+    }
