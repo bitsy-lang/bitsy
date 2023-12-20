@@ -1,0 +1,36 @@
+enum type Foo {
+    Bar = 0w2;
+    Baz = 1w2;
+}
+
+mod Top {
+    reg counter of Word<3> reset 0;
+    counter <= counter + 1;
+
+    node n of Valid<Word<2>>;
+
+    n := if counter[0] == 0 {
+        @Valid(counter[3..1])
+    } else {
+        @Invalid
+    };
+
+    outgoing out of Word<2>;
+    out := match n {
+        @Valid(d) => d;
+        @Invalid => 0;
+    };
+
+    node m of Foo;
+    m := if counter[0] == 0 {
+        Foo::Bar
+    } else {
+        Foo::Baz
+    };
+
+    outgoing out2 of Word<2>;
+    out2 := match m {
+        @Bar => 1;
+        @Baz => 2;
+    };
+}

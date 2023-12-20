@@ -81,8 +81,19 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Match(_loc, _typ, _e, _arms) => {
-                todo!()
+            Expr::Match(_loc, _typ, subject, arms) => {
+                let subject_value = subject.eval_with_ctx(bitsy, ctx.clone());
+                if subject_value.is_x() {
+                    return Value::X;
+                }
+
+                for MatchArm(pat, e) in arms {
+                    if let Some(new_ctx) = pat.bind(&subject_value, ctx.clone()) {
+                        let e_value = e.eval_with_ctx(bitsy, new_ctx);
+                        return e_value;
+                    }
+                }
+                panic!("No match arm matched")
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
@@ -262,6 +273,47 @@ impl Expr {
                     None => panic!("EVALUATED A HOLE"),
                 }
             },
+        }
+    }
+}
+
+impl Pat {
+    fn bind(&self, v: &Value, ctx: Context<Path, Value>) -> Option<Context<Path, Value>> {
+        match self {
+            Pat::At(ctor, pats) => {
+                match v {
+                    Value::X => None,
+                    Value::Word(_w, _n) => None,
+                    Value::Vec(_vs) => None,
+                    Value::Ctor(v_ctor, vs) => {
+                        if ctor == v_ctor {
+                            assert_eq!(pats.len(), vs.len());
+                            let mut ctx_result = ctx.clone();
+                            for (pat, v) in pats.iter().zip(vs.iter()) {
+                                if let Some(ctx) = pat.bind(v, ctx.clone()) {
+                                    ctx_result = ctx;
+                                } else {
+                                    return None;
+                                }
+                            }
+                            Some(ctx_result)
+                        } else {
+                            None
+                        }
+                    },
+                    Value::Enum(_typ, val) => {
+                        assert_eq!(pats.len(), 0);
+                        if ctor == val {
+                            Some(ctx)
+                        } else {
+                            None
+                        }
+                    },
+                    Value::Struct(_typ, _fields) => None,
+                }
+            },
+            Pat::Bind(x) => Some(ctx.extend(x.clone().into(), v.clone())),
+            Pat::Otherwise => Some(ctx),
         }
     }
 }

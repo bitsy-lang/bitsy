@@ -229,12 +229,12 @@ MatchArm: MatchArm = {
 }
 
 Pat: Pat = {
-//    <id:"@Invalid"> => Pat::At(id[1..].to_string(), vec![]),
-//    <id:"@Valid"> "(" <p:Pat> <ps:("," Pat)*> ")" => {
-//        let mut subpats = vec![p];
-//        subpats.extend(ps.iter().map(|(_, pat)| pat.clone()));
-//        Pat::At(id[1..].to_string(), subpats)
-//    },
+    <id:Ctor> => Pat::At(id[1..].to_string(), vec![]),
+    <id:Ctor> "(" <p:Pat> <ps:("," Pat)*> ")" => {
+        let mut subpats = vec![p];
+        subpats.extend(ps.iter().map(|(_, pat)| pat.clone()));
+        Pat::At(id[1..].to_string(), subpats)
+    },
     <id:Id> => Pat::Bind(id.to_string()),
     "otherwise" => Pat::Otherwise,
 }

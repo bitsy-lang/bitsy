@@ -419,7 +419,7 @@ impl Expr {
                 let new_arms = arms.iter().map(|MatchArm(pat, e)| {
                     let mut new_shadowed = shadowed.clone();
                     new_shadowed.extend(pat.bound_vars());
-                    MatchArm(pat.clone(), e.rebase_rec(current_path.clone(), shadowed))
+                    MatchArm(pat.clone(), e.rebase_rec(current_path.clone(), &new_shadowed))
 
                 }).collect();
                 Expr::Match(
@@ -547,7 +547,7 @@ impl Expr {
                 let new_arms = arms.iter().map(|MatchArm(pat, e)| {
                     let mut new_shadowed = shadowed.clone();
                     new_shadowed.extend(pat.bound_vars());
-                    MatchArm(pat.clone(), e.references_to_nets_rec(net_id_by_path, shadowed))
+                    MatchArm(pat.clone(), e.references_to_nets_rec(net_id_by_path, &new_shadowed))
 
                 }).collect();
                 Expr::Match(

@@ -75,7 +75,7 @@ impl Expr {
                 if let Some(subject_typ) = subject.typeinfer(ctx.clone()) {
                     let invalid_arms: Vec<&MatchArm> = arms.into_iter().filter(|MatchArm(pat, _e)| !subject_typ.valid_pat(pat)).collect();
                     if invalid_arms.len() > 0 {
-                        return Err(TypeError::Other(self.clone(), format!("Invalid patterns for {subject_typ:?}: {invalid_arms:?}")));
+                        return Err(TypeError::Other(self.clone(), format!("Invalid patterns for {subject_typ:?}")));
                     }
                     // TODO check pattern linearity
 
@@ -290,6 +290,10 @@ impl Type {
                         } else {
                             false
                         }
+                    },
+                    Type::Enum(typedef) => {
+                        let alts: Vec<String> = typedef.values.iter().map(|(name, _val)| name.clone()).collect();
+                        alts.contains(ctor)
                     },
                     _ => false,
                 }
