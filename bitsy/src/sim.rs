@@ -371,6 +371,12 @@ impl Sim {
         self.poke_net(net_id, value);
     }
 
+    pub fn type_of<P: Into<Path>>(&self, path: P) -> Type {
+        let net_id = self.net_id(path.into());
+        let Net(_driver, _terminals, typ) = &self.sim_circuit.nets[net_id];
+        typ.clone()
+    }
+
     fn broadcast_update_constants(&mut self) {
         for Comb(target_net_id, expr) in self.sim_circuit.clone().combs.iter() {
             if expr.is_constant() {
@@ -481,7 +487,9 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
 
     let mut nets: BTreeMap<Path, Net> = BTreeMap::new();
     for driver in &drivers {
-        nets.insert(driver.clone(), Net::from(driver.clone()));
+        let component = circuit.component(driver.clone()).unwrap();
+        let typ = component.type_of().unwrap();
+        nets.insert(driver.clone(), Net::from(driver.clone(), typ));
     }
 
     for terminal in circuit.terminals() {
@@ -503,8 +511,8 @@ fn driver_for(terminal: Path, immediate_driver_for: &BTreeMap<Path, Path>) -> Pa
 }
 
 impl Net {
-    fn from(terminal: Path) -> Net {
-        Net(terminal, vec![])
+    fn from(terminal: Path, typ: Type) -> Net {
+        Net(terminal, vec![], typ)
     }
 
     pub fn add(&mut self, terminal: Path) {
@@ -541,7 +549,7 @@ impl Net {
 }
 
 #[derive(Clone)]
-pub struct Net(Path, Vec<Path>);
+pub struct Net(Path, Vec<Path>, Type);
 
 impl std::fmt::Debug for Net {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
