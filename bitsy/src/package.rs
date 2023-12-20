@@ -89,104 +89,10 @@ impl Package {
         None
     }
 
-    /*
-    /// Iterate over all declarations and resolve references.
-    ///
-    /// Submodule instances (eg, `mod foo of Foo`) will resolve the module definition (eg, `Foo`).
-    ///
-    /// For each wire, the expression is resolved.
-    /// This will find any references to typedefs and resolve those (eg, `AluOp::Add`).
-    fn resolve_references(&self) -> Result<(), Vec<BitsyError>> {
-        let mut errors = vec![];
-        self.resolve_references_component_types();
-
-        // resolve references in ModInsts and resets
-        for moddef in self.moddefs() {
-            for child in moddef.children() {
-                if let Component::ModInst(loc, name, reference) = &*child {
-                    if let Some(moddef) = self.moddef(reference.name()) {
-                        reference.resolve_to(moddef).unwrap();
-                    } else {
-                        errors.push(BitsyError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
-                    }
-                } else if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
-                    errors.extend(self.resolve_references_expr(reset.clone()));
-                }
-            }
-        }
-
-        // resolve references in Exprs in Wires
-        for moddef in self.moddefs() {
-            for Wire(_loc, _target, expr, _wiretype) in moddef.wires() {
-                errors.extend(self.resolve_references_expr(expr));
-            }
-        }
-
-        if errors.len() > 0 {
-            Err(errors.to_vec())
-        } else {
-            Ok(())
-        }
-    }
-
-    fn resolve_references_expr(&self, expr: Arc<Expr>) -> Vec<BitsyError> {
-        let errors_mutex = Arc::new(Mutex::new(vec![]));
-        let mut func = |e: &Expr| {
-            if let Expr::Enum(loc, _typ, r, name) = e {
-                if let Some(typ) = self.user_types.get(r.name()) {
-                    r.resolve_to(typ.clone()).unwrap();
-                } else {
-                    let mut errors = errors_mutex.lock().unwrap();
-                    errors.push(BitsyError::Unknown(Some(loc.clone()), format!("Undefined reference to mod {name}")));
-                }
-            }
-        };
-        expr.with_subexprs(&mut func);
-        let errors = errors_mutex.lock().unwrap();
-        errors.clone()
-    }
-
-    fn resolve_references_component_types(&self) {
-        for moddef in self.moddefs() {
-            for component in moddef.children() {
-                match &*component {
-                    Component::Mod(_loc, _name, _children, _wires, _whens) => (),
-                    Component::ModInst(_loc, _name, _moddef) => (),
-                    Component::Ext(_loc, _name, _children) => (),
-                    Component::Node(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
-                    Component::Outgoing(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
-                    Component::Incoming(_loc, _name, typ) => self.resolve_references_type(typ.clone()),
-                    Component::Reg(_loc, _name, typ, _reset) => self.resolve_references_type(typ.clone()),
-                }
-            }
-        }
-    }
-
-    fn resolve_references_type(&self, typ: Type) {
-        match &*typ {
-            Type::Word(_width) => (),
-            Type::Enum(_typedef) => (),
-            Type::Valid(typ) => self.resolve_references_type(typ.clone()),
-            Type::Vec(typ, _len) => self.resolve_references_type(typ.clone()),
-            Type::Struct(typedef) => {
-                for (_name, typ) in &typedef.fields {
-                    self.resolve_references_type(typ.clone());
-                }
-            },
-            Type::TypeRef(r) => {
-                let typ = self.user_types.get(r.name()).unwrap().clone();
-                r.resolve_to(typ).unwrap();
-            },
-        }
-    }
-    */
-
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
     pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Type> {
-        // TODO Remove this anyhow
         let mut ctx = vec![];
         for (path, target) in self.visible_paths(component.clone()) {
-//            let target = self.component_from(component.clone(), path.clone()).unwrap();
             let typ = self.type_of(target).unwrap();
             ctx.push((path, typ));
         }
