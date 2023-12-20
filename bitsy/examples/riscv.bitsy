@@ -1,8 +1,17 @@
+/*
+    The `Alu` mod always sources its first argument from the value of RS1 in the register file.
+    However, it may source its second argument from either RS2 or from the immediate generator.
+    `AluSource` is the type of the `alu_source` output of the `Control` mod and determines which to use.
+*/
 enum type AluSource {
     IMM = 0w1;
     RS2 = 0w1;
 }
 
+/*
+    There are several instruction formats in RISC-V.
+    `InstrType` tells us which we have so we can decode.
+*/
 enum type InstrType {
     I = 1w3;
     S = 2w3;
@@ -11,7 +20,12 @@ enum type InstrType {
     J = 5w3;
 }
 
-enum type Funct3 {
+/*
+    Some RISC-V instructions have a funct3 field, which tells us things like
+    which operation, what kind of branch, or what size to load or store.
+    `OpFunct3` tells us which operation to perform for OP and OP-IMM instructions.
+*/
+enum type OpFunct3 {
     ADD  = 0b000w3;
     SLL  = 0b001w3;
     SLT  = 0b010w3;
@@ -28,6 +42,10 @@ enum type Funct7 {
     SUB  = 0b0100000w7;
 }
 
+/*
+    The lower 7 bits of every RISC-V instruction are the opcode.
+    `Opcode` allows us to name these opcodes as they appear in the spec.
+*/
 enum type Opcode {
     OP      = 0b0110011w7;
     OP_IMM  = 0b0010011w7;
@@ -266,9 +284,9 @@ mod Control {
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
     mem_to_reg := opcode == Opcode::LOAD;
-    alu_op := if funct3 == word(Funct3::ADD) {
+    alu_op := if funct3 == word(OpFunct3::ADD) {
         AluOp::ADD
-    } else if funct3 == word(Funct3::AND) {
+    } else if funct3 == word(OpFunct3::AND) {
         AluOp::AND
     } else {
         AluOp::ADD
