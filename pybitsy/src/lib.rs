@@ -189,11 +189,18 @@ impl Sim {
 
     fn peek(&self, py: Python, path: &str) -> PyResult<PyObject> {
         match self.sim.peek(path) {
+            bitsy::sim::Value::X => {
+                let initializer = PyClassInitializer::from(Value).add_subclass(XXX);
+                Ok(Py::new(py, initializer)?.into_py(py))
+            },
             bitsy::sim::Value::Word(w, n) => {
                 let initializer = PyClassInitializer::from(Value).add_subclass(Word(Some(w), n));
                 Ok(Py::new(py, initializer)?.into_py(py))
             },
-            _ => todo!(),
+            v => {
+                eprintln!("peek() not implemented for {v:?}");
+                todo!()
+            },
         }
     }
 
