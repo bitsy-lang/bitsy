@@ -1,15 +1,72 @@
 use pyo3::prelude::*;
+use pyo3::exceptions::PyValueError;
 use pyo3::types::PyList;
 use std::collections::BTreeMap;
-
+//use bitsy::Type;
+//use bitsy::sim::Value;
 
 #[pymodule]
-fn pysim(_py: Python, m: &PyModule) -> PyResult<()> {
+fn pysim(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Package>()?;
     m.add_class::<Sim>()?;
-    m.add_class::<Value>()?;
     m.add_class::<Ext>()?;
+
+    m.add_class::<Value>()?;
+    m.add_class::<XXX>()?;
+    m.add_class::<Word>()?;
+
+    // https://github.com/PyO3/pyo3/discussions/2294#discussioncomment-4441099
+    let initializer = PyClassInitializer::from(Value).add_subclass(XXX);
+    let x = Py::new(py, initializer)?.into_py(py);
+    m.add("X", x)?;
+
     Ok(())
+}
+
+#[pyclass(subclass)]
+#[derive(Clone, Debug)]
+struct Value;
+
+#[pyclass(extends=Value)]
+#[derive(Clone, Debug)]
+struct XXX;
+
+#[pymethods]
+impl XXX {
+    fn __str__(&self) -> String {
+        format!("X")
+    }
+
+    fn __repr__(&self) -> String {
+        format!("X")
+    }
+}
+
+#[pyclass(extends=Value)]
+#[derive(Clone)]
+struct Word(Option<bitsy::Width>, u64);
+
+#[pymethods]
+impl Word {
+    #[new]
+    fn new(val: u64, width: Option<u64>) -> (Self, Value) {
+        (Word(width, val), Value)
+    }
+
+    fn __str__(&self) -> String {
+        match self {
+            Word(Some(w), v) => format!("{v}w{w}"),
+            Word(None, v) => format!("{v}"),
+        }
+    }
+
+    fn __repr__(&self) -> String {
+        self.__str__()
+    }
+
+    fn __int__(&self) -> i64 {
+        self.1.try_into().unwrap()
+    }
 }
 
 #[pyclass]
@@ -129,26 +186,33 @@ impl Sim {
         self.sim.clock();
     }
 
-    fn peek(&self, path: &str) -> Value {
+    fn peek(&self, py: Python, path: &str) -> PyResult<PyObject> {
         match self.sim.peek(path) {
-            bitsy::sim::Value::Word(_width, n) => Value(n),
+            bitsy::sim::Value::Word(w, n) => {
+                let initializer = PyClassInitializer::from(Value).add_subclass(Word(Some(w), n));
+                Ok(Py::new(py, initializer)?.into_py(py))
+            },
             _ => todo!(),
         }
     }
 
-    fn poke(&mut self, path: &str, value: &Value) {
-        let Value(n) = value;
-        self.sim.poke(path, bitsy::sim::Value::Word(u64::MAX, *n));
-    }
-}
+    fn poke(&mut self, path: &str, value: &PyAny) -> PyResult<()> {
+        let (width_received, v) = if let Ok(Word(w, v)) = value.extract() {
+            (w, v)
+        } else {
+            return Err(PyValueError::new_err("value cannot be converted to a Word."));
+        };
+        let width = if let bitsy::Type::Word(w) = self.sim.type_of(path) {
+            w
+        } else {
+            return Err(PyValueError::new_err(format!("Path does not have a Word type: {path}")));
+        };
 
-#[pyclass]
-struct Value(u64);
-
-#[pymethods]
-impl Value {
-    fn __str__(&self) -> String {
-        format!("{}", self.0)
+        if width_received.is_some() && width_received.unwrap() != width {
+            return Err(PyValueError::new_err(format!("Path does not have a Word type: {path}")));
+        }
+        self.sim.poke(path, bitsy::sim::Value::Word(width, v));
+        Ok(())
     }
 }
 
