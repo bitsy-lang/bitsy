@@ -41,7 +41,7 @@ impl std::fmt::Display for TypeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
             TypeError::UndefinedReference(expr) => write!(f, "Undefiend reference: {expr:?}"),
-            TypeError::NotExpectedType(type_expected, type_actual, expr) => write!(f, "Not expected type: {expr:?} has type {type_actual:?} but expected {type_expected:?}."),
+            TypeError::NotExpectedType(type_expected, type_actual, _expr) => write!(f, "Not expected type: has type {type_actual:?} but expected {type_expected:?}."),
             TypeError::InvalidWord(expr) => write!(f, "Invalid literal: {expr:?}"),
             TypeError::CantInferType(expr) => write!(f, "Can't infer type: {expr:?}"),
             TypeError::Other(_expr, _string) => write!(f, "{self:?}"),
