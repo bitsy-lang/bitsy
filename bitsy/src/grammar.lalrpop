@@ -16,7 +16,7 @@ Item: Item = {
 }
 
 ModDef: ModDef = {
-    <ll:@L> "mod" <id:Id> "{"
+    <ll:@L> <vis:"pub"?> "mod" <id:Id> "{"
         <decls:Decl*>
     "}" <rr:@R> => {
         let mut children = vec![];
@@ -44,7 +44,7 @@ ExtDef: ModDef = {
 }
 
 EnumTypeDef: EnumTypeDef = {
-    <ll:@L> "enum" "type" <name:Id> "{"
+    <ll:@L> <vis:"pub"?> "enum" "type" <name:Id> "{"
         <values:(Id "=" WordLit ";")*>
     "}" <rr:@R> => {
         EnumTypeDef {
@@ -55,7 +55,7 @@ EnumTypeDef: EnumTypeDef = {
 }
 
 StructTypeDef: StructTypeDef = {
-    <ll:@L> "struct" "type" <name:Id> "{"
+    <ll:@L> <vis:"pub"?> "struct" "type" <name:Id> "{"
         <fields:(Id "of" Type ";")*>
     "}" <rr:@R> => {
         StructTypeDef {

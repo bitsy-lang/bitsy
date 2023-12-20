@@ -18,6 +18,7 @@ enum type InstrType {
     B = 3w3;
     U = 4w3;
     J = 5w3;
+    R = 6w3;
 }
 
 /*
@@ -65,7 +66,10 @@ enum type AluOp {
     SUB = 6w4;
 }
 
-mod Core {
+/*
+    `Core` is the top-level module.
+*/
+pub mod Core {
     mod rf of Rf;
     mod control of Control;
     mod alu of Alu;
@@ -121,6 +125,9 @@ mod Core {
     alu.op := control.alu_op;
 }
 
+/*
+    `Rf` is the register file.
+*/
 mod Rf {
     incoming rs1 of Word<5>;
     incoming rs2 of Word<5>;
@@ -266,6 +273,11 @@ mod Rf {
         else { 0w32 };
 }
 
+/*
+    `Control` is the control unit.
+    It receives the decoded instruction and sends out signals which
+    guide the behavior of the rest of the core.
+*/
 mod Control {
     incoming opcode of Opcode;
     incoming funct3 of Word<3>;
@@ -299,6 +311,9 @@ mod Control {
     reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::LUI;
 }
 
+/*
+    `Alu` is the arithmetic logic unit.
+*/
 mod Alu {
     incoming a of Word<32>;
     incoming b of Word<32>;
@@ -313,6 +328,10 @@ mod Alu {
     };
 }
 
+/*
+    `Immgen` is the immediate generator.
+    It takes the instruction and calculates the 32-bit immediate
+*/
 mod Immgen {
     incoming instr of Word<32>;
     incoming opcode of Opcode;
@@ -320,6 +339,7 @@ mod Immgen {
 
     node typ of InstrType;
     typ := match opcode {
+        @OP => InstrType::R;
         @OP_IMM => InstrType::I;
         @LOAD => InstrType::I;
         @STORE => InstrType::S;
@@ -336,9 +356,15 @@ mod Immgen {
         @B => sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1));
         @U => sext(cat(instr[32..12], 0w12));
         @J => sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1));
+        @R => 0;
     };
 }
 
+/*
+    `Decoder` is the instruction decoder.
+    It takes the instruction parses it into its relevant pieces.
+    Not all pieces are guaranteed to be meaningful for all instructions.
+*/
 mod Decoder {
     incoming instr of Word<32>;
 
@@ -379,6 +405,13 @@ mod Decoder {
     funct7 := instr[32..25];
 }
 
+/*
+    `Ifetch` is the instruction fetch unit.
+    It maintains the program counter (`pc`).
+    It receives signals for when to branch.
+    It emits the 32-bit instruction as `instr`.
+
+*/
 mod Ifetch {
     incoming branch_offset of Word<32>;
     incoming branch_enable of Word<1>;
@@ -400,6 +433,11 @@ mod Ifetch {
     instr := instr_mem_data;
 }
 
+/*
+    `MemorySubsystem` dispatches reads and writes to either system memory or a device.
+    [0000_0000 - 0001_0000] System Memory
+    [0001_0000 - 0001_0001] Terminal
+*/
 mod MemorySubsystem {
     incoming read_addr of Word<32>;
     outgoing read_data of Word<32>;
