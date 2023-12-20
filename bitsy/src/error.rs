@@ -44,7 +44,7 @@ impl std::fmt::Display for TypeError {
             TypeError::NotExpectedType(type_expected, type_actual, _expr) => write!(f, "Not expected type: has type {type_actual:?} but expected {type_expected:?}."),
             TypeError::InvalidWord(expr) => write!(f, "Invalid literal: {expr:?}"),
             TypeError::CantInferType(expr) => write!(f, "Can't infer type: {expr:?}"),
-            TypeError::Other(_expr, _string) => write!(f, "{self:?}"),
+            TypeError::Other(_expr, message) => write!(f, "{message}"),
         }
     }
 }
@@ -67,8 +67,8 @@ impl std::fmt::Display for BitsyError {
             BitsyError::IncomingPortDriven(_loc, name) => write!(f, "Incoming port is being driven from inside a mod, but shouldn't be: {name}"),
             BitsyError::NoSuchComponent(_loc, s) => write!(f, "No such component: {s}"),
             BitsyError::TypeError(type_error) => write!(f, "Type Error: {type_error}"),
-            BitsyError::ParseError(_loc, _error) => write!(f, "{self:?}"),
-            BitsyError::Unknown(_loc, _message) => write!(f, "{self:?}"),
+            BitsyError::ParseError(_loc, error) => write!(f, "{error}"),
+            BitsyError::Unknown(_loc, message) => write!(f, "{message}"),
         }
     }
 }
