@@ -41,6 +41,7 @@ fn order_items(package: &ast::Package) -> Vec<&ast::Item> {
     let mut results = vec![];
     for node in sorted {
         let name = &name_by_node[&node];
+        eprintln!("Resolve: {name}");
         let (_node, item) = items[name];
         results.push(item);
     }
@@ -180,8 +181,13 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
             }
             results
         },
-        ast::Expr::Call(_loc, _func, es) => {
+        ast::Expr::Call(_loc, func, es) => {
             let mut results = BTreeSet::new();
+            const SPECIALS: &[&str] = &["cat", "mux", "sext", "word", "@Valid", "@Invalid"];
+
+            if !SPECIALS.contains(&func.as_str()) {
+                results.insert(func.clone());
+            }
             for e in es {
                 results.extend(expr_dependencies(e).into_iter());
             }
@@ -353,7 +359,8 @@ fn resolve_extmoddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: 
     Arc::new(Component::Ext(loc.clone(), name.clone(), children))
 }
 
-fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type> fndef_ctx: Context<String, Arc<FnDef>>) -> Arc<Expr> {
+// TODO fndef_ctx
+fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>, /*fndef_ctx: Context<String, Arc<FnDef>>*/) -> Arc<Expr> {
     Arc::new(match expr {
         ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
         ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
@@ -391,11 +398,13 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type> fndef_ctx: Context<
                 "@Valid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es),
                 "@Invalid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
                 fnname => {
+                    todo!() /*
                     if let Some(fndef) = fndef_ctx.lookup(fnname) {
                         todo!()
                     } else {
                         panic!("Unknown call: {func}")
                     }
+                    */
                 },
             }
         },
