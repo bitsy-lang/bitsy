@@ -12,7 +12,8 @@ Item: Item = {
     <m:ModDef> => Item::ModDef(m),
     <e:EnumTypeDef> => Item::EnumTypeDef(e),
     <e:StructTypeDef> => Item::StructTypeDef(e),
-    <m:ExtDef> => Item::ExtDef(m)
+    <m:ExtDef> => Item::ExtDef(m),
+    <f:FnDef> => Item::FnDef(f),
 }
 
 ModDef: ModDef = {
@@ -64,6 +65,29 @@ StructTypeDef: StructTypeDef = {
         }
     },
 }
+
+FnDef: FnDef = {
+    "fn" <name:Id> "(" <args:ArgList?> ")" "->" <ret:Type> "{"
+        <body:Expr>
+    "}" => {
+        FnDef {
+            name: name.to_string(),
+            args: args.unwrap_or_else(|| vec![]),
+            ret,
+            body: *body,
+        }
+    },
+}
+
+ArgList: Vec<(String, Type)> = {
+    <id:Id> "of" <typ:Type> => vec![(id.to_string(), typ.clone())],
+    <id:Id> "of" <typ:Type> "," <args:ArgList> => {
+        let mut results = vec![(id.to_string(), typ.clone())];
+        results.extend(args.into_iter());
+        results
+    },
+}
+
 
 Decl: Decl  = {
     <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Incoming(Loc::from(source_info, ll, rr), id, typ),

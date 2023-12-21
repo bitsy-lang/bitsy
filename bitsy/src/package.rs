@@ -89,6 +89,27 @@ impl Package {
         None
     }
 
+    pub fn fndef(&self, name: &str) -> Option<Arc<FnDef>> {
+        for item in &self.items {
+            if let Item::FnDef(fndef) = &item {
+                if fndef.name == name {
+                    return Some(fndef.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub fn fndefs(&self) -> Vec<Arc<FnDef>> {
+        let mut result = vec![];
+        for item in &self.items {
+            if let Item::FnDef(fndef) = &item {
+                result.push(fndef.clone());
+            }
+        }
+        result
+    }
+
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
     pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Type> {
         let mut ctx = vec![];
@@ -165,6 +186,7 @@ pub enum Item {
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
     StructTypeDef(Arc<StructTypeDef>),
+    FnDef(Arc<FnDef>),
 }
 
 impl Item {
@@ -174,6 +196,7 @@ impl Item {
             Item::ExtDef(component) => component.name(),
             Item::EnumTypeDef(typedef) => &typedef.name,
             Item::StructTypeDef(typedef) => &typedef.name,
+            Item::FnDef(typedef) => &typedef.name,
         }
     }
 
@@ -193,6 +216,13 @@ impl Item {
         }
     }
 
+    pub fn is_fndef(&self) -> bool {
+        match self {
+            Item::FnDef(_fndef) => true,
+            _ => false,
+        }
+    }
+
     pub fn as_type(&self) -> Option<Type> {
         match self {
             Item::EnumTypeDef(typedef) => Some(Type::Enum(typedef.clone())),
@@ -205,6 +235,13 @@ impl Item {
         match self {
             Item::ModDef(component) => Some(component.clone()),
             Item::ExtDef(component) => Some(component.clone()),
+            _ => None,
+        }
+    }
+
+    pub fn as_fndef(&self) -> Option<Arc<FnDef>> {
+        match self {
+            Item::FnDef(fndef) => Some(fndef.clone()),
             _ => None,
         }
     }

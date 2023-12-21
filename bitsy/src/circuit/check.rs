@@ -3,6 +3,15 @@ use super::*;
 impl Package {
     pub(crate) fn check(&self) -> Result<(), Vec<BitsyError>> {
         let mut errors: Vec<BitsyError> = vec![];
+
+        for fndef in self.fndefs() {
+            if let Err(fndef_errors) = self.check_typecheck_fndef(fndef.clone()) {
+                for fndef_error in fndef_errors {
+                    errors.push(fndef_error);
+                }
+            }
+        }
+
         for moddef in self.moddefs() {
             if let Err(component_errors) = self.check_component(moddef.clone()) {
                 for component_error in component_errors {
@@ -31,7 +40,7 @@ impl Package {
 
         match &*component {
             Component::Mod(_loc, _name, _children, _wires, _whens) => {
-                errors.extend(self.check_typecheck(component.clone()));
+                errors.extend(self.check_typecheck_component(component.clone()));
                 errors.extend(self.check_wires_no_such_component(component.clone()));
                 errors.extend(self.check_children_duplicate_names(component.clone()));
                 errors.extend(self.check_wires_duplicate_targets(component.clone()));
@@ -83,7 +92,22 @@ impl Package {
         errors
     }
 
-    fn check_typecheck(&self, component: Arc<Component>) -> Vec<BitsyError> {
+    fn check_typecheck_fndef(&self, fndef: Arc<FnDef>) -> Result<(), Vec<BitsyError>> {
+        let mut errors = vec![];
+
+        match fndef.body.typecheck(fndef.ret.clone(), fndef.context()) {
+            Err(e) => errors.push(BitsyError::TypeError(e)),
+            Ok(()) => fndef.body.assert_has_types(),
+        }
+
+        if errors.len() > 0 {
+            Err(errors)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn check_typecheck_component(&self, component: Arc<Component>) -> Vec<BitsyError> {
         let ctx = self.context_for(component.clone());
         let mut errors = vec![];
 

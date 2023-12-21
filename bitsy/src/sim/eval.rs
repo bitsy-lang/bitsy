@@ -267,6 +267,17 @@ impl Expr {
                     panic!("Index with invalid value: {value:?}")
                 }
             }, */
+            Expr::Call(_loc, _typ, fndef, es) => {
+                assert_eq!(fndef.args.len(), es.len());
+                let mut new_ctx = ctx.clone();
+
+                for ((arg_name, _arg_typ), e) in fndef.args.iter().zip(es.iter()) {
+                    let v = e.eval_with_ctx(bitsy, ctx.clone());
+                    new_ctx = new_ctx.extend(arg_name.clone().into(), v);
+                }
+
+                fndef.body.eval_with_ctx(bitsy, new_ctx)
+            },
             Expr::Hole(_loc, _typ, opt_name) => {
                 match opt_name {
                     Some(name) => panic!("EVALUATED A HOLE: ?{name}"),

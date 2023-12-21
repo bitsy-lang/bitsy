@@ -60,18 +60,26 @@ fn resolve_item(item: &ast::Item, items: &BTreeMap<String, Item>) -> Item {
         .filter(|(_name, item)| item.is_moddef())
         .map(|(name, item)| (name, item.as_component().unwrap()))
         .collect();
+    let fndefs: Vec<(String, Arc<FnDef>)> = items
+        .clone()
+        .into_iter()
+        .filter(|(_name, item)| item.is_fndef())
+        .map(|(name, item)| (name, item.as_fndef().unwrap()))
+        .collect();
 
     match item {
         ast::Item::ModDef(moddef) => {
             let ctx = Context::from(user_types.clone().into_iter().collect());
             let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
-            let moddef = resolve_moddef(moddef, ctx, mod_ctx);
+            let fndef_ctx = Context::from(fndefs.clone().into_iter().collect());
+            let moddef = resolve_moddef(moddef, ctx, mod_ctx, fndef_ctx);
             Item::ModDef(moddef.clone())
         },
         ast::Item::ExtDef(moddef) => {
             let ctx = Context::from(user_types.clone().into_iter().collect());
             let mod_ctx = Context::from(moddefs.clone().into_iter().collect());
-            let moddef = resolve_extmoddef(moddef, ctx, mod_ctx);
+            let fndef_ctx = Context::from(fndefs.clone().into_iter().collect());
+            let moddef = resolve_extmoddef(moddef, ctx, mod_ctx, fndef_ctx);
             Item::ExtDef(moddef.clone())
         },
         ast::Item::EnumTypeDef(typedef) => {
@@ -83,6 +91,12 @@ fn resolve_item(item: &ast::Item, items: &BTreeMap<String, Item>) -> Item {
             let typedef = resolve_struct_typedef(typedef, ctx);
             Item::StructTypeDef(typedef)
         },
+        ast::Item::FnDef(fndef) => {
+            let ctx = Context::from(user_types.clone().into_iter().collect());
+            let fn_ctx = Context::from(fndefs.clone().into_iter().collect());
+            let fndef = resolve_fndef(fndef, ctx, fn_ctx);
+            Item::FnDef(fndef)
+        },
     }
 }
 
@@ -92,6 +106,7 @@ fn item_dependencies(item: &ast::Item) -> BTreeSet<String> {
         ast::Item::ExtDef(moddef) => moddef_dependencies(moddef),
         ast::Item::EnumTypeDef(_typedef) => BTreeSet::new(),
         ast::Item::StructTypeDef(typedef) => structtypedef_dependencies(typedef),
+        ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
     }
 }
 
@@ -142,6 +157,16 @@ fn structtypedef_dependencies(typedef: &ast::StructTypeDef) -> BTreeSet<String> 
     typedef.fields.iter().map(|(_name, typ)| type_dependencies(typ)).flatten().collect()
 }
 
+fn fndef_dependencies(typedef: &ast::FnDef) -> BTreeSet<String> {
+    let mut result = type_dependencies(&typedef.ret);
+    for (_name, typ) in &typedef.args {
+        result.extend(type_dependencies(typ).into_iter());
+    }
+
+    result.extend(expr_dependencies(&typedef.body).into_iter());
+    result
+}
+
 fn type_dependencies(typ: &ast::Type) -> BTreeSet<String> {
     match typ {
         ast::Type::Word(_n) => BTreeSet::new(),
@@ -164,8 +189,13 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
             }
             results
         },
-        ast::Expr::Call(_loc, _func, es) => {
+        ast::Expr::Call(_loc, func, es) => {
             let mut results = BTreeSet::new();
+            const SPECIALS: &[&str] = &["cat", "mux", "sext", "word", "@Valid", "@Invalid"];
+
+            if !SPECIALS.contains(&func.as_str()) {
+                results.insert(func.clone());
+            }
             for e in es {
                 results.extend(expr_dependencies(e).into_iter());
             }
@@ -238,7 +268,22 @@ fn resolve_enum_typedef(typedef: &ast::EnumTypeDef) -> Arc<EnumTypeDef> {
     package_typedef
 }
 
-fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>) -> (Vec<Arc<Component>>, Vec<Wire>, Vec<When>) {
+fn resolve_fndef(fndef: &ast::FnDef, ctx: Context<String, Type>, fn_ctx: Context<String, Arc<FnDef>>) -> Arc<FnDef> {
+    let mut args: BTreeMap<String, Type> = BTreeMap::new();
+    for (name, typ) in &fndef.args {
+        args.insert(name.to_string(), resolve_type(typ, ctx.clone()));
+    }
+
+    let package_typedef = Arc::new(FnDef {
+        name: fndef.name.to_string(),
+        args: args.into_iter().collect(),
+        ret: resolve_type(&fndef.ret, ctx.clone()),
+        body: resolve_expr(&fndef.body, ctx.clone(), fn_ctx.clone()),
+    });
+    package_typedef
+}
+
+fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>, fndef_ctx: Context<String, Arc<FnDef>>) -> (Vec<Arc<Component>>, Vec<Wire>, Vec<When>) {
     let mut children = vec![];
     let mut wires = vec![];
     let mut whens = vec![];
@@ -246,7 +291,7 @@ fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Cont
     for decl in decls {
         match decl {
             ast::Decl::Mod(loc, name, decls) => {
-                let (inner_children, wires, whens) = resolve_decls(&decls.iter().collect::<Vec<_>>(), ctx.clone(), mod_ctx.clone());
+                let (inner_children, wires, whens) = resolve_decls(&decls.iter().collect::<Vec<_>>(), ctx.clone(), mod_ctx.clone(), fndef_ctx.clone());
                 let child = Component::Mod(loc.clone(), name.clone(), inner_children, wires, whens);
                 children.push(Arc::new(child));
             },
@@ -271,7 +316,7 @@ fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Cont
                     loc.clone(),
                     name.clone(),
                     resolve_type(typ, ctx.clone()),
-                    reset.clone().map(|e| resolve_expr(&e, ctx.clone())),
+                    reset.clone().map(|e| resolve_expr(&e, ctx.clone(), fndef_ctx.clone())),
                 );
                 children.push(Arc::new(child));
             },
@@ -279,20 +324,20 @@ fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Cont
                 let wire = Wire(
                     loc.clone(),
                     target_to_path(target),
-                    resolve_expr(expr, ctx.clone()),
+                    resolve_expr(expr, ctx.clone(), fndef_ctx.clone()),
                     wire_type.clone(),
                 );
                 wires.push(wire);
             },
             ast::Decl::When(_loc, ast::When(cond, wires)) => {
                 let mut package_wires = vec![];
-                let package_cond = resolve_expr(&*cond, ctx.clone());
+                let package_cond = resolve_expr(&*cond, ctx.clone(), fndef_ctx.clone());
 
                 for ast::Wire(loc, target, expr, wire_type) in wires {
                     let package_wire = Wire(
                         loc.clone(),
                         target_to_path(target),
-                        resolve_expr(expr, ctx.clone()),
+                        resolve_expr(expr, ctx.clone(), fndef_ctx.clone()),
                         wire_type.clone(),
                     );
                     package_wires.push(package_wire);
@@ -306,23 +351,23 @@ fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Cont
     (children, wires, whens)
 }
 
-fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>) -> Arc<Component> {
+fn resolve_moddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>, fndef_ctx: Context<String, Arc<FnDef>>) -> Arc<Component> {
     let ast::ModDef(loc, name, decls) = moddef;
     let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
-    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx);
+    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx, fndef_ctx.clone());
     Arc::new(Component::Mod(loc.clone(), name.clone(), children, wires, whens))
 }
 
-fn resolve_extmoddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>) -> Arc<Component> {
+fn resolve_extmoddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>, fndef_ctx: Context<String, Arc<FnDef>>) -> Arc<Component> {
     let ast::ModDef(loc, name, decls) = moddef;
     let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
-    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx);
+    let (children, wires, whens) = resolve_decls(decls_slice, ctx, mod_ctx, fndef_ctx.clone());
     assert!(wires.is_empty());
     assert!(whens.is_empty());
     Arc::new(Component::Ext(loc.clone(), name.clone(), children))
 }
 
-fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
+fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>, fndef_ctx: Context<String, Arc<FnDef>>) -> Arc<Expr> {
     Arc::new(match expr {
         ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
         ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
@@ -331,7 +376,7 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
             let package_fields = fields
                 .into_iter()
                 .map(|(name, expr)| {
-                    (name.to_string(), resolve_expr(expr, ctx.clone()))
+                    (name.to_string(), resolve_expr(expr, ctx.clone(), fndef_ctx.clone()))
                 })
                 .collect();
             Expr::Struct(loc.clone(), OnceCell::new(), package_fields)
@@ -340,7 +385,7 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
             let package_es = es
                 .into_iter()
                 .map(|expr| {
-                    resolve_expr(expr, ctx.clone())
+                    resolve_expr(expr, ctx.clone(), fndef_ctx.clone())
                 })
                 .collect();
             Expr::Vec(loc.clone(), OnceCell::new(), package_es)
@@ -349,7 +394,7 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
             let package_es = es
                 .into_iter()
                 .map(|expr| {
-                    resolve_expr(expr, ctx.clone())
+                    resolve_expr(expr, ctx.clone(), fndef_ctx.clone())
                 })
                 .collect();
             match func.as_str() {
@@ -359,36 +404,49 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
                 "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "@Valid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es),
                 "@Invalid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
-                _ => panic!("Unknown call: {func}"), // TODO Expr::Call(loc.clone(), OnceCell::new(), func.clone(), package_es),
+                fnname => {
+                    let func = fnname.to_string();
+                    if let Some(fndef) = fndef_ctx.lookup(&func) {
+                        let package_es = es
+                            .into_iter()
+                            .map(|expr| {
+                                resolve_expr(expr, ctx.clone(), fndef_ctx.clone())
+                            })
+                            .collect();
+                        Expr::Call(loc.clone(), OnceCell::new(), fndef, package_es)
+                    } else {
+                        panic!("Unknown call: {func}")
+                    }
+                },
             }
         },
         ast::Expr::Let(loc, x, e, b) => {
-            let package_e = resolve_expr(e, ctx.clone());
-            let package_b = resolve_expr(b, ctx.clone());
+            let package_e = resolve_expr(e, ctx.clone(), fndef_ctx.clone());
+            let package_b = resolve_expr(b, ctx.clone(), fndef_ctx.clone());
             Expr::Let(loc.clone(), OnceCell::new(), x.clone(), package_e, package_b)
         },
-        ast::Expr::UnOp(loc, op, e1) => Expr::UnOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone())),
-        ast::Expr::BinOp(loc, op, e1, e2) => Expr::BinOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone()), resolve_expr(&e2, ctx.clone())),
+        ast::Expr::UnOp(loc, op, e1) => Expr::UnOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone(), fndef_ctx.clone())),
+        ast::Expr::BinOp(loc, op, e1, e2) => Expr::BinOp(loc.clone(), OnceCell::new(), *op, resolve_expr(&e1, ctx.clone(), fndef_ctx.clone()), resolve_expr(&e2, ctx.clone(), fndef_ctx.clone())),
         ast::Expr::If(loc, c, e1, e2) => {
-            let package_c  = resolve_expr(c, ctx.clone());
-            let package_e1 = resolve_expr(e1, ctx.clone());
-            let package_e2 = resolve_expr(e2, ctx.clone());
+            let package_c  = resolve_expr(c, ctx.clone(), fndef_ctx.clone());
+            let package_e1 = resolve_expr(e1, ctx.clone(), fndef_ctx.clone());
+            let package_e2 = resolve_expr(e2, ctx.clone(), fndef_ctx.clone());
             Expr::If(loc.clone(), OnceCell::new(), package_c, package_e1, package_e2)
         },
         ast::Expr::Match(loc, e, arms) => {
-            let package_e  = resolve_expr(e, ctx.clone());
+            let package_e  = resolve_expr(e, ctx.clone(), fndef_ctx.clone());
             let package_arms = arms
                 .into_iter()
                 .map(|ast::MatchArm(pat, expr)| {
-                    let package_expr = resolve_expr(expr, ctx.clone());
+                    let package_expr = resolve_expr(expr, ctx.clone(), fndef_ctx.clone());
                     MatchArm(pat.clone(), package_expr)
                 })
                 .collect();
             Expr::Match(loc.clone(), OnceCell::new(), package_e, package_arms)
         },
-        ast::Expr::IdxField(loc, e, field) => Expr::IdxField(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), field.clone()),
-        ast::Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *i),
-        ast::Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone()), *j, *i),
+        ast::Expr::IdxField(loc, e, field) => Expr::IdxField(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone(), fndef_ctx.clone()), field.clone()),
+        ast::Expr::Idx(loc, e, i) => Expr::Idx(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone(), fndef_ctx.clone()), *i),
+        ast::Expr::IdxRange(loc, e, j, i) => Expr::IdxRange(loc.clone(), OnceCell::new(), resolve_expr(&e, ctx.clone(), fndef_ctx.clone()), *j, *i),
         ast::Expr::Hole(loc, name) => Expr::Hole(loc.clone(), OnceCell::new(), name.clone()),
     })
 }

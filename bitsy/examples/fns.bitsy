@@ -1,0 +1,8 @@
+pub mod Top {
+    reg counter of Word<8> reset 0;
+    counter <= inc(counter);
+}
+
+fn inc(x of Word<8>) -> Word<8> {
+    x + 1
+}
