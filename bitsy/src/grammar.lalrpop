@@ -67,12 +67,12 @@ StructTypeDef: StructTypeDef = {
 }
 
 FnDef: FnDef = {
-    "fn" <name:Id> "(" <args:ArgList?> ")" "->" <ret:Type> "{"
+    "fn" <name:Id> "(" <args:ArgList> ")" "->" <ret:Type> "{"
         <body:Expr>
     "}" => {
         FnDef {
             name: name.to_string(),
-            args: args.unwrap_or_else(|| vec![]),
+            args,
             ret,
             body: *body,
         }
@@ -80,11 +80,16 @@ FnDef: FnDef = {
 }
 
 ArgList: Vec<(String, Type)> = {
-    <id:Id> "of" <typ:Type> => vec![(id.to_string(), typ.clone())],
-    <id:Id> "of" <typ:Type> "," <args:ArgList> => {
-        let mut results = vec![(id.to_string(), typ.clone())];
-        results.extend(args.into_iter());
-        results
+    <args:((Id "of" Type ("," Id "of" Type)* ","?)?)> => {
+        if let Some((name, _of, typ, args, _comma)) = args {
+            let mut results = vec![(name.to_string(), typ)];
+            for (_comma, name, _of, typ) in args {
+                results.push((name.to_string(), typ));
+            }
+            results
+        } else {
+            vec![]
+        }
     },
 }
 
@@ -178,18 +183,37 @@ ExprCall: Box<Expr> = {
 }
 
 StructCtor: Box<Expr> = {
-    <ll:@L> "{" <fields:(Id "=" Expr ",")*> "}" <rr:@R> => {
-        let fields = fields.iter().map(|(name, _, e, _)| (name.to_string(), e.clone())).collect();
+    <ll:@L> "{" <fields:FieldExprList> "}" <rr:@R> => {
+        let fields = fields.iter().map(|(name, e)| (name.to_string(), Box::new(e.clone()))).collect();
         Box::new(Expr::Struct(Loc::from(source_info, ll, rr), fields))
     },
 }
 
+FieldExprList: Vec<(String, Expr)> = {
+    <fields:((Id "=" Expr ("," Id "=" Expr)* ","?)?)> => {
+        if let Some((name, _eqsign, expr, fields, _comma)) = fields {
+            let mut results = vec![(name.to_string(), *expr)];
+            for (_comma, name, _eqsign, expr) in fields {
+                results.push((name.to_string(), *expr));
+            }
+            results
+        } else {
+            vec![]
+        }
+    },
+}
+
 ExprList: Vec<Expr> = {
-    <e:Expr> => vec![*e],
-    <e:Expr> "," <es:ExprList> => {
-        let mut results = vec![*e];
-        results.extend(es.into_iter());
-        results
+    <exprs:((Expr ("," Expr)* ","?)?)> => {
+        if let Some((expr, exprs, _comma)) = exprs {
+            let mut results = vec![*expr];
+            for (_comma, expr) in exprs {
+                results.push(*expr);
+            }
+            results
+        } else {
+            vec![]
+        }
     },
 }
 
