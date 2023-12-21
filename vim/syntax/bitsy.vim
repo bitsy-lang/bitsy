@@ -19,6 +19,18 @@ hi link bitsyNumber Number
 
 syn match bitsyWord /\<[0-9][0-9]*w[0-9][0-9]*\>/
 hi link bitsyWord Number
+syn match bitsyWordInfer /\<[0-9][0-9]*\>/
+hi link bitsyWordInfer Number
+
+syn match bitsyWordHex /\<0x[0-9a-fA-F][0-9a-fA-F]*w[0-9][0-9]*\>/
+hi link bitsyWordHex Number
+syn match bitsyWordInferHex /\<0x[0-9a-fA-F][0-9a-fA-F]*\>/
+hi link bitsyWordInferHex Number
+
+syn match bitsyWordBin /\<0b[0-1][0-1]*w[0-9][0-9]*\>/
+hi link bitsyWordBin Number
+syn match bitsyWordInferBin /\<0b[0-1][0-1]*\>/
+hi link bitsyWordInferBin Number
 
 syn match bitsyIdentifier "\<[a-z_][A-Za-z0-9_]*\>"
 syn match bitsyUpperIdentifier "\<[A-Z][A-Za-z0-9_]*\>"
