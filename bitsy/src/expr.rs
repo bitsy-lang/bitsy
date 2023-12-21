@@ -2,10 +2,9 @@ mod typecheck;
 
 use super::*;
 use crate::sim::NetId;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use once_cell::sync::OnceCell;
-
 
 /// An expression.
 #[derive(Clone, Debug)]
@@ -61,7 +60,7 @@ pub enum Pat {
 }
 
 impl Pat {
-    fn bound_vars(&self) -> Vec<Path> {
+    pub fn bound_vars(&self) -> Vec<Path> {
         let mut results = vec![];
         match self {
             Pat::At(_s, pats) => {
@@ -386,217 +385,6 @@ impl Expr {
             Expr::Call(_loc, _typ, _fndef, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Hole(_loc, _typ, _name) => false,
         }
-    }
-
-    pub fn rebase(&self, current_path: Path) -> Arc<Expr> {
-        self.rebase_rec(current_path, &BTreeSet::new())
-    }
-
-    fn rebase_rec(&self, current_path: Path, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
-        Arc::new(match self {
-            Expr::Reference(loc, typ, path) => {
-                if !shadowed.contains(path) {
-                    Expr::Reference(loc.clone(), typ.clone(), current_path.join(path.clone()))
-                } else {
-                    self.clone()
-                }
-            },
-            Expr::Net(_loc, _typ, _net_id) => panic!("rebase() only works on reference expressions."),
-            Expr::Word(_loc, _typ, _width, _value) => self.clone(),
-            Expr::Enum(_loc, _typ, _typedef, _name) => self.clone(),
-            Expr::Ctor(loc, typ, name, es) => Expr::Ctor(loc.clone(), typ.clone(), name.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
-            Expr::Struct(loc, typ, fields) => {
-                Expr::Struct(
-                    loc.clone(),
-                    typ.clone(),
-                    fields
-                        .iter()
-                        .map(|(name, e)| (name.clone(), e.rebase_rec(current_path.clone(), shadowed)))
-                        .collect(),
-                    )
-            },
-            Expr::Let(loc, typ, name, e, b) => {
-                let new_e = e.rebase_rec(current_path.clone(), shadowed);
-                let mut new_shadowed = shadowed.clone();
-                new_shadowed.insert(name.clone().into());
-                let new_b = b.rebase_rec(current_path, &new_shadowed);
-                Expr::Let(loc.clone(), typ.clone(), name.clone(), new_e, new_b)
-            },
-            Expr::Match(loc, typ, e, arms) => {
-                let new_arms = arms.iter().map(|MatchArm(pat, e)| {
-                    let mut new_shadowed = shadowed.clone();
-                    new_shadowed.extend(pat.bound_vars());
-                    MatchArm(pat.clone(), e.rebase_rec(current_path.clone(), &new_shadowed))
-
-                }).collect();
-                Expr::Match(
-                    loc.clone(),
-                    typ.clone(),
-                    e.rebase_rec(current_path.clone(), shadowed),
-                    new_arms,
-                )
-            },
-            Expr::UnOp(loc, typ, op, e) => Expr::UnOp(loc.clone(), typ.clone(), *op, e.rebase_rec(current_path, shadowed)),
-            Expr::BinOp(loc, typ, op, e1, e2) => {
-                Expr::BinOp(
-                    loc.clone(),
-                    typ.clone(),
-                    *op,
-                    e1.rebase_rec(current_path.clone(), shadowed),
-                    e2.rebase_rec(current_path, shadowed),
-                )
-            },
-            Expr::If(loc, typ, cond, e1, e2) => {
-                Expr::If(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.rebase_rec(current_path.clone(), shadowed),
-                    e1.rebase_rec(current_path.clone(), shadowed),
-                    e2.rebase_rec(current_path, shadowed),
-                )
-            },
-            Expr::Mux(loc, typ, cond, e1, e2) => {
-                Expr::Mux(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.rebase_rec(current_path.clone(), shadowed),
-                    e1.rebase_rec(current_path.clone(), shadowed),
-                    e2.rebase_rec(current_path, shadowed),
-                )
-            },
-            Expr::Cat(loc, typ, es) => {
-                Expr::Cat(
-                    loc.clone(),
-                    typ.clone(),
-                    es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect(),
-                )
-            },
-            Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
-            Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
-            Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
-            Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), field.clone()),
-            Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *i),
-            Expr::IdxRange(loc, typ, e, j, i) => Expr::IdxRange(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), *j, *i),
-            Expr::Call(loc, typ, fndef, es) => {
-                Expr::Call(
-                    loc.clone(),
-                    typ.clone(),
-                    fndef.clone(),
-                    es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect(),
-                )
-            },
-            Expr::Hole(loc, typ, name) => Expr::Hole(loc.clone(), typ.clone(), name.clone()),
-        })
-    }
-
-    /// Replace all references (see [`Expr::Reference`]) with nets (see [`Expr::Net`])
-    /// to get it ready for simulation.
-    pub fn references_to_nets(&self, net_id_by_path: &BTreeMap<Path, NetId>) -> Arc<Expr> {
-        self.references_to_nets_rec(net_id_by_path, &BTreeSet::new())
-    }
-
-    fn references_to_nets_rec(&self, net_id_by_path: &BTreeMap<Path, NetId>, shadowed: &BTreeSet<Path>) -> Arc<Expr> {
-        Arc::new(match self {
-            Expr::Reference(loc, typ, path) => {
-                if !shadowed.contains(path) {
-                    Expr::Net(loc.clone(), typ.clone(), net_id_by_path[path])
-                } else {
-                    self.clone()
-                }
-            },
-            Expr::Net(_loc, _typ, _net_id) => panic!("references_to_nets() only works on reference expressions."),
-            Expr::Word(_loc, _typ, _width, _value) => self.clone(),
-            Expr::Enum(_loc, _typ, _typedef, _name) => self.clone(),
-            Expr::Ctor(loc, typ, name, es) => {
-                Expr::Ctor(
-                    loc.clone(),
-                    typ.clone(),
-                    name.clone(),
-                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
-                )
-            },
-            Expr::Struct(loc, typ, fields) => {
-                Expr::Struct(
-                    loc.clone(),
-                    typ.clone(),
-                    fields
-                        .iter()
-                        .map(|(name, e)| (name.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)))
-                        .collect(),
-                    )
-            },
-            Expr::Let(loc, typ, name, e, b) => {
-                let new_e = e.references_to_nets_rec(net_id_by_path, shadowed);
-                let mut new_shadowed = shadowed.clone();
-                new_shadowed.insert(name.clone().into());
-                let new_b = b.references_to_nets_rec(net_id_by_path, &new_shadowed);
-                Expr::Let(loc.clone(), typ.clone(), name.clone(), new_e, new_b)
-            },
-            Expr::UnOp(loc, typ, op, e) => Expr::UnOp(loc.clone(), typ.clone(), *op, e.references_to_nets_rec(net_id_by_path, shadowed)),
-            Expr::BinOp(loc, typ, op, e1, e2) => {
-                Expr::BinOp(
-                    loc.clone(),
-                    typ.clone(),
-                    *op,
-                    e1.references_to_nets_rec(net_id_by_path, shadowed),
-                    e2.references_to_nets_rec(net_id_by_path, shadowed),
-                )
-            },
-            Expr::If(loc, typ, cond, e1, e2) => {
-                Expr::If(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.references_to_nets_rec(net_id_by_path, shadowed),
-                    e1.references_to_nets_rec(net_id_by_path, shadowed),
-                    e2.references_to_nets_rec(net_id_by_path, shadowed),
-                )
-            },
-            Expr::Match(loc, typ, e, arms) => {
-                let new_arms = arms.iter().map(|MatchArm(pat, e)| {
-                    let mut new_shadowed = shadowed.clone();
-                    new_shadowed.extend(pat.bound_vars());
-                    MatchArm(pat.clone(), e.references_to_nets_rec(net_id_by_path, &new_shadowed))
-
-                }).collect();
-                Expr::Match(
-                    loc.clone(),
-                    typ.clone(),
-                    e.references_to_nets_rec(net_id_by_path, shadowed),
-                    new_arms,
-                )
-            },
-            Expr::Mux(loc, typ, cond, e1, e2) => {
-                Expr::Mux(
-                    loc.clone(),
-                    typ.clone(),
-                    cond.references_to_nets_rec(net_id_by_path, shadowed),
-                    e1.references_to_nets_rec(net_id_by_path, shadowed),
-                    e2.references_to_nets_rec(net_id_by_path, shadowed),
-                )
-            },
-            Expr::Cat(loc, typ, es) => {
-                Expr::Cat(
-                    loc.clone(),
-                    typ.clone(),
-                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
-                )
-            },
-            Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
-            Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
-            Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect()),
-            Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), field.clone()),
-            Expr::Idx(loc, typ, e, i) => Expr::Idx(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *i),
-            Expr::IdxRange(loc, typ, e, j, i) => Expr::IdxRange(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), *j, *i),
-            Expr::Call(loc, typ, fndef, es) => {
-                Expr::Call(
-                    loc.clone(),
-                    typ.clone(),
-                    fndef.clone(),
-                    es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect(),
-                )
-            },
-            Expr::Hole(loc, typ, name) => Expr::Hole(loc.clone(), typ.clone(), name.clone()),
-        })
     }
 
     pub fn type_of(&self) -> Type {
