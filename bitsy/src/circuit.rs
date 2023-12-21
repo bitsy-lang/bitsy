@@ -26,12 +26,10 @@ impl Circuit {
         if path == "top".into() {
             return Some(self.top());
         }
-        // TODO GET RID OF THIS
         let root_prefix = format!("top.");
         if !path.starts_with(&root_prefix) {
-            eprintln!("{path} does not start with top");
+            return None;
         }
-        assert!(path.starts_with(&root_prefix));
         let path: Path = path[root_prefix.len()..].into();
         self.component_from(self.top(), path)
     }
@@ -56,7 +54,12 @@ impl Circuit {
         for (path, component) in self.walk_instances() {
             for Wire(_loc, target, expr, wiretype) in component.wires() {
                 // TODO _loc should be loc?
-                results.push(Wire(_loc, path.clone().join(target), expr.rebase(path.clone()), wiretype));
+                results.push(Wire(
+                    _loc,
+                    path.clone().join(target),
+                    expr.rebase(path.clone()),
+                    wiretype,
+                ));
             }
         }
         results
@@ -84,8 +87,8 @@ impl Circuit {
     }
 
     /// Walk the instance's module hierarchy, returning all [`Path`]s for everything.
-    pub fn terminals(&self) -> Vec<Path> {
-        self.top().terminals_rec("top".into())
+    pub fn paths(&self) -> Vec<Path> {
+        self.top().paths_rec("top".into())
     }
 
     /// Given a [`Path`], if it is a [`Component::Reg`], return its reset value.
@@ -101,21 +104,26 @@ impl Circuit {
         self.walk_instances_rec(self.top(), "top".into())
     }
 
-    fn walk_instances_rec(&self, component: Arc<Component>, path: Path) -> Vec<(Path, Arc<Component>)> {
+    fn walk_instances_rec(
+        &self,
+        component: Arc<Component>,
+        path: Path,
+    ) -> Vec<(Path, Arc<Component>)> {
         let mut results = vec![(path.clone(), component.clone())];
         for child in component.children() {
             if let Component::ModInst(_loc, name, reference) = &*child {
-                let package = self.package();
-                if let Some(moddef) = package.moddef(reference.name()) {
-                    results.extend(self.walk_instances_rec(moddef.clone(), path.join(child.name().into())));
+                if let Some(moddef) = self.package().moddef(reference.name()) {
+                    results.extend(
+                        self.walk_instances_rec(moddef.clone(), path.join(child.name().into())),
+                    );
                 } else {
                     panic!("Undefined reference to ext: {name}")
                 }
-            }  else {
-                results.extend(self.walk_instances_rec(child.clone(), path.join(child.name().into())));
+            } else {
+                results
+                    .extend(self.walk_instances_rec(child.clone(), path.join(child.name().into())));
             }
         }
         results
     }
-
 }

@@ -56,7 +56,7 @@ impl Component {
         }
     }
 
-    pub(crate) fn terminals_rec(&self, path: Path) -> Vec<Path> {
+    pub(crate) fn paths_rec(&self, path: Path) -> Vec<Path> {
         let mut results = vec![];
         for child in self.children() {
             match &*child {
@@ -67,11 +67,11 @@ impl Component {
                 },
                 Component::Incoming(_loc, name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Outgoing(_loc, name, _typ) => results.push(path.join(name.clone().into())),
-                Component::Mod(_loc, name, _children, _wires, _whens) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
+                Component::Mod(_loc, name, _children, _wires, _whens) => results.extend(child.paths_rec(path.join(name.clone().into()))),
                 Component::ModInst(_loc, name, moddef) => {
-                    results.extend(moddef.terminals_rec(path.join(name.clone().into())))
+                    results.extend(moddef.paths_rec(path.join(name.clone().into())))
                 }
-                Component::Ext(_loc, name, _children) => results.extend(child.terminals_rec(path.join(name.clone().into()))),
+                Component::Ext(_loc, name, _children) => results.extend(child.paths_rec(path.join(name.clone().into()))),
             }
         }
         results

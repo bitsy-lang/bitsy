@@ -57,7 +57,7 @@ fn make_net_id_by_path(circuit: &Circuit, nets: &[Net]) -> BTreeMap<Path, NetId>
         The definition just takes each path and finds which net contains it.
     */
     circuit
-        .terminals()
+        .paths()
         .iter()
         .map(|path| {
             for (net_id, net) in nets.iter().enumerate() {
@@ -481,7 +481,7 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
     }
 
     let mut drivers: BTreeSet<Path> = BTreeSet::new();
-    for terminal in circuit.terminals() {
+    for terminal in circuit.paths() {
         drivers.insert(driver_for(terminal, &immediate_driver_for));
     }
 
@@ -492,7 +492,7 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
         nets.insert(driver.clone(), Net::from(driver.clone(), typ));
     }
 
-    for terminal in circuit.terminals() {
+    for terminal in circuit.paths() {
         let driver = driver_for(terminal.clone(), &immediate_driver_for);
         let net = nets.get_mut(&driver).unwrap();
         net.add(terminal);
