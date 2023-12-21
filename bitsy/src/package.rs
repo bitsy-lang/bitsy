@@ -89,6 +89,27 @@ impl Package {
         None
     }
 
+    pub fn fndef(&self, name: &str) -> Option<Arc<FnDef>> {
+        for item in &self.items {
+            if let Item::FnDef(fndef) = &item {
+                if fndef.name == name {
+                    return Some(fndef.clone());
+                }
+            }
+        }
+        None
+    }
+
+    pub fn fndefs(&self) -> Vec<Arc<FnDef>> {
+        let mut result = vec![];
+        for item in &self.items {
+            if let Item::FnDef(fndef) = &item {
+                result.push(fndef.clone());
+            }
+        }
+        result
+    }
+
     /// Look at all components in scope, work out their type, and build a [`context::Context`] to assist in typechecking.
     pub fn context_for(&self, component: Arc<Component>) -> Context<Path, Type> {
         let mut ctx = vec![];
@@ -165,6 +186,7 @@ pub enum Item {
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
     StructTypeDef(Arc<StructTypeDef>),
+    FnDef(Arc<FnDef>),
 }
 
 impl Item {
@@ -174,6 +196,7 @@ impl Item {
             Item::ExtDef(component) => component.name(),
             Item::EnumTypeDef(typedef) => &typedef.name,
             Item::StructTypeDef(typedef) => &typedef.name,
+            Item::FnDef(typedef) => &typedef.name,
         }
     }
 

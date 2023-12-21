@@ -21,6 +21,7 @@ pub enum Item {
     ExtDef(ModDef),
     EnumTypeDef(EnumTypeDef),
     StructTypeDef(StructTypeDef),
+    FnDef(FnDef),
 }
 
 impl Item {
@@ -30,6 +31,7 @@ impl Item {
             Item::ExtDef(ModDef(_loc, name, _decls)) => name,
             Item::EnumTypeDef(typedef) => typedef.name.as_str(),
             Item::StructTypeDef(typedef) => typedef.name.as_str(),
+            Item::FnDef(fndef) => fndef.name.as_str(),
         }
     }
 }
@@ -62,6 +64,15 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
+}
+
+/// A user-defined `struct` type.
+#[derive(Debug, Clone)]
+pub struct FnDef {
+    pub name: String,
+    pub args: Vec<(String, Type)>,
+    pub ret: Type,
+    pub body: Expr,
 }
 
 /// An expression.

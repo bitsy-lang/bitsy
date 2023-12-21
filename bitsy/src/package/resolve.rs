@@ -83,6 +83,11 @@ fn resolve_item(item: &ast::Item, items: &BTreeMap<String, Item>) -> Item {
             let typedef = resolve_struct_typedef(typedef, ctx);
             Item::StructTypeDef(typedef)
         },
+        ast::Item::FnDef(fndef) => {
+            let ctx = Context::from(user_types.clone().into_iter().collect());
+            let fndef = resolve_fndef(fndef, ctx);
+            Item::FnDef(fndef)
+        },
     }
 }
 
@@ -92,6 +97,7 @@ fn item_dependencies(item: &ast::Item) -> BTreeSet<String> {
         ast::Item::ExtDef(moddef) => moddef_dependencies(moddef),
         ast::Item::EnumTypeDef(_typedef) => BTreeSet::new(),
         ast::Item::StructTypeDef(typedef) => structtypedef_dependencies(typedef),
+        ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
     }
 }
 
@@ -140,6 +146,16 @@ fn wire_dependencies(wire: &ast::Wire) -> BTreeSet<String> {
 
 fn structtypedef_dependencies(typedef: &ast::StructTypeDef) -> BTreeSet<String> {
     typedef.fields.iter().map(|(_name, typ)| type_dependencies(typ)).flatten().collect()
+}
+
+fn fndef_dependencies(typedef: &ast::FnDef) -> BTreeSet<String> {
+    let mut result = type_dependencies(&typedef.ret);
+    for (_name, typ) in &typedef.args {
+        result.extend(type_dependencies(typ).into_iter());
+    }
+
+    result.extend(expr_dependencies(&typedef.body).into_iter());
+    result
 }
 
 fn type_dependencies(typ: &ast::Type) -> BTreeSet<String> {
@@ -238,6 +254,21 @@ fn resolve_enum_typedef(typedef: &ast::EnumTypeDef) -> Arc<EnumTypeDef> {
     package_typedef
 }
 
+fn resolve_fndef(fndef: &ast::FnDef, ctx: Context<String, Type>) -> Arc<FnDef> {
+    let mut args: BTreeMap<String, Type> = BTreeMap::new();
+    for (name, typ) in &fndef.args {
+        args.insert(name.to_string(), resolve_type(typ, ctx.clone()));
+    }
+
+    let package_typedef = Arc::new(FnDef {
+        name: fndef.name.to_string(),
+        args: args.into_iter().collect(),
+        ret: resolve_type(&fndef.ret, ctx.clone()),
+        body: resolve_expr(&fndef.body, ctx.clone()),
+    });
+    package_typedef
+}
+
 fn resolve_decls(decls: &[&ast::Decl], ctx: Context<String, Type>, mod_ctx: Context<String, Arc<Component>>) -> (Vec<Arc<Component>>, Vec<Wire>, Vec<When>) {
     let mut children = vec![];
     let mut wires = vec![];
@@ -322,7 +353,7 @@ fn resolve_extmoddef(moddef: &ast::ModDef, ctx: Context<String, Type>, mod_ctx: 
     Arc::new(Component::Ext(loc.clone(), name.clone(), children))
 }
 
-fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
+fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type> fndef_ctx: Context<String, Arc<FnDef>>) -> Arc<Expr> {
     Arc::new(match expr {
         ast::Expr::Ref(loc, target) => Expr::Reference(loc.clone(), OnceCell::new(), target_to_path(target)),
         ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
@@ -359,7 +390,13 @@ fn resolve_expr(expr: &ast::Expr, ctx: Context<String, Type>) -> Arc<Expr> {
                 "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "@Valid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es),
                 "@Invalid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
-                _ => panic!("Unknown call: {func}"), // TODO Expr::Call(loc.clone(), OnceCell::new(), func.clone(), package_es),
+                fnname => {
+                    if let Some(fndef) = fndef_ctx.lookup(fnname) {
+                        todo!()
+                    } else {
+                        panic!("Unknown call: {func}")
+                    }
+                },
             }
         },
         ast::Expr::Let(loc, x, e, b) => {

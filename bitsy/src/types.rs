@@ -1,3 +1,7 @@
+use super::Context;
+use super::Expr;
+use super::Path;
+
 use std::sync::Arc;
 
 pub use crate::ast::WordLit; // re-export
@@ -69,6 +73,21 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
+}
+
+/// A user-defined `fn` function.
+#[derive(Debug, Clone)]
+pub struct FnDef {
+    pub name: String,
+    pub args: Vec<(String, Type)>,
+    pub ret: Type,
+    pub body: Arc<Expr>,
+}
+
+impl FnDef {
+    pub fn context(&self) -> Context<Path, Type> {
+        Context::from(self.args.iter().map(|(arg_name, arg_type)| (arg_name.to_string().into(), arg_type.clone())).collect::<Vec<_>>())
+    }
 }
 
 impl StructTypeDef {
