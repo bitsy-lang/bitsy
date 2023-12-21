@@ -11,12 +11,7 @@ pub use ast::WireType;
 pub type Name = String;
 
 /// A Package is a parsed Bitsy file.
-/// It consists of a number of top-level declarations.
-///
-/// After it is constructed, you need to call [`Package::resolve_references`]
-/// to ensure all variables have valid referents.
-/// After that, you also need to call [`Package::check`] to do typechecking of expressions
-/// and connection checking of components.
+/// It consists of a number of top-level [`Item`]s.
 #[derive(Debug, Clone)]
 pub struct Package {
     items: Vec<Item>,

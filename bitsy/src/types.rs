@@ -12,7 +12,7 @@ pub type Width = u64;
 /// The length of a [`Type::Vec`].
 pub type Length = u64;
 
-/// A type classifier for [`Value`]s.
+/// A type classifier for [`crate::sim::Value`]s.
 #[derive(Clone, PartialEq)]
 pub enum Type {
     /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.

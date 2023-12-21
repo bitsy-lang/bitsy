@@ -11,7 +11,7 @@ use once_cell::sync::OnceCell;
 pub enum Expr {
     /// A referenec to a port, reg, or node.
     Reference(Loc, OnceCell<Type>, Path),
-    /// A referenec to a net. Used only in [`crate::sim::Sim`]. See [`Expr::references_to_nets`].
+    /// A referenec to a net. Used only in [`crate::sim::Sim`].
     Net(Loc, OnceCell<Type>, NetId),
     /// A literal Word.
     Word(Loc, OnceCell<Type>, Option<Width>, u64),
@@ -19,6 +19,7 @@ pub enum Expr {
     Enum(Loc, OnceCell<Type>, Type, String),
     /// Constructor (for `Valid<T>`)
     Ctor(Loc, OnceCell<Type>, String, Vec<Arc<Expr>>),
+    /// Constructor for structs. Eg, `{ x = 0, y = 0}`.
     Struct(Loc, OnceCell<Type>, Vec<(String, Arc<Expr>)>),
     /// Let binding. Eg, `let x = a + b in x + x`.
     Let(Loc, OnceCell<Type>, String, Arc<Expr>, Arc<Expr>),
@@ -43,15 +44,38 @@ pub enum Expr {
     IdxField(Loc, OnceCell<Type>, Arc<Expr>, String),
     /// A static index. Eg, `foo[0]`.
     Idx(Loc, OnceCell<Type>, Arc<Expr>, u64),
+    /// A static index range. Eg, `foo[8..4]`.
     IdxRange(Loc, OnceCell<Type>, Arc<Expr>, u64, u64),
+    /// A function call. Eg, `foo(x, y)`.
     Call(Loc, OnceCell<Type>, Arc<FnDef>, Vec<Arc<Expr>>),
     /// A hole. Eg, `?foo`.
     Hole(Loc, OnceCell<Type>, Option<String>),
 }
 
+/// A [`MatchArm`] is a case in a `match` expression.
+///
+/// In the expression:
+///
+/// ``` bitsy
+/// match v {
+///     @Valid(n) => n;
+///     @Invalid => 0;
+/// }
+/// ```
+///
+/// The two match arms are `@Valid(n) => n;` and `@Invalid => 0;`.
 #[derive(Clone, Debug)]
 pub struct MatchArm(pub Pat, pub Arc<Expr>);
 
+/// A [`Pat`] is a pattern for a `match` expression.
+///
+/// Notably different about Bitsy from other languages with a `match` or `case` statement,
+/// constructors and constant patterns are prefixed by an `@` symbol to distinguish them
+/// from variable bindings. For instance:
+///
+/// * `@Valid(n)`
+/// * `@Invalid`
+/// * `@Opcode::OP`
 #[derive(Clone, Debug)]
 pub enum Pat {
     At(String, Vec<Pat>),
