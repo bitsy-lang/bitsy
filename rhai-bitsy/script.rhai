@@ -1,13 +1,14 @@
-let p = package_load("https://raw.githubusercontent.com/bitsy-lang/bitsy/master/bitsy/examples/counter.bitsy");
+let p = Package("https://raw.githubusercontent.com/bitsy-lang/bitsy/master/bitsy/examples/counter.bitsy");
 
-let moddefs = package_moddefs(p);
-print(moddefs);
-
-for (moddef, i) in moddefs {
-    print(moddef);
+let moddefs = p.moddefs();
+print("Module definitions:");
+for moddef in moddefs {
+    print("  - " + moddef);
 }
+print();
 
-let sim = Sim(p, "Counter");
+let sim = p.sim("Counter");
+
 sim.reset();
 for i in 0..20 {
     let v = sim.peek("top.out");

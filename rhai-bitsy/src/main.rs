@@ -11,11 +11,13 @@ use std::sync::Mutex;
 fn make_engine() -> Engine {
     let mut engine = Engine::new();
     engine.set_max_call_levels(1024 * 1024);
-    engine.register_fn("package_moddefs", package_moddefs);
-    engine.register_fn("package_load", package_load);
+
+    engine.register_type_with_name::<Arc<Package>>("Package")
+        .register_fn("Package", package_load)
+        .register_fn("sim", sim)
+        .register_fn("moddefs", package_moddefs);
 
     engine.register_type_with_name::<Arc<Sim>>("Sim")
-        .register_fn("Sim", sim)
         .register_fn("clock", sim_clock)
         .register_fn("reset", sim_reset)
         .register_fn("peek", sim_peek)
@@ -25,8 +27,6 @@ fn make_engine() -> Engine {
         .register_fn("to_string", to_string)
         .register_fn("word", word);
 
-
-//    let typ = TypeBuilder::new(
     engine
 }
 
