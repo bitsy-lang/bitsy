@@ -235,7 +235,7 @@ fn test_locs() {
     package.check().unwrap();
     let top = package.top("Top").unwrap();
     let wires = top.wires();
-    let Wire(_loc, _target, expr, _wiretype) = wires.first().unwrap();
+    let (_path, Wire(_loc, _target, expr, _wiretype)) = wires.first().unwrap();
     assert_eq!(source_info.start(expr).to_string(), "6:20");
     assert_eq!(source_info.end(expr).to_string(), "6:22");
 }

@@ -49,17 +49,12 @@ impl Circuit {
     }
 
     /// Walk the instance's module hierarchy, returning all [`Wire`]s.
-    pub fn wires(&self) -> Vec<Wire> {
+    pub fn wires(&self) -> Vec<(Path, Wire)> {
         let mut results = vec![];
         for (path, component) in self.walk_instances() {
-            for Wire(_loc, target, expr, wiretype) in component.wires() {
+            for wire in component.wires() {
                 // TODO _loc should be loc?
-                results.push(Wire(
-                    _loc,
-                    path.clone().join(target),
-                    expr.rebase(path.clone()),
-                    wiretype,
-                ));
+                results.push((path.clone(), wire));
             }
         }
         results

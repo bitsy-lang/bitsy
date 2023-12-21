@@ -104,13 +104,15 @@ fn make_combs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<
         .wires()
         .iter()
         .cloned()
-        .map(|Wire(_loc, target, expr, wiretype)| {
+        .map(|(path, Wire(_loc, target, expr, wiretype))| {
+            let abs_target = path.clone().join(target);
+            let abs_expr = expr.rebase(path.clone());
             let target_net_id = match wiretype {
-                WireType::Direct => net_id_by_path[&target],
-                WireType::Latch => net_id_by_path[&target.set()],
+                WireType::Direct => net_id_by_path[&abs_target],
+                WireType::Latch => net_id_by_path[&abs_target.set()],
                 _ => todo!(), // Proc Wires not handled
             };
-            (target_net_id, expr.references_to_nets(&net_id_by_path), wiretype)
+            (target_net_id, abs_expr.references_to_nets(&net_id_by_path), wiretype)
         })
         .filter(|(target_net_id, expr, _wiretype)| {
             if let Expr::Net(_loc, _typ, net_id) = &**expr {
@@ -469,13 +471,14 @@ impl std::fmt::Debug for Sim {
 pub fn nets(circuit: &Circuit) -> Vec<Net> {
     let mut immediate_driver_for: BTreeMap<Path, Path> = BTreeMap::new();
 
-    for Wire(_loc, target, expr, wire_type) in circuit.wires() {
+    for (path, Wire(_loc, target, expr, wire_type)) in circuit.wires() {
+        let abs_expr = expr.rebase(path.clone());
         let target_terminal: Path = match wire_type {
-            WireType::Direct => target.clone(),
-            WireType::Latch => target.set(),
-            WireType::Proc => target.set(),
+            WireType::Direct => path.join(target).clone(),
+            WireType::Latch => path.join(target).set(),
+            WireType::Proc => path.join(target).set(),
         };
-        if let Expr::Reference(_loc, _typ, driver) = &*expr {
+        if let Expr::Reference(_loc, _typ, driver) = &*abs_expr {
             immediate_driver_for.insert(target_terminal.clone(), driver.clone());
          }
     }
