@@ -199,7 +199,6 @@ impl Expr {
                     None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
                 }
             },
-//            (_type_expected, Expr::IdxDyn(_loc, _typ, e, i)) => todo!(),
             (_type_expected, Expr::Call(_loc, _typ, fndef, es)) => {
                 // TODO
                 if fndef.args.len() != es.len() {
@@ -278,7 +277,6 @@ impl Expr {
                     None => None,
                 }
             },
-            //Expr::IdxDyn(_loc, _typ, e, i) => None,
             Expr::Hole(_loc, _typ, opt_name) => None,
             _ => None,
         };

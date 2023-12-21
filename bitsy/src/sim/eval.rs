@@ -243,30 +243,6 @@ impl Expr {
                     panic!("Can't index into value: {value:?}")
                 }
             },
-            /*Expr::IdxDyn(_loc, e, i) => {
-                let index = if let Value::Word(_width, val) = i.eval_with_ctx(bitsy, ctx.clone()) {
-                    val
-                } else {
-                    panic!("Invalid index: {i:?}");
-                };
-
-                let value = e.eval_with_ctx(bitsy, ctx.clone());
-                if let Value::Word(width, val) = value {
-                    if index < val {
-                        Value::Word(1, (val >> index) & 1)
-                    } else {
-                        panic!("Index at {index} out of range (width {width})")
-                    }
-                } else if let Value::Vec(vs) = value {
-                    if index < vs.len().try_into().unwrap() {
-                        vs[index as usize].clone()
-                    } else {
-                        panic!("Index at {index} out of range (length {})", vs.len())
-                    }
-                } else {
-                    panic!("Index with invalid value: {value:?}")
-                }
-            }, */
             Expr::Call(_loc, _typ, fndef, es) => {
                 assert_eq!(fndef.args.len(), es.len());
                 let mut new_ctx = ctx.clone();
