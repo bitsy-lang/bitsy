@@ -46,9 +46,18 @@ fn main() {
     });
 }
 
-fn package_load(filename: &str) -> Arc<Package> {
-    eprintln!("load({filename})");
-    let text = std::fs::read_to_string(filename).unwrap().to_string();
+fn package_load(path: &str) -> Arc<Package> {
+    let text = if path.starts_with("http://") || path.starts_with("https://") {
+        let client = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::limited(5))
+            .build()
+            .unwrap();
+        let response = client.get(path).send().unwrap();
+        let body = response.text().unwrap();
+        body
+    } else {
+        std::fs::read_to_string(path).unwrap().to_string()
+    };
 
     let package = match bitsy::load_package_from_string(&text) {
         Ok(package) => package,
