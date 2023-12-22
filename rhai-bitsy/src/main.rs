@@ -39,8 +39,10 @@ fn to_string(x: Value) -> String {
 }
 
 fn main() {
+    let args = std::env::args().collect::<Vec<String>>();
+    let filename = args.get(1).cloned().unwrap_or_else(|| "script.rhai".to_string());
     let engine = make_engine();
-    let _= engine.eval_file::<Dynamic>("script.rhai".into()).unwrap_or_else(|e| {
+    let _= engine.eval_file::<Dynamic>(filename.into()).unwrap_or_else(|e| {
         eprintln!("ERROR {e:?}");
         std::process::exit(1)
     });

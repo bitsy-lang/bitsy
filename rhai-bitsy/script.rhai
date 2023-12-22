@@ -1,3 +1,5 @@
+#!/usr/bin/env rhai-bitsy
+
 let p = Package("https://raw.githubusercontent.com/bitsy-lang/bitsy/master/bitsy/examples/counter.bitsy");
 
 let moddefs = p.moddefs();
