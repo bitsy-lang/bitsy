@@ -7,14 +7,14 @@ SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
-EXAMPLES      = $(wildcard ../nettle/examples/*.bitsy)
+EXAMPLES      = $(wildcard ../bitsy/examples/*.bitsy)
 
-auto: examples $(EXAMPLES) typesystem.pdf
+auto: examples $(EXAMPLES) typesystem.pdf rustdocs
 	mkdir -p ./source/examples/
 	cp ../bitsy/examples/*.bitsy ./source/examples/
 	poetry run make html
 
-.PHONY: auto clean examples push
+.PHONY: auto clean examples push rustdocs
 
 html: Makefile
 	$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
@@ -32,3 +32,7 @@ clean:
 
 push: auto
 	rsync -azvhP $(BUILDDIR)/html/* digitalocean:/root/projects/bitsy/docs/build/html
+
+rustdocs:
+	cargo doc --manifest-path ../bitsy/Cargo.toml
+	cp -r ../bitsy/target/doc/ $(BUILDDIR)/html/.
