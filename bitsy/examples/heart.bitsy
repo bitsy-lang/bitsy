@@ -1,7 +1,7 @@
 mod Top {
     mod video of Video;
     mod pixeler of Pixeler;
-    mod videoram of VideoRam;
+    mod videoram of Ram;
     mod positioner of Positioner;
 
     videoram.write_addr := 0w16;
@@ -113,7 +113,7 @@ mod Pixeler {
     };
 }
 
-ext mod VideoRam {
+ext mod Ram {
     incoming read_addr of Word<16>;
     outgoing read_data of Word<8>;
 

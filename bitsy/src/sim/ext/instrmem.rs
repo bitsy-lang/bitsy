@@ -6,14 +6,14 @@ use std::collections::BTreeMap;
 /// Addressed by a 32-bit address (only the bottom 16 bits are usable).
 /// Reads and writes a 32-bit word at a time.
 #[derive(Debug)]
-pub struct Mem {
-    instances: BTreeMap<Path, MemInstance>,
+pub struct InstrMem {
+    instances: BTreeMap<Path, InstrMemInstance>,
     initial_data: Vec<u8>,
 }
 
-impl Mem {
-    pub fn new() -> Mem {
-        Mem {
+impl InstrMem {
+    pub fn new() -> InstrMem {
+        InstrMem {
             instances: BTreeMap::new(),
             initial_data: vec![],
         }
@@ -26,7 +26,7 @@ impl Mem {
 }
 
 #[derive(Debug)]
-pub struct MemInstance {
+pub struct InstrMemInstance {
     mem: [u8; 1 << 16],
     read_addr: u32,
     write_enable: bool,
@@ -34,15 +34,15 @@ pub struct MemInstance {
     write_data: u32
 }
 
-impl MemInstance {
-    pub fn new(initial_data: &[u8]) -> MemInstance {
+impl InstrMemInstance {
+    pub fn new(initial_data: &[u8]) -> InstrMemInstance {
         let mut mem = [0; 1 << 16];
 
         let len = initial_data.len().min(1<<16);
         for i in 0..len {
             mem[i] = initial_data[i];
         }
-        MemInstance {
+        InstrMemInstance {
             mem,
             read_addr: 0,
             write_enable: false,
@@ -83,7 +83,7 @@ impl MemInstance {
                 self.read_addr = addr as u32;
                 return vec![("read_data".to_string(), self.read())];
             } else {
-                panic!("Mem must receive a Word<32> on read_addr. Received {value:?}")
+                panic!("InstrMem must receive a Word<32> on read_addr. Received {value:?}")
             }
         } else if port == "write_enable" {
             match value {
@@ -102,7 +102,7 @@ impl MemInstance {
                 _ => panic!("write_data value must be Word<32>: {value:?}"),
             }
         } else {
-            panic!("Mem may only recieve data on read_data: received data on {port} {value:?}")
+            panic!("InstrMem may only recieve data on read_data: received data on {port} {value:?}")
         }
         vec![]
     }
@@ -119,7 +119,7 @@ impl MemInstance {
     }
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
-//        println!("Mem was clocked: {}", self.render());
+//        println!("InstrMem was clocked: {}", self.render());
         if self.write_enable {
             println!("Writing to RAM: 0x{:08x} <= {:08x}", self.write_addr, self.write_data);
             self.mem[self.write_addr as usize]       = self.write_data as u8 & 0xff;
@@ -127,7 +127,7 @@ impl MemInstance {
             self.mem[(self.write_addr + 2) as usize] = (self.write_data >> 16) as u8;
             self.mem[(self.write_addr + 3) as usize] = (self.write_data >> 24) as u8;
             let read_data = self.read();
-            //println!("Mem wrote {read_data:?} at address 0x{:x}", self.write_addr);
+            //println!("InstrMem wrote {read_data:?} at address 0x{:x}", self.write_addr);
             vec![("read_data".to_string(), read_data)]
         } else {
             vec![]
@@ -135,12 +135,12 @@ impl MemInstance {
     }
 }
 
-impl Ext for Mem {
+impl Ext for InstrMem {
     fn name(&self) -> String {
-        "Mem".to_string()
+        "InstrMem".to_string()
     }
     fn instantiate(&mut self, path: Path) {
-        self.instances.insert(path, MemInstance::new(&self.initial_data));
+        self.instances.insert(path, InstrMemInstance::new(&self.initial_data));
     }
 
     fn incoming_ports(&self) -> Vec<PortName> {

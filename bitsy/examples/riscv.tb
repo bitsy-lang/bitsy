@@ -2,7 +2,7 @@ top Top
 link RiscVDecoder {
 }
 
-link Mem {
+link InstrMem {
     file = "programs/hello.exe.bin"
 }
 

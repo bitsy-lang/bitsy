@@ -164,12 +164,10 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
                 e
             },
-            /*
             "RiscVDecoder" => {
-                let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
+                let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new());
                 e
             },
-            */
             "Ram" => {
                 let mut e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
                 if let Some(data_filename) = params_map.remove("file") {
@@ -177,9 +175,15 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 }
                 e
             },
-            /*
             "Mem" => {
                 let mut e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
+                if let Some(data_filename) = params_map.remove("file") {
+                    e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
+                }
+                e
+            },
+            "InstrMem" => {
+                let mut e = Box::new(bitsy_lang::sim::ext::instrmem::InstrMem::new());
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
@@ -196,7 +200,6 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
                 e
             },
-            */
             _ => panic!("Unknown ext module being linked: {extname}")
         };
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {extname}: {params_map:?}");

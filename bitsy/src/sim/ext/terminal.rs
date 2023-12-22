@@ -11,11 +11,13 @@ impl Terminal {
   }
 }
 
-impl ExtInstance for Terminal {
+impl Ext for Terminal {
+    fn name(&self) -> String { "Terminal".to_string() }
+    fn instantiate(&mut self, _path: Path) {}
     fn incoming_ports(&self) -> Vec<PortName> { vec!["out_data".to_string(), "out_valid".to_string()] }
     fn outgoing_ports(&self) -> Vec<PortName> { vec![] }
 
-    fn update(&mut self, port: &PortName, value: Value) -> Vec<(PortName, Value)> {
+    fn update(&mut self, _path: Path, port: &PortName, value: Value) -> Vec<(PortName, Value)> {
         if value.is_x() {
             return vec![];
         }
@@ -35,7 +37,7 @@ impl ExtInstance for Terminal {
         vec![]
     }
 
-    fn clock(&mut self) -> Vec<(PortName, Value)> {
+    fn clock(&mut self, _path: Path) -> Vec<(PortName, Value)> {
         if self.2 {
             let s = self.0;
             eprintln!("TERMINAL OUTPUT: {}", s as u32);
@@ -45,7 +47,7 @@ impl ExtInstance for Terminal {
         vec![]
     }
 
-    fn reset(&mut self) -> Vec<(PortName, Value)> {
+    fn reset(&mut self, _path: Path) -> Vec<(PortName, Value)> {
         if self.2 {
             let s = self.0;
             write!(self.1, "{s}").unwrap();

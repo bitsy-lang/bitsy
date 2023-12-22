@@ -27,10 +27,12 @@ impl Video {
     }
 }
 
-impl ExtInstance for Video {
+impl Ext for Video {
+    fn name(&self) -> String { "Video".to_string() }
+    fn instantiate(&mut self, _path: Path) {}
     fn incoming_ports(&self) -> Vec<PortName> { vec!["signal".to_string(), "hsync".to_string(), "vsync".to_string()] }
 
-    fn update(&mut self, portname: &PortName, value: value::Value) -> Vec<(PortName, value::Value)> {
+    fn update(&mut self, _path: Path, portname: &PortName, value: Value) -> Vec<(PortName, Value)> {
         if value.is_x() {
             return vec![];
         }
@@ -44,7 +46,7 @@ impl ExtInstance for Video {
         vec![]
     }
 
-    fn clock(&mut self) -> Vec<(PortName, Value)> {
+    fn clock(&mut self, _path: Path) -> Vec<(PortName, Value)> {
         if !self.disabled {
             use std::fmt::Write;
             let c: char = " ░▒▓".chars().collect::<Vec<char>>()[self.signal as usize];
@@ -70,7 +72,7 @@ impl ExtInstance for Video {
         vec![]
     }
 
-    fn reset(&mut self) -> Vec<(PortName, Value)>{
+    fn reset(&mut self, _path: Path) -> Vec<(PortName, Value)>{
         if !self.disabled {
             if !self.initialized {
                 ctrlc::set_handler(move || {
