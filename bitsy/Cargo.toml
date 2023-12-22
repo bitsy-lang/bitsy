@@ -1,12 +1,17 @@
 [package]
 name = "bitsy"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Michael Maloney"]
 build = "build.rs"
 default-run = "bitsy"
+publish = true
+license = "MIT"
+description = "Bitsy is a modern hardware description language."
 homepage = "https://bitsy-lang.org/"
-publish = false
+documentation = "https://bitsy-lang.org/doc/"
+repository = "https://github.com/bitsy-lang/bitsy"
+readme = "README.md"
 
 [build-dependencies]
 lalrpop = "0.20.0"
