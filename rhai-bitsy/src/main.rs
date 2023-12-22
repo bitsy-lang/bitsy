@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use rhai::Engine;
 use rhai::Array;
 use rhai::Dynamic;
-use bitsy::Package;
-use bitsy::sim::Sim;
-use bitsy::sim::Value;
+use bitsy_lang::Package;
+use bitsy_lang::sim::Sim;
+use bitsy_lang::sim::Value;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -59,7 +59,7 @@ fn package_load(path: &str) -> Arc<Package> {
         std::fs::read_to_string(path).unwrap().to_string()
     };
 
-    let package = match bitsy::load_package_from_string(&text) {
+    let package = match bitsy_lang::load_package_from_string(&text) {
         Ok(package) => package,
         Err(errors) => {
             for error in &errors {
@@ -86,34 +86,34 @@ fn sim(package: Arc<Package>, top_name: &str) -> Arc<Mutex<Sim>> {
         },
     };
 
-    let mut exts_map: BTreeMap<bitsy::Path, Box<dyn bitsy::sim::ext::ExtInstance>> = BTreeMap::new();
+    let mut exts_map: BTreeMap<bitsy_lang::Path, Box<dyn bitsy_lang::sim::ext::ExtInstance>> = BTreeMap::new();
     /*
     if let Some(exts) = exts {
         for ext in exts.into_iter() {
             let Ext(path, name) = ext.extract().unwrap();
-            let e: Box<dyn bitsy::sim::ext::ExtInstance> = match name {
+            let e: Box<dyn bitsy_lang::sim::ext::ExtInstance> = match name {
                 "Monitor" => {
-                    let e = Box::new(bitsy::sim::ext::monitor::Monitor::new());
+                    let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
                     e
                 },
                 "RiscVDecoder" => {
-                    let e = Box::new(bitsy::sim::ext::riscv_decoder::RiscVDecoder::new());
+                    let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
                     e
                 },
                 "Ram" => {
-                    let e = Box::new(bitsy::sim::ext::ram::Ram::new());
+                    let e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
                     e
                 },
                 "Mem" => {
-                    let e = Box::new(bitsy::sim::ext::mem::Mem::new());
+                    let e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
                     e
                 },
                 "Video" => {
-                    let e = Box::new(bitsy::sim::ext::video::Video::new());
+                    let e = Box::new(bitsy_lang::sim::ext::video::Video::new());
                     e
                 },
                 "Terminal" => {
-                    let e = Box::new(bitsy::sim::ext::terminal::Terminal::new());
+                    let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
                     e
                 },
                 _ => panic!("Unknown ext module being linked: {name}")
@@ -122,7 +122,7 @@ fn sim(package: Arc<Package>, top_name: &str) -> Arc<Mutex<Sim>> {
         }
     }
     */
-    let sim = bitsy::sim::Sim::new_with_exts(&circuit, exts_map);
+    let sim = bitsy_lang::sim::Sim::new_with_exts(&circuit, exts_map);
     Arc::new(Mutex::new(sim))
 }
 

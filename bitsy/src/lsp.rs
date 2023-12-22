@@ -2,8 +2,8 @@
 // TODO Remove this.
 
 use serde_json::{Value, json};
-use bitsy::Package;
-use bitsy::{Loc, HasLoc, SourceInfo};
+use bitsy_lang::Package;
+use bitsy_lang::{Loc, HasLoc, SourceInfo};
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -162,9 +162,9 @@ struct Buffer {
 impl Buffer {
     fn new(uri: &Uri, text: &str) -> Buffer {
         // TODO should fake parsing package from file
-        let package = match bitsy::load_package_from_string(text) {
+        let package = match bitsy_lang::load_package_from_string(text) {
             Ok(package) => package,
-            Err(_e) => bitsy::load_package_from_string("mod Top {}").unwrap(),
+            Err(_e) => bitsy_lang::load_package_from_string("mod Top {}").unwrap(),
         };
 
         Buffer {
@@ -181,7 +181,7 @@ impl Buffer {
 
     fn send_diagnostics(&mut self) {
         let mut diagnostics = vec![];
-        if let Err(errors) = bitsy::ast::parse_package_from_string(&self.text) {
+        if let Err(errors) = bitsy_lang::ast::parse_package_from_string(&self.text) {
                 info!("Errors: {errors:?}");
                 for error in errors {
                     let start_line = error.loc().start().line() - 1;
@@ -216,7 +216,7 @@ impl Buffer {
         }
 
         // TODO should fake parsing package from file
-        self.package = match bitsy::load_package_from_string(&self.text) {
+        self.package = match bitsy_lang::load_package_from_string(&self.text) {
             Ok(package) => package,
             Ok(circuit) => circuit,
             Err(errors) => {

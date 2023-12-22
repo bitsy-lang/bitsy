@@ -2,8 +2,8 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::PyList;
 use std::collections::BTreeMap;
-//use bitsy::Type;
-//use bitsy::sim::Value;
+//use bitsy_lang::Type;
+//use bitsy_lang::sim::Value;
 
 #[pymodule]
 #[pyo3(name = "bitsy")]
@@ -45,7 +45,7 @@ impl XXX {
 
 #[pyclass(extends=Value)]
 #[derive(Clone)]
-struct Word(Option<bitsy::Width>, u64);
+struct Word(Option<bitsy_lang::Width>, u64);
 
 #[pymethods]
 impl Word {
@@ -72,7 +72,7 @@ impl Word {
 
 #[pyclass]
 #[derive(Clone)]
-struct Ext(bitsy::Path, &'static str);
+struct Ext(bitsy_lang::Path, &'static str);
 
 #[pymethods]
 impl Ext {
@@ -110,7 +110,7 @@ impl Ext {
 
 #[pyclass(unsendable)]
 struct Sim {
-    sim: bitsy::sim::Sim,
+    sim: bitsy_lang::sim::Sim,
 }
 
 #[pymethods]
@@ -119,7 +119,7 @@ impl Sim {
     fn load_from(filename: &str, top_name: &str, exts: Option<&PyList>) -> Sim {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
 
-        let package = match bitsy::load_package_from_string(&text) {
+        let package = match bitsy_lang::load_package_from_string(&text) {
             Ok(package) => package,
             Err(errors) => {
                 for error in &errors {
@@ -138,33 +138,33 @@ impl Sim {
             },
         };
 
-        let mut exts_map: BTreeMap<bitsy::Path, Box<dyn bitsy::sim::ext::ExtInstance>> = BTreeMap::new();
+        let mut exts_map: BTreeMap<bitsy_lang::Path, Box<dyn bitsy_lang::sim::ext::ExtInstance>> = BTreeMap::new();
         if let Some(exts) = exts {
             for ext in exts.into_iter() {
                 let Ext(path, name) = ext.extract().unwrap();
-                let e: Box<dyn bitsy::sim::ext::ExtInstance> = match name {
+                let e: Box<dyn bitsy_lang::sim::ext::ExtInstance> = match name {
                     "Monitor" => {
-                        let e = Box::new(bitsy::sim::ext::monitor::Monitor::new());
+                        let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
                         e
                     },
                     "RiscVDecoder" => {
-                        let e = Box::new(bitsy::sim::ext::riscv_decoder::RiscVDecoder::new());
+                        let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
                         e
                     },
                     "Ram" => {
-                        let e = Box::new(bitsy::sim::ext::ram::Ram::new());
+                        let e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
                         e
                     },
                     "Mem" => {
-                        let e = Box::new(bitsy::sim::ext::mem::Mem::new());
+                        let e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
                         e
                     },
                     "Video" => {
-                        let e = Box::new(bitsy::sim::ext::video::Video::new());
+                        let e = Box::new(bitsy_lang::sim::ext::video::Video::new());
                         e
                     },
                     "Terminal" => {
-                        let e = Box::new(bitsy::sim::ext::terminal::Terminal::new());
+                        let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
                         e
                     },
                     _ => panic!("Unknown ext module being linked: {name}")
@@ -172,7 +172,7 @@ impl Sim {
                 exts_map.insert(path, e);
             }
         }
-        let sim = bitsy::sim::Sim::new_with_exts(&circuit, exts_map);
+        let sim = bitsy_lang::sim::Sim::new_with_exts(&circuit, exts_map);
 
         Sim {
             sim,
@@ -189,11 +189,11 @@ impl Sim {
 
     fn peek(&self, py: Python, path: &str) -> PyResult<PyObject> {
         match self.sim.peek(path) {
-            bitsy::sim::Value::X => {
+            bitsy_lang::sim::Value::X => {
                 let initializer = PyClassInitializer::from(Value).add_subclass(XXX);
                 Ok(Py::new(py, initializer)?.into_py(py))
             },
-            bitsy::sim::Value::Word(w, n) => {
+            bitsy_lang::sim::Value::Word(w, n) => {
                 let initializer = PyClassInitializer::from(Value).add_subclass(Word(Some(w), n));
                 Ok(Py::new(py, initializer)?.into_py(py))
             },
@@ -210,7 +210,7 @@ impl Sim {
         } else {
             return Err(PyValueError::new_err("value cannot be converted to a Word."));
         };
-        let width = if let bitsy::Type::Word(w) = self.sim.type_of(path) {
+        let width = if let bitsy_lang::Type::Word(w) = self.sim.type_of(path) {
             w
         } else {
             return Err(PyValueError::new_err(format!("Path does not have a Word type: {path}")));
@@ -219,14 +219,14 @@ impl Sim {
         if width_received.is_some() && width_received.unwrap() != width {
             return Err(PyValueError::new_err(format!("Path does not have a Word type: {path}")));
         }
-        self.sim.poke(path, bitsy::sim::Value::Word(width, v));
+        self.sim.poke(path, bitsy_lang::sim::Value::Word(width, v));
         Ok(())
     }
 }
 
 #[pyclass]
 struct Package {
-    package: bitsy::Package,
+    package: bitsy_lang::Package,
 }
 
 #[pymethods]
@@ -234,7 +234,7 @@ impl Package {
     #[new]
     fn new(filename: &str) -> Self {
         let text = std::fs::read_to_string(filename).unwrap().to_string();
-        let package = match bitsy::load_package_from_string(&text) {
+        let package = match bitsy_lang::load_package_from_string(&text) {
             Ok(package) => package,
             Err(errors) => {
                 for error in &errors {
