@@ -1,4 +1,5 @@
 use super::*;
+use num_bigint::BigUint;
 use crate::sim::Sim;
 use crate::sim::Value;
 
@@ -19,7 +20,7 @@ impl Expr {
             Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
             Expr::Word(_loc, typ, _width, value) => {
                 if let Type::Word(width) = typ.get().unwrap() {
-                    Value::Word(*width, *value)
+                    Value::Word(*width, BigUint::from(*value))
                 } else {
                     unreachable!()
                 }
@@ -44,7 +45,7 @@ impl Expr {
             },
             Expr::UnOp(_loc, _typ, op, e) => {
                 match (op, e.eval_with_ctx(bitsy, ctx.clone())) {
-                    (UnOp::Not, Value::Word(n, v)) => Value::Word(n, (!v) & ((1 << n) - 1)),
+                    (UnOp::Not, Value::Word(n, v)) => Value::Word(n, !v & ((BigUint::from(1u64) << n) - 1)),
                     _ => Value::X,
                 }
             },
@@ -52,12 +53,12 @@ impl Expr {
                 match (op, e1.eval_with_ctx(bitsy, ctx.clone()), e2.eval_with_ctx(bitsy, ctx.clone())) {
                     (BinOp::Add, Value::X, _other) => Value::X,
                     (BinOp::Add, _other, Value::X) => Value::X,
-                    (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_add(b) % (1 << w)),
+                    (BinOp::Add, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, (a + b) % (BigUint::from(1u64) << w)),
                     (BinOp::AddCarry, Value::Word(w, a),  Value::Word(_w, b)) => {
                         let new_w = w + 1;
-                        Value::Word(new_w, a.wrapping_add(b) % (1 << new_w))
+                        Value::Word(new_w, (a + b) % (BigUint::from(1u64) << new_w))
                     },
-                    (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a.wrapping_sub(b) % (1 << w)),
+                    (BinOp::Sub, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, (a - b) % (BigUint::from(1u64) << w)),
                     (BinOp::And, Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a & b),
                     (BinOp::Or,  Value::Word(w, a),  Value::Word(_w, b)) => Value::Word(w, a | b),
                     (BinOp::Eq,  Value::Word(_w, a), Value::Word(_v, b)) => (a == b).into(),

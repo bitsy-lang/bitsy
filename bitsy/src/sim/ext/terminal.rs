@@ -1,5 +1,6 @@
 use super::*;
 use std::io::Write;
+use num_bigint::BigUint;
 
 #[derive(Debug)]
 pub struct Terminal(char, std::fs::File, bool);
@@ -22,8 +23,8 @@ impl ExtInstance for Terminal {
         if port == "out_valid" {
             self.2 = value.to_bool().unwrap();
         } else if port == "out_data" {
-            if let Some(n) = value.to_u64() {
-                if n < 256 {
+            if let Some(n) = value.to_word() {
+                if n < BigUint::from(256u64) {
                     if let Ok(k) = n.try_into() {
                         if let Some(ch) = char::from_u32(k) {
                             self.0 = ch;
