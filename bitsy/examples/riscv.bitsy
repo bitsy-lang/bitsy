@@ -401,7 +401,8 @@ mod Decoder {
     outgoing funct3  of Word<3>;
     outgoing funct7  of Word<7>;
 
-    opcode := let opcode_bits = instr[7..0] {
+    opcode :=
+        let opcode_bits = instr[7..0];
         if opcode_bits == word(Opcode::OP) {
             Opcode::OP
         } else if opcode_bits == word(Opcode::OP_IMM) {
@@ -422,8 +423,8 @@ mod Decoder {
             Opcode::JALR
         } else {
             Opcode::OP
-        }
-    };
+        };
+
     rd     := instr[12..7];
     funct3 := instr[15..12];
     rs1    := instr[20..15];

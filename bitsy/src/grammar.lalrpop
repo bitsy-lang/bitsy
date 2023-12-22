@@ -136,6 +136,7 @@ ModInst: Decl = {
 }
 
 Expr: Box<Expr> = {
+    <e:ExprLet> => e,
     <e:ExprOr> => e,
 }
 
@@ -221,7 +222,6 @@ ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
     <e:ExprRef> => e,
     <e:ExprIf> => e,
-    <e:ExprLet> => e,
     <e:ExprMatch> => e,
     <e:ExprHole> => e,
     "(" <e:Expr> ")" => e,
@@ -249,8 +249,8 @@ ExprIf: Box<Expr> = {
 }
 
 ExprLet: Box<Expr> = {
-    <ll:@L> "let" <x:Id> "=" <e:Expr>
-    "{" <b:Expr> "}" <rr:@R> => {
+    <ll:@L> "let" <x:Id> "=" <e:Expr> ";"
+    <b:Expr> <rr:@R> => {
         Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
     },
 }
