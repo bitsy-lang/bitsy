@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::BTreeMap;
 
 /// A same-cycle random-access memory.
 /// Has 64KiB of memory.
@@ -6,6 +7,10 @@ use super::*;
 /// Reads and writes an 8-bit word at a time.
 #[derive(Debug)]
 pub struct Ram {
+    instances: BTreeMap<Path, RamInstance>,
+}
+
+pub struct RamInstance {
     mem: [u8; 1 << 16],
     read_addr: u16,
     write_enable: bool,

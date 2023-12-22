@@ -60,11 +60,11 @@ impl Circuit {
         results
     }
 
-    pub fn exts(&self) -> Vec<Path> {
+    pub fn exts(&self) -> Vec<(Path, Arc<Component>)> {
         let mut results = vec![];
         for (path, component) in self.walk_instances() {
             if let Component::Ext(_loc, _name, _children) = &*component {
-                results.push(path);
+                results.push((path, component.clone()));
             }
         }
         results

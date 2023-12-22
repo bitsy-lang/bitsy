@@ -1,9 +1,8 @@
 use crate::Path;
+use super::ext::monitor::Monitor;
 use crate::load_package_from_string;
 use crate::sim::{Sim, Value};
-use crate::sim::ext::ExtInstance;
-use crate::sim::ext::monitor::Monitor;
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeSet;
 
 #[test]
 fn test_nets() {
@@ -125,7 +124,7 @@ fn buffer() {
     ").unwrap();
     let buffer = buffer.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&buffer);
+    let mut bitsy = Sim::new(&buffer, vec![]);
 
     bitsy.poke("top.in", true.into());
     dbg!(&bitsy.peek("top.r"));
@@ -149,7 +148,7 @@ fn counter() {
     ").unwrap();
     let counter = counter.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&counter);
+    let mut bitsy = Sim::new(&counter, vec![]);
 
     bitsy.reset();
 
@@ -161,7 +160,7 @@ fn counter() {
 }
 
 #[test]
-fn vip() {
+fn monitor() {
     let top = load_package_from_string("
         mod Top {
             mod counter {
@@ -171,22 +170,18 @@ fn vip() {
                 out := counter;
             }
 
-            mod vip of Vip;
+            mod vip of Monitor;
             vip.in := counter.out;
         }
 
-        ext mod Vip {
+        ext mod Monitor {
             incoming in of Word<4>;
         }
 
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let monitor = Box::new(Monitor::new());
-    let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
-    exts.insert("top.vip".into(), monitor);
-
-    let mut bitsy = Sim::new_with_exts(&top, exts);
+    let mut bitsy = Sim::new(&top, vec![Box::new(Monitor::new())]);
 
     bitsy.reset();
     bitsy.clock();
@@ -194,3 +189,4 @@ fn vip() {
     bitsy.clock();
     bitsy.clock();
 }
+

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use bitsy_lang::*;
 use bitsy_lang::sim::*;
-use bitsy_lang::sim::ext::ExtInstance;
+use bitsy_lang::sim::ext::Ext;
 
 mod lsp;
 
@@ -156,14 +156,15 @@ fn testbench_for(filename: &str) -> Option<String> {
 }
 
 fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
-    let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
+    let mut exts: BTreeMap<Path, Box<dyn Ext>> = BTreeMap::new();
     for TestbenchLink(path, extname, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
-        let ext: Box<dyn ExtInstance> = match extname.as_str() {
+        let ext: Box<dyn Ext> = match extname.as_str() {
             "Monitor" => {
                 let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
                 e
             },
+            /*
             "RiscVDecoder" => {
                 let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
                 e
@@ -193,10 +194,14 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
                 e
             },
+            */
             _ => panic!("Unknown ext module being linked: {extname}")
         };
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");
         exts.insert(path.clone(), ext);
     }
-    Sim::new_with_exts(&circuit, exts)
+    let exts: Vec<Box<dyn Ext>> = vec![
+        Box::new(bitsy_lang::sim::ext::monitor::Monitor::new()),
+    ];
+    Sim::new(&circuit, exts)
 }

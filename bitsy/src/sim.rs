@@ -17,6 +17,7 @@ use std::time::SystemTime;
 
 pub type NetId = usize;
 pub type CombId = usize;
+pub type ExtInstId = usize;
 pub type ExtId = usize;
 pub type RegId = usize;
 
@@ -30,7 +31,7 @@ pub struct RegInfo {
 #[derive(Debug)]
 pub struct Dependents {
     pub combs: Vec<CombId>,
-    pub ext_ports: Vec<(ExtId, PortName)>,
+    pub ext_inst_ports: Vec<(ExtInstId, PortName)>,
 }
 
 #[derive(Debug)]
@@ -41,10 +42,11 @@ pub struct SimCircuit {
 
     pub dependents: Vec<Dependents>, // indexed by NetId
 
-    pub net_id_by_ext_port: BTreeMap<(ExtId, PortName), NetId>,
+    pub net_id_by_ext_port: BTreeMap<(ExtInstId, PortName), NetId>,
 
     pub net_id_by_path: BTreeMap<Path, NetId>,
-    pub ext_id_by_path: BTreeMap<Path, ExtId>,
+    pub ext_inst_id_by_path: BTreeMap<Path, ExtInstId>,
+    pub path_by_ext_inst_id: BTreeMap<ExtInstId, Path>,
 }
 
 fn make_net_id_by_path(circuit: &Circuit, nets: &[Net]) -> BTreeMap<Path, NetId> {
@@ -127,18 +129,19 @@ fn make_combs(circuit: &Circuit, net_id_by_path: &BTreeMap<Path, NetId>) -> Vec<
         .collect()
 }
 
-fn make_ext_id_by_path(
+fn make_ext_inst_id_by_path(
     circuit: &Circuit,
     net_id_by_path: &BTreeMap<Path, NetId>,
     nets: &[Net],
-) -> BTreeMap<Path, ExtId> {
-    let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
+) -> (BTreeMap<Path, ExtInstId>, BTreeMap<ExtInstId, Path>) {
+    let mut ext_inst_id_by_path: BTreeMap<Path, ExtInstId> = BTreeMap::new();
+    let mut path_by_ext_inst_id: BTreeMap<ExtInstId, Path> = BTreeMap::new();
     let mut ext_dependencies = vec![vec![]; nets.len()];
 
-    for (ext_id, path) in circuit.exts().iter().enumerate() {
-        ext_id_by_path.insert(path.clone(), ext_id);
+    for (ext_id, (path, ext_component)) in circuit.exts().iter().enumerate() {
+        ext_inst_id_by_path.insert(path.clone(), ext_id);
+        path_by_ext_inst_id.insert(ext_id, path.clone());
 
-        let ext_component: &Component = &*circuit.component(path.clone()).unwrap();
         for child in ext_component.children() {
             if let Component::Incoming(_loc, name, _typ) = &*child {
                 let incoming_path = path.join(name.to_string().into());
@@ -148,7 +151,7 @@ fn make_ext_id_by_path(
         }
     }
 
-    ext_id_by_path
+    (ext_inst_id_by_path, path_by_ext_inst_id)
 }
 
 fn make_dependents(
@@ -156,15 +159,14 @@ fn make_dependents(
     net_ids: &[NetId],
     combs: &[Comb],
     net_id_by_path: &BTreeMap<Path, NetId>,
-    ext_id_by_path: &BTreeMap<Path, ExtId>,
+    ext_id_by_path: &BTreeMap<Path, ExtInstId>,
 ) -> Vec<Dependents> {
     net_ids.iter()
     .map(|net_id| {
         let combs: Vec<CombId> = combs.iter().enumerate().filter(|(_comb_id, comb)| comb.depends_on(*net_id)).map(|(comb_id, _comb)| comb_id).collect();
-        let mut ext_ports: Vec<(ExtId, PortName)> = vec![];
-        for path in circuit.exts() {
+        let mut ext_ports: Vec<(ExtInstId, PortName)> = vec![];
+        for (path, ext_component) in circuit.exts() {
             let ext_id = ext_id_by_path[&path];
-            let ext_component = circuit.component(path.clone()).unwrap();
             match &*ext_component {
                 Component::Ext(_loc, _name, children) => {
                     for child in children {
@@ -186,7 +188,7 @@ fn make_dependents(
 
         let dependents = Dependents {
             combs,
-            ext_ports,
+            ext_inst_ports: ext_ports,
         };
         dependents
     })
@@ -196,13 +198,12 @@ fn make_dependents(
 fn make_net_id_by_ext_port(
     circuit: &Circuit,
     net_id_by_path: &BTreeMap<Path, NetId>,
-    ext_id_by_path: &BTreeMap<Path, ExtId>,
-) -> BTreeMap<(ExtId, PortName), NetId> {
+    ext_id_by_path: &BTreeMap<Path, ExtInstId>,
+) -> BTreeMap<(ExtInstId, PortName), NetId> {
     let mut net_id_by_ext_port = BTreeMap::new();
 
-    for path in circuit.exts() {
+    for (path, ext_component) in circuit.exts() {
         let ext_id = ext_id_by_path[&path];
-        let ext_component = circuit.component(path.clone()).unwrap();
         match &*ext_component {
             Component::Ext(_loc, _name, children) => {
                 for child in children {
@@ -229,20 +230,20 @@ impl SimCircuit {
         let net_id_by_path: BTreeMap<Path, NetId> = make_net_id_by_path(&circuit, &nets);
         let regs: Vec<RegInfo> = make_regs(&circuit, &net_id_by_path);
         let combs: Vec<Comb> = make_combs(&circuit, &net_id_by_path);
-        let ext_id_by_path = make_ext_id_by_path(&circuit, &net_id_by_path, &nets);
+        let (ext_inst_id_by_path, path_by_ext_inst_id) = make_ext_inst_id_by_path(&circuit, &net_id_by_path, &nets);
 
         let dependents: Vec<Dependents> = make_dependents(
             &circuit,
             &net_ids,
             &combs,
             &net_id_by_path,
-            &ext_id_by_path,
+            &ext_inst_id_by_path,
         );
 
         let net_id_by_ext_port = make_net_id_by_ext_port(
             &circuit,
             &net_id_by_path,
-            &ext_id_by_path,
+            &ext_inst_id_by_path,
         );
 
         SimCircuit {
@@ -254,7 +255,8 @@ impl SimCircuit {
             net_id_by_ext_port,
 
             net_id_by_path,
-            ext_id_by_path,
+            ext_inst_id_by_path,
+            path_by_ext_inst_id,
         }
     }
 
@@ -266,43 +268,48 @@ impl SimCircuit {
 pub struct Sim {
     sim_circuit: Arc<SimCircuit>,
     net_values: Vec<Value>,
-    exts: Vec<Option<Box<dyn ExtInstance>>>, // indexed by ExtId
+    exts: Vec<Box<dyn Ext>>,
+    ext_id_by_ext_inst_id: BTreeMap<ExtInstId, ExtId>,
     clock_ticks: u64,
     start_time: SystemTime,
     clock_freq_cap: Option<f64>,
 }
 
 impl Sim {
-    pub fn new(circuit: &Circuit) -> Sim {
-        Sim::new_with_exts(circuit, BTreeMap::new())
-    }
-
-    pub fn new_with_exts(circuit: &Circuit, linked_exts: BTreeMap<Path, Box<dyn ExtInstance>>) -> Sim {
+    pub fn new(circuit: &Circuit, exts: Vec<Box<dyn Ext>>) -> Sim {
         let sim_circuit = Arc::new(SimCircuit::new(circuit));
         let net_ids = sim_circuit.net_ids();
         let net_values: Vec<Value> = net_ids.iter().map(|_net| Value::X).collect();
 
-        let mut ext_id_by_path: BTreeMap<Path, ExtId> = BTreeMap::new();
-        let mut exts: Vec<Option<Box<dyn ExtInstance>>> = vec![];
-
-        for (ext_id, path) in circuit.exts().iter().enumerate() {
-            ext_id_by_path.insert(path.clone(), ext_id);
-            exts.push(None);
-        }
+        let ext_id_by_ext_inst_id: BTreeMap<ExtInstId, ExtId> = BTreeMap::new();
 
         let mut sim = Sim {
             sim_circuit,
             net_values,
             exts,
+            ext_id_by_ext_inst_id,
             start_time: SystemTime::now(),
             clock_ticks: 0,
             clock_freq_cap: None,
         };
-        for (path, ext) in linked_exts {
-            sim = sim.ext(path, ext);
+
+        for (ext_inst_id, (path, ext_component)) in circuit.exts().iter().enumerate() {
+            let ext_name = ext_component.name();
+            let ext_id = sim.ext_id_by_name(&ext_name);
+            sim.ext_id_by_ext_inst_id.insert(ext_inst_id, ext_id);
+            sim.instantiate_ext(path.clone(), ext_id);
         }
         sim.broadcast_update_constants();
         sim
+    }
+
+    fn ext_id_by_name(&self, name: &str) -> ExtId {
+        for (ext_id, ext) in self.exts.iter().enumerate() {
+            if ext.name() == name {
+                return ext_id;
+            }
+        }
+        panic!("No such ext: {name}")
     }
 
     pub fn net_values(&self) -> BTreeMap<NetId, Value> {
@@ -318,15 +325,10 @@ impl Sim {
         self
     }
 
-    fn ext<P: Into<Path>>(mut self, path: P, ext_inst: Box<dyn ExtInstance>) -> Self {
+    fn instantiate_ext<P: Into<Path>>(&mut self, path: P, ext_id: ExtId) {
         let path: Path = path.into();
-        if let Some(ext_id) = self.sim_circuit.ext_id_by_path.get(&path.clone()) {
-            let ext = &mut self.exts[*ext_id];
-            *ext = Some(ext_inst);
-            self
-        } else {
-            panic!("No such path for linkage: {path}")
-        }
+        let ext = &mut self.exts[ext_id];
+        ext.instantiate(path.clone());
     }
 
     pub(crate) fn poke_net(&mut self, net_id: NetId, value: Value) {
@@ -341,12 +343,12 @@ impl Sim {
             self.poke_net(*target_net_id, value);
         }
 
-        for (ext_id, port_name) in dependents.ext_ports.iter() {
-            if let Some(ext) = &mut self.exts[*ext_id].as_mut() {
-                for (updated_port_name, updated_value) in ext.update(port_name, value.clone()) {
-                    let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_id, updated_port_name)];
-                    self.poke_net(net_id, updated_value);
-                }
+        for (ext_id, port_name) in dependents.ext_inst_ports.iter() {
+            let ext = &mut *self.exts[*ext_id];
+            let path = self.sim_circuit.path_by_ext_inst_id[ext_id].clone();
+            for (updated_port_name, updated_value) in ext.update(path, port_name, value.clone()) {
+                let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_id, updated_port_name)];
+                self.poke_net(net_id, updated_value);
             }
         }
     }
@@ -412,13 +414,10 @@ impl Sim {
             self.poke_net(val_net_id, value);
         }
 
-        for ext in &mut self.exts {
-            if let Some(ext) = ext {
-                ext.clock();
-            } else {
-                // TODO
-                panic!("Unlinked ext")
-            }
+        for (ext_id, ext) in self.exts.iter_mut().enumerate() {
+            let ext = &mut *ext;
+            let path = self.sim_circuit.path_by_ext_inst_id[&ext_id].clone();
+            ext.clock(path);
         }
     }
 
@@ -429,13 +428,10 @@ impl Sim {
             }
         }
 
-        for ext in &mut self.exts {
-            if let Some(ext) = ext {
-                ext.reset();
-            } else {
-                // TODO
-                panic!("Unlinked ext")
-            }
+        for (ext_id, ext) in self.exts.iter_mut().enumerate() {
+            let ext = &mut *ext;
+            let path = self.sim_circuit.path_by_ext_inst_id[&ext_id].clone();
+            ext.reset(path);
         }
     }
 

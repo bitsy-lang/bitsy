@@ -1,9 +1,5 @@
 use super::*;
 use crate::sim::{Sim, Value};
-use crate::sim::ext::ExtInstance;
-use crate::sim::ext::monitor::Monitor;
-
-use std::collections::BTreeMap;
 
 #[test]
 fn buffer() {
@@ -18,7 +14,7 @@ fn buffer() {
     ").unwrap();
     let buffer = buffer.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&buffer);
+    let mut bitsy = Sim::new(&buffer, vec![]);
 
     bitsy.poke("top.in", true.into());
     dbg!(&bitsy.peek("top.r"));
@@ -42,7 +38,7 @@ fn counter() {
     ").unwrap();
     let counter = counter.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&counter);
+    let mut bitsy = Sim::new(&counter, vec![]);
 
     bitsy.reset();
 
@@ -71,7 +67,7 @@ fn triangle_numbers() {
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&top);
+    let mut bitsy = Sim::new(&top, vec![]);
     bitsy.reset();
 
     for i in 0..16 {
@@ -79,41 +75,6 @@ fn triangle_numbers() {
         assert_eq!(bitsy.peek("top.out"), Value::Word(32, triange), "Failed on iteration i = {i}");
         bitsy.clock();
     }
-}
-
-#[test]
-fn vip() {
-    let top = load_package_from_string("
-        mod Top {
-            mod counter {
-                outgoing out of Word<4>;
-                reg counter of Word<4>;
-                counter <= counter + 1w4;
-                out := counter;
-            }
-
-            mod vip of Vip;
-            vip.in := counter.out;
-        }
-
-        ext mod Vip {
-            incoming in of Word<4>;
-        }
-
-    ").unwrap();
-    let top = top.top("Top").unwrap();
-
-    let monitor = Box::new(Monitor::new());
-    let mut exts: BTreeMap<Path, Box<dyn ExtInstance>> = BTreeMap::new();
-    exts.insert("top.vip".into(), monitor);
-
-    let mut bitsy = Sim::new_with_exts(&top, exts);
-
-    bitsy.reset();
-    bitsy.clock();
-    bitsy.clock();
-    bitsy.clock();
-    bitsy.clock();
 }
 
 #[test]
@@ -132,7 +93,7 @@ fn ifs() {
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&top);
+    let mut bitsy = Sim::new(&top, vec![]);
 
     bitsy.poke("top.in", true.into());
     assert_eq!(bitsy.peek("top.out"), Value::Word(8, 42));
@@ -152,7 +113,7 @@ fn test_node() {
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let bitsy = Sim::new(&top);
+    let bitsy = Sim::new(&top, vec![]);
     assert_eq!(bitsy.peek("top.n"), Value::Word(1, 1));
 }
 
