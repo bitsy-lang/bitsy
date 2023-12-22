@@ -1,4 +1,4 @@
 top Top
-link top.monitor = Monitor {}
+link Monitor {}
 reset
 run

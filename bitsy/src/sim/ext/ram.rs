@@ -8,8 +8,24 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub struct Ram {
     instances: BTreeMap<Path, RamInstance>,
+    initial_data: Vec<u8>,
 }
 
+impl Ram {
+    pub fn new() -> Ram {
+        Ram {
+            instances: BTreeMap::new(),
+            initial_data: vec![],
+        }
+    }
+
+    pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) -> anyhow::Result<()> {
+        self.initial_data = std::fs::read(&path)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
 pub struct RamInstance {
     mem: [u8; 1 << 16],
     read_addr: u16,
@@ -18,25 +34,22 @@ pub struct RamInstance {
     write_data: u8,
 }
 
-impl Ram {
-    pub fn new() -> Ram {
-        let mem = [0; 1 << 16];
-        Ram {
+impl RamInstance {
+    pub fn new(initial_data: &[u8]) -> RamInstance {
+        let mut mem = [0; 1 << 16];
+
+        let len = initial_data.len().min(1<<16);
+        for i in 0..len {
+            mem[i] = initial_data[i];
+        }
+
+        RamInstance {
             mem,
             read_addr: 0,
             write_enable: false,
             write_addr: 0,
             write_data: 0,
         }
-    }
-
-    pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) -> anyhow::Result<()> {
-        let data = std::fs::read(&path)?;
-        let len = data.len().min(1<<16);
-        for i in 0..len {
-            self.mem[i] = data[i];
-        }
-        Ok(())
     }
 
     fn read(&self) -> Value {
@@ -52,18 +65,6 @@ impl Ram {
         };
         format!("RAM: {:?}", String::from_utf8_lossy(mem))
     }
-}
-
-impl ExtInstance for Ram {
-    fn incoming_ports(&self) -> Vec<PortName> {
-        vec![
-            "read_addr".to_string(),
-            "write_enable".to_string(),
-            "write_addr".to_string(),
-            "write_data".to_string(),
-        ]
-    }
-    fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
 
     fn update(&mut self, port: &PortName, value: Value) -> Vec<(PortName, Value)>  {
         if value.is_x() {
@@ -120,5 +121,32 @@ impl ExtInstance for Ram {
         } else {
             vec![]
         }
+    }
+}
+
+impl Ext for Ram {
+    fn name(&self) -> String { "Ram".to_string() }
+    fn instantiate(&mut self, path: Path) {
+        self.instances.insert(path, RamInstance::new(&self.initial_data));
+    }
+
+    fn incoming_ports(&self) -> Vec<PortName> {
+        vec![
+            "read_addr".to_string(),
+            "write_enable".to_string(),
+            "write_addr".to_string(),
+            "write_data".to_string(),
+        ]
+    }
+    fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }
+
+    fn update(&mut self, path: Path, port: &PortName, value: Value) -> Vec<(PortName, Value)>  {
+        self.instances.get_mut(&path).unwrap().update(port, value)
+    }
+    fn clock(&mut self, path: Path) -> Vec<(PortName, Value)> {
+        self.instances.get_mut(&path).unwrap().clock()
+    }
+    fn reset(&mut self, path: Path) -> Vec<(PortName, Value)> {
+        self.instances.get_mut(&path).unwrap().reset()
     }
 }

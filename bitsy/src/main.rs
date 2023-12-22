@@ -156,8 +156,8 @@ fn testbench_for(filename: &str) -> Option<String> {
 }
 
 fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
-    let mut exts: BTreeMap<Path, Box<dyn Ext>> = BTreeMap::new();
-    for TestbenchLink(path, extname, params) in &testbench.1 {
+    let mut exts: Vec<Box<dyn Ext>> = Vec::new();
+    for TestbenchLink(extname, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
         let ext: Box<dyn Ext> = match extname.as_str() {
             "Monitor" => {
@@ -169,6 +169,7 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
                 e
             },
+            */
             "Ram" => {
                 let mut e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
                 if let Some(data_filename) = params_map.remove("file") {
@@ -176,6 +177,7 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 }
                 e
             },
+            /*
             "Mem" => {
                 let mut e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
                 if let Some(data_filename) = params_map.remove("file") {
@@ -197,11 +199,8 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
             */
             _ => panic!("Unknown ext module being linked: {extname}")
         };
-        assert!(params_map.is_empty(), "Unused params for ext module linkage: {path}: {params_map:?}");
-        exts.insert(path.clone(), ext);
+        assert!(params_map.is_empty(), "Unused params for ext module linkage: {extname}: {params_map:?}");
+        exts.push(ext);
     }
-    let exts: Vec<Box<dyn Ext>> = vec![
-        Box::new(bitsy_lang::sim::ext::monitor::Monitor::new()),
-    ];
     Sim::new(&circuit, exts)
 }
