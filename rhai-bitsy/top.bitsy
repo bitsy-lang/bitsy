@@ -4,4 +4,10 @@ pub mod Top {
     reg counter of Word<4> reset 0;
     counter <= counter + 1;
     out := counter + in;
+    mod monitor of Monitor;
+    monitor.in := sext(counter);
+}
+
+ext mod Monitor {
+    incoming in of Word<8>;
 }

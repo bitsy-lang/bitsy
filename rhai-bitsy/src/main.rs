@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
 use rhai::Engine;
 use rhai::Array;
 use rhai::Dynamic;
 use bitsy_lang::Package;
 use bitsy_lang::sim::Sim;
+use bitsy_lang::sim::ext::Ext;
 use bitsy_lang::sim::Value;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -88,43 +88,16 @@ fn sim(package: Arc<Package>, top_name: &str) -> Arc<Mutex<Sim>> {
         },
     };
 
-    let mut exts_map: BTreeMap<bitsy_lang::Path, Box<dyn bitsy_lang::sim::ext::ExtInstance>> = BTreeMap::new();
-    /*
-    if let Some(exts) = exts {
-        for ext in exts.into_iter() {
-            let Ext(path, name) = ext.extract().unwrap();
-            let e: Box<dyn bitsy_lang::sim::ext::ExtInstance> = match name {
-                "Monitor" => {
-                    let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
-                    e
-                },
-                "RiscVDecoder" => {
-                    let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
-                    e
-                },
-                "Ram" => {
-                    let e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
-                    e
-                },
-                "Mem" => {
-                    let e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
-                    e
-                },
-                "Video" => {
-                    let e = Box::new(bitsy_lang::sim::ext::video::Video::new());
-                    e
-                },
-                "Terminal" => {
-                    let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
-                    e
-                },
-                _ => panic!("Unknown ext module being linked: {name}")
-            };
-            exts_map.insert(path, e);
-        }
-    }
-    */
-    let sim = bitsy_lang::sim::Sim::new_with_exts(&circuit, exts_map);
+    let exts: Vec<Box<dyn Ext>> = vec![
+        Box::new(bitsy_lang::sim::ext::monitor::Monitor::new()),
+//        Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new()),
+//        Box::new(bitsy_lang::sim::ext::ram::Ram::new()),
+//        Box::new(bitsy_lang::sim::ext::mem::Mem::new()),
+//        Box::new(bitsy_lang::sim::ext::instrmem::InstrMem::new()),
+//        Box::new(bitsy_lang::sim::ext::video::Video::new()),
+//        Box::new(bitsy_lang::sim::ext::terminal::Terminal::new()),
+    ];
+    let sim = bitsy_lang::sim::Sim::new(&circuit, exts);
     Arc::new(Mutex::new(sim))
 }
 

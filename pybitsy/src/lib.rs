@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::types::PyList;
-use std::collections::BTreeMap;
 //use bitsy_lang::Type;
 //use bitsy_lang::sim::Value;
 
@@ -138,41 +137,16 @@ impl Sim {
             },
         };
 
-        let mut exts_map: BTreeMap<bitsy_lang::Path, Box<dyn bitsy_lang::sim::ext::ExtInstance>> = BTreeMap::new();
-        if let Some(exts) = exts {
-            for ext in exts.into_iter() {
-                let Ext(path, name) = ext.extract().unwrap();
-                let e: Box<dyn bitsy_lang::sim::ext::ExtInstance> = match name {
-                    "Monitor" => {
-                        let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
-                        e
-                    },
-                    "RiscVDecoder" => {
-                        let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscVDecoder::new());
-                        e
-                    },
-                    "Ram" => {
-                        let e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
-                        e
-                    },
-                    "Mem" => {
-                        let e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
-                        e
-                    },
-                    "Video" => {
-                        let e = Box::new(bitsy_lang::sim::ext::video::Video::new());
-                        e
-                    },
-                    "Terminal" => {
-                        let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
-                        e
-                    },
-                    _ => panic!("Unknown ext module being linked: {name}")
-                };
-                exts_map.insert(path, e);
-            }
-        }
-        let sim = bitsy_lang::sim::Sim::new_with_exts(&circuit, exts_map);
+        let exts: Vec<Box<dyn bitsy_lang::sim::ext::Ext>> = vec![
+            Box::new(bitsy_lang::sim::ext::monitor::Monitor::new()),
+    //        Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new()),
+    //        Box::new(bitsy_lang::sim::ext::ram::Ram::new()),
+    //        Box::new(bitsy_lang::sim::ext::mem::Mem::new()),
+    //        Box::new(bitsy_lang::sim::ext::instrmem::InstrMem::new()),
+    //        Box::new(bitsy_lang::sim::ext::video::Video::new()),
+    //        Box::new(bitsy_lang::sim::ext::terminal::Terminal::new()),
+        ];
+        let sim = bitsy_lang::sim::Sim::new(&circuit, exts);
 
         Sim {
             sim,
