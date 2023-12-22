@@ -34,20 +34,53 @@ struct Args {
     debug: bool,
 }
 
-fn main() {
-    let args = Args::parse();
-    if args.lsp {
-        lsp::run_lsp();
-        std::process::exit(0);
-    }
-
-    let filename: String = args.filename.unwrap_or_else(|| {
+fn main_compile(args: &Args) {
+    let filename = args.filename.as_ref();
+    let filename: &String = filename.unwrap_or_else(|| {
         use clap::CommandFactory;
         let mut cmd = Args::command();
         eprintln!("{}", cmd.render_usage());
         std::process::exit(1)
     });
 
+    let text = std::fs::read_to_string(&filename).unwrap().to_string();
+    let package = match bitsy::load_package_from_string(&text) {
+        Ok(package) => package,
+        Err(errors) => {
+            for error in &errors {
+                eprintln!("{error:?}");
+            }
+            eprintln!("Circuit has {} errors.", errors.len());
+            std::process::exit(1);
+        },
+    };
+
+    let component_name = package.moddefs().first().map(|component| component.name().to_string()).unwrap();
+    let top_name = match &args.top {
+        Some(top_name) => top_name,
+        None => &component_name,
+    };
+
+    let _circuit = match package.top(&top_name) {
+        Ok(circuit) => circuit,
+        Err(error) => {
+            eprintln!("{error:?}");
+            eprintln!("Circuit has 1 errors.");
+            std::process::exit(1);
+        },
+    };
+
+    package.emit_mlir();
+}
+
+fn main_run(args: &Args) {
+    let filename = args.filename.as_ref();
+    let filename: &String = filename.unwrap_or_else(|| {
+        use clap::CommandFactory;
+        let mut cmd = Args::command();
+        eprintln!("{}", cmd.render_usage());
+        std::process::exit(1)
+    });
 
     let text = std::fs::read_to_string(&filename).unwrap().to_string();
 
@@ -62,55 +95,49 @@ fn main() {
         },
     };
 
-    if args.compile {
-        let top_name = match args.top {
-            Some(top_name) => top_name,
-            None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
-        };
-
-        let _circuit = match package.top(&top_name) {
-            Ok(circuit) => circuit,
-            Err(error) => {
-                eprintln!("{error:?}");
-                eprintln!("Circuit has 1 errors.");
-                std::process::exit(1);
-            },
-        };
-
-        package.emit_mlir();
+    let testbench_filename = args.tb.clone().or_else(|| testbench_for(&filename));
+    let testbench = if args.debug {
+        let command = TestbenchCommand::Debug;
+        Testbench(None, vec![], vec![command])
+    } else if let Some(tb_filename) = testbench_filename {
+        println!("Using testbench file: {tb_filename}");
+        let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
+        let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
+        tb
     } else {
-        let testbench_filename = args.tb.or_else(|| testbench_for(&filename));
-        let testbench = if args.debug {
-            let command = TestbenchCommand::Debug;
-            Testbench(None, vec![], vec![command])
-        } else if let Some(tb_filename) = testbench_filename {
-            println!("Using testbench file: {tb_filename}");
-            let text = std::fs::read_to_string(tb_filename.clone()).unwrap();
-            let tb: Testbench = parse_testbench(&text).expect(&format!("Error parsing testbench: {tb_filename}"));
-            tb
-        } else {
-            println!("No testbench file");
-            let command = TestbenchCommand::Debug;
-            Testbench(None, vec![], vec![command])
-        };
+        println!("No testbench file");
+        let command = TestbenchCommand::Debug;
+        Testbench(None, vec![], vec![command])
+    };
 
-        let top_name = match args.top.or_else(|| testbench.0.clone()) {
-            Some(top_name) => top_name,
-            None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
-        };
+    let top_name = match args.top.clone().or_else(|| testbench.0.clone()) {
+        Some(top_name) => top_name,
+        None => package.moddefs().first().map(|component| component.name().to_string()).unwrap(),
+    };
 
-        let circuit = match package.top(&top_name) {
-            Ok(circuit) => circuit,
-            Err(error) => {
-                eprintln!("{error:?}");
-                eprintln!("Circuit has 1 errors.");
-                std::process::exit(1);
-            },
-        };
+    let circuit = match package.top(&top_name) {
+        Ok(circuit) => circuit,
+        Err(error) => {
+            eprintln!("{error:?}");
+            eprintln!("Circuit has 1 errors.");
+            std::process::exit(1);
+        },
+    };
 
-        let sim: Sim = make_sim(circuit.clone(), &testbench);
-        let mut repl = Repl::new(sim, circuit, testbench);
-        repl.run();
+    let sim: Sim = make_sim(circuit.clone(), &testbench);
+    let mut repl = Repl::new(sim, circuit, testbench);
+    repl.run();
+}
+
+fn main() {
+    let args = Args::parse();
+    if args.lsp {
+        lsp::run_lsp();
+        std::process::exit(0);
+    } else if args.compile {
+        main_compile(&args);
+    } else {
+        main_run(&args);
     }
 }
 
