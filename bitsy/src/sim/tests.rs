@@ -112,6 +112,28 @@ fn test_eval() {
 */
 
 #[test]
+fn word_extensions() {
+    let buffer = load_package_from_string("
+        mod Top {
+            outgoing zout of Word<3>;
+            outgoing sout of Word<3>;
+
+            node n of Word<1>;
+            n := 1w1;
+
+            zout := zext(n);
+            sout := sext(n);
+        }
+    ").unwrap();
+    let buffer = buffer.top("Top").unwrap();
+
+    let bitsy = Sim::new(&buffer, vec![]);
+
+    assert_eq!(bitsy.peek("top.zout"), Value::Word(3, 1));
+    assert_eq!(bitsy.peek("top.sout"), Value::Word(3, 7));
+}
+
+#[test]
 fn buffer() {
     let buffer = load_package_from_string("
         mod Top {

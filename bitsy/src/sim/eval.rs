@@ -156,7 +156,27 @@ impl Expr {
                     Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
                     _ => panic!("Can't sext {self:?}"),
                 }
-            }
+            },
+            Expr::Zext(_loc, typ, e) => {
+                let n = if let Type::Word(n) = typ.get().unwrap() {
+                    n
+                } else {
+                    unreachable!()
+                };
+                match e.eval_with_ctx(bitsy, ctx.clone()) {
+                    Value::X => Value::X,
+                    Value::Word(w, x) => {
+                        if w <= *n {
+                            Value::Word(*n, x)
+                        } else {
+                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
+                        }
+                    },
+                    Value::Vec(_vs) => panic!("Can't sext a Vec"),
+                    Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
+                    _ => panic!("Can't sext {self:?}"),
+                }
+            },
             Expr::ToWord(_loc, _typ, e) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {

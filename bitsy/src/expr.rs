@@ -37,6 +37,8 @@ pub enum Expr {
     Cat(Loc, OnceCell<Type>, Vec<Arc<Expr>>),
     /// A sign extension expression.
     Sext(Loc, OnceCell<Type>, Arc<Expr>),
+    /// A zero extension expression.
+    Zext(Loc, OnceCell<Type>, Arc<Expr>),
     /// A word expression. Used to cast user-defined `enum` types to their bit values.
     ToWord(Loc, OnceCell<Type>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
@@ -135,6 +137,7 @@ impl HasLoc for Expr {
             Expr::Mux(loc, _typ, _cond, _e1, _e2) => loc.clone(),
             Expr::Cat(loc, _typ, _es) => loc.clone(),
             Expr::Sext(loc, _typ, _e) => loc.clone(),
+            Expr::Zext(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
             Expr::Vec(loc, _typ, _es) => loc.clone(),
             Expr::IdxField(loc, _typ, _e, _field) => loc.clone(),
@@ -241,6 +244,10 @@ impl Expr {
                 }
             },
             Expr::Sext(_loc, _typ, e) => {
+                callback(self);
+                e.with_subexprs(callback);
+            },
+            Expr::Zext(_loc, _typ, e) => {
                 callback(self);
                 e.with_subexprs(callback);
             },
@@ -367,6 +374,7 @@ impl Expr {
                 result
             },
             Expr::Sext(_loc, _typ, e) => e.free_vars(),
+            Expr::Zext(_loc, _typ, e) => e.free_vars(),
             Expr::IdxField(_loc, _typ, e, _field) => e.free_vars(),
             Expr::Idx(_loc, _typ, e, _i) => e.free_vars(),
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.free_vars(),
@@ -401,6 +409,7 @@ impl Expr {
             Expr::Mux(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
             Expr::Cat(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Sext(_loc, _typ, e) => e.depends_on_net(net_id),
+            Expr::Zext(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::ToWord(_loc, _typ, e) => e.depends_on_net(net_id),
             Expr::Vec(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::IdxField(_loc, _typ, e, _field) => e.depends_on_net(net_id),
@@ -431,6 +440,7 @@ impl Expr {
             Expr::Mux(_loc, typ, _cond, _e1, _e2) => Some(typ),
             Expr::Cat(_loc, typ, _es) => Some(typ),
             Expr::Sext(_loc, typ, _e) => Some(typ),
+            Expr::Zext(_loc, typ, _e) => Some(typ),
             Expr::ToWord(_loc, typ, _e) => Some(typ),
             Expr::Vec(_loc, typ, _es) => Some(typ),
             Expr::Idx(_loc, typ, _e, _i) => Some(typ),

@@ -640,6 +640,7 @@ impl Expr {
                 )
             },
             Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
+            Expr::Zext(loc, typ, e) => Expr::Zext(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.rebase_rec(current_path.clone(), shadowed)).collect()),
             Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.rebase_rec(current_path, shadowed), field.clone()),
@@ -748,6 +749,7 @@ impl Expr {
                 )
             },
             Expr::Sext(loc, typ, e) => Expr::Sext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
+            Expr::Zext(loc, typ, e) => Expr::Zext(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::ToWord(loc, typ, e) => Expr::ToWord(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::Vec(loc, typ, es) => Expr::Vec(loc.clone(), typ.clone(), es.iter().map(|e| e.references_to_nets_rec(net_id_by_path, shadowed)).collect()),
             Expr::IdxField(loc, typ, e, field) => Expr::IdxField(loc.clone(), typ.clone(), e.references_to_nets_rec(net_id_by_path, shadowed), field.clone()),

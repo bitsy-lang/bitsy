@@ -30,8 +30,11 @@ fn order_items(package: &ast::Package) -> Vec<&ast::Item> {
         items.insert(item.name().to_string(), (node, item));
 
         for item_dependency in item_dependencies(item) {
-            let (dependency, _item) = items[&item_dependency];
-            graph.add_edge(node, dependency, ());
+            if let Some((dependency, _item)) = items.get(&item_dependency) {
+                graph.add_edge(node, *dependency, ());
+            } else {
+                panic!("{item_dependency} not found")
+            }
         }
     }
 
@@ -196,7 +199,15 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
         },
         ast::Expr::Call(_loc, func, es) => {
             let mut results = BTreeSet::new();
-            const SPECIALS: &[&str] = &["cat", "mux", "sext", "word", "@Valid", "@Invalid"];
+            const SPECIALS: &[&str] = &[
+                "cat",
+                "mux",
+                "sext",
+                "zext",
+                "word",
+                "@Valid",
+                "@Invalid",
+            ];
 
             if !SPECIALS.contains(&func.as_str()) {
                 results.insert(func.clone());
@@ -452,6 +463,7 @@ fn resolve_expr(
                     package_es[2].clone(),
                 ),
                 "sext" => Expr::Sext(loc.clone(), OnceCell::new(), package_es[0].clone()),
+                "zext" => Expr::Zext(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "@Valid" => {
                     Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es)

@@ -140,6 +140,21 @@ impl Expr {
                     Err(TypeError::CantInferType(self.clone()))
                 }
             },
+            (Type::Word(width_expected), Expr::Zext(_loc, typ, e)) => {
+                if let Some(type_actual) = e.typeinfer(ctx.clone()) {
+                    if let Type::Word(m) = type_actual {
+                        if width_expected >= m {
+                            Ok(())
+                        } else {
+                            Err(TypeError::Other(self.clone(), format!("Can't zext a Word<{m}> to a a Word<{width_expected}>")))
+                        }
+                    } else {
+                        Err(TypeError::Other(self.clone(), format!("Unknown?")))
+                    }
+                } else {
+                    Err(TypeError::CantInferType(self.clone()))
+                }
+            },
             (Type::Word(n), Expr::ToWord(_loc, typ, e)) => {
                 let typ = e.typeinfer(ctx.clone()).unwrap();
                 if let Type::Enum(typedef) = typ {
