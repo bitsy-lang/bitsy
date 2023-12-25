@@ -28,10 +28,10 @@ pub TestbenchCommand: TestbenchCommand = {
     "reset" => TestbenchCommand::Reset,
     "show" => TestbenchCommand::Show,
     "watch" <path:Path> <watch:WatchFormat?> => {
-        TestbenchCommand::Watch(Watch {
-            path: path.clone(),
-            format: watch.unwrap_or(WatchFormat::Normal),
-        })
+        TestbenchCommand::Watch(Watch(
+            path.clone(),
+            watch.unwrap_or(WatchFormat::Normal),
+        ))
     },
     "debug" => TestbenchCommand::Debug,
     "run" => TestbenchCommand::Run,

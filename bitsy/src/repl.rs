@@ -50,7 +50,20 @@ impl Repl {
     fn exec_tb_command(&mut self, command: TestbenchCommand) {
         let verbose = true;
         match command {
-            TestbenchCommand::Watch(watch) => self.watches.push(watch),
+            TestbenchCommand::Watch(Watch(path, fmt)) => {
+                let abs_path = if path.is_absolute() {
+                    path
+                } else {
+                    self.current_path.join(path)
+                };
+
+                if self.circuit.component(abs_path.clone()).is_some() {
+                    println!("Adding watch: {abs_path}");
+                    self.watches.push(Watch(abs_path, fmt));
+                } else {
+                    println!("Can't watch: no such path: {abs_path}");
+                }
+            },
             TestbenchCommand::Cd(path) => {
                 if let Some(path) = path {
                     if path == "..".into() { // HACK
@@ -175,7 +188,7 @@ impl Repl {
     }
 
     fn show_watches(&self) {
-        for Watch { path, format } in &self.watches {
+        for Watch(path, format) in &self.watches {
             let value = self.sim.peek(&**path);
             match format {
                 WatchFormat::Normal =>  println!("    {:>10}   {path}", format!("{value:?}")),

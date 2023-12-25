@@ -27,10 +27,7 @@ pub(crate) enum TestbenchCommand {
 }
 
 #[derive(Debug, Clone)]
-pub struct Watch {
-    pub path: Path,
-    pub format: WatchFormat,
-}
+pub struct Watch(pub Path, pub WatchFormat);
 
 #[derive(Debug, Clone)]
 pub enum WatchFormat {
