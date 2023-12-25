@@ -128,7 +128,9 @@ impl Expr {
             (Type::Word(width_expected), Expr::Sext(_loc, typ, e)) => {
                 if let Some(type_actual) = e.typeinfer(ctx.clone()) {
                     if let Type::Word(m) = type_actual {
-                        if width_expected >= m {
+                        if m == 0 {
+                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<0>")))
+                        } else if width_expected >= m {
                             Ok(())
                         } else {
                             Err(TypeError::Other(self.clone(), format!("Can't sext a Word<{m}> to a a Word<{width_expected}>")))
