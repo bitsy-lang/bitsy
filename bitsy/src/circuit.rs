@@ -43,6 +43,17 @@ impl Circuit {
                 } else {
                     result = child.clone();
                 }
+            } else if part == "set" {
+                // TODO HACK I don't like this.
+                if let Component::Reg(_loc, _name, _typ, _reset) = &*result {
+                    // ignore so that .set on a reg will return the reg itself.
+                    // This is only for bitsy_lang.sim, and should be removed.
+                } else {
+                    return None;
+                }
+
+            }else {
+                return None;
             }
         }
         Some(result)
