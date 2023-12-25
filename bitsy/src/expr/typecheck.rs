@@ -170,6 +170,15 @@ impl Expr {
                     Err(TypeError::CantInferType(self.clone()))
                 }
             },
+            (Type::Valid(inner_type), Expr::TryCast(_loc, _typ, e)) => {
+                if let Type::Enum(typedef) = &*inner_type {
+                    let w = typedef.bitwidth();
+                    e.typecheck(Type::Word(w), ctx.clone())?;
+                    Ok(())
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("trycast(e) has type Valid<T> for an enum type T")))
+                }
+            },
             (Type::Word(n), Expr::ToWord(_loc, _typ, e)) => {
                 let typ = e.typeinfer(ctx.clone()).unwrap();
                 if let Type::Enum(typedef) = typ {

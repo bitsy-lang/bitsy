@@ -177,6 +177,30 @@ impl Expr {
                     _ => panic!("Can't sext {self:?}"),
                 }
             },
+            Expr::TryCast(_loc, typ, e) => {
+                let typ = typ.get().unwrap();
+                let typedef = if let Type::Valid(inner_type) = typ {
+                    if let Type::Enum(typedef) = &**inner_type {
+                        typedef
+                    } else {
+                        unreachable!()
+                    }
+                } else {
+                    unreachable!()
+                };
+                eprintln!("typedef = {typedef:?}");
+                let value = e.eval_with_ctx(bitsy, ctx.clone());
+                if let Value::X = value {
+                    return Value::X;
+                }
+                let value = value.to_u64().unwrap();
+                for (name, WordLit(_w, v)) in &typedef.values {
+                    if value == *v {
+                        return Value::Ctor("Valid".to_string(), vec![Value::Enum(typ.clone(), name.clone())]);
+                    }
+                }
+                return Value::Ctor("Invalid".to_string(), vec![]);
+            },
             Expr::ToWord(_loc, _typ, e) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {

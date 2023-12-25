@@ -39,6 +39,8 @@ pub enum Expr {
     Sext(Loc, OnceCell<Type>, Arc<Expr>),
     /// A zero extension expression.
     Zext(Loc, OnceCell<Type>, Arc<Expr>),
+    /// Try to cast a `Word` to an `enum` type.
+    TryCast(Loc, OnceCell<Type>, Arc<Expr>),
     /// A word expression. Used to cast user-defined `enum` types to their bit values.
     ToWord(Loc, OnceCell<Type>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
@@ -138,6 +140,7 @@ impl HasLoc for Expr {
             Expr::Cat(loc, _typ, _es) => loc.clone(),
             Expr::Sext(loc, _typ, _e) => loc.clone(),
             Expr::Zext(loc, _typ, _e) => loc.clone(),
+            Expr::TryCast(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
             Expr::Vec(loc, _typ, _es) => loc.clone(),
             Expr::IdxField(loc, _typ, _e, _field) => loc.clone(),
@@ -248,6 +251,10 @@ impl Expr {
                 e.with_subexprs(callback);
             },
             Expr::Zext(_loc, _typ, e) => {
+                callback(self);
+                e.with_subexprs(callback);
+            },
+            Expr::TryCast(_loc, _typ, e) => {
                 callback(self);
                 e.with_subexprs(callback);
             },
@@ -365,6 +372,7 @@ impl Expr {
                 }
                 result
             },
+            Expr::TryCast(_loc, _typ, e) => e.free_vars(),
             Expr::ToWord(_loc, _typ, e) => e.free_vars(),
             Expr::Vec(_loc, _typ, es) => {
                 let mut result = BTreeSet::new();
@@ -414,6 +422,7 @@ impl Expr {
             Expr::Cat(_loc, typ, _es) => Some(typ),
             Expr::Sext(_loc, typ, _e) => Some(typ),
             Expr::Zext(_loc, typ, _e) => Some(typ),
+            Expr::TryCast(_loc, typ, _e) => Some(typ),
             Expr::ToWord(_loc, typ, _e) => Some(typ),
             Expr::Vec(_loc, typ, _es) => Some(typ),
             Expr::Idx(_loc, typ, _e, _i) => Some(typ),

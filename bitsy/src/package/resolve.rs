@@ -222,6 +222,7 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
                 "mux",
                 "sext",
                 "zext",
+                "trycast",
                 "word",
                 "@Valid",
                 "@Invalid",
@@ -502,6 +503,7 @@ fn resolve_expr(
                 ),
                 "sext" => Expr::Sext(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "zext" => Expr::Zext(loc.clone(), OnceCell::new(), package_es[0].clone()),
+                "trycast" => Expr::TryCast(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "@Valid" => {
                     Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es)
