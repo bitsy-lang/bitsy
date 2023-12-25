@@ -7,16 +7,24 @@ use std::collections::BTreeMap;
 /// Reads and writes a 32-bit word at a time.
 #[derive(Debug)]
 pub struct Mem {
+    name: String,
     instances: BTreeMap<Path, MemInstance>,
     initial_data: Vec<u8>,
+    delay: usize,
 }
 
 impl Mem {
-    pub fn new() -> Mem {
+    pub fn new(name: String) -> Mem {
         Mem {
+            name,
             instances: BTreeMap::new(),
             initial_data: vec![],
+            delay: 1,
         }
+    }
+
+    pub fn set_read_delay(&mut self, delay: usize) {
+        self.delay = delay;
     }
 
     pub fn load_from_file<P: AsRef<std::path::Path>>(&mut self, path: P) -> anyhow::Result<()> {
@@ -31,11 +39,13 @@ pub struct MemInstance {
     read_addr: u32,
     write_enable: bool,
     write_addr: u32,
-    write_data: u32
+    write_data: u32,
+    delay: usize,
+    delay_current: usize,
 }
 
 impl MemInstance {
-    pub fn new(initial_data: &[u8]) -> MemInstance {
+    pub fn new(initial_data: &[u8], delay: usize) -> MemInstance {
         let mut mem = [0; 1 << 16];
 
         let len = initial_data.len().min(1<<16);
@@ -48,6 +58,8 @@ impl MemInstance {
             write_enable: false,
             write_addr: 0,
             write_data: 0,
+            delay,
+            delay_current: 0,
         }
     }
 
@@ -81,7 +93,11 @@ impl MemInstance {
         if port == "read_addr" {
             if let Value::Word(32, addr) = value {
                 self.read_addr = addr as u32;
-                return vec![("read_data".to_string(), self.read())];
+                if self.delay_current == 0 {
+                    return vec![("read_data".to_string(), self.read())];
+                } else {
+                    self.delay_current = 0;
+                }
             } else {
                 panic!("Mem must receive a Word<32> on read_addr. Received {value:?}")
             }
@@ -120,27 +136,33 @@ impl MemInstance {
 
     fn clock(&mut self) -> Vec<(PortName, Value)> {
 //        println!("Mem was clocked: {}", self.render());
+
         if self.write_enable {
             println!("Writing to RAM: 0x{:08x} <= {:08x}", self.write_addr, self.write_data);
             self.mem[self.write_addr as usize]       = self.write_data as u8 & 0xff;
             self.mem[(self.write_addr + 1) as usize] = (self.write_data >>  8) as u8;
             self.mem[(self.write_addr + 2) as usize] = (self.write_data >> 16) as u8;
             self.mem[(self.write_addr + 3) as usize] = (self.write_data >> 24) as u8;
-            let read_data = self.read();
             //println!("Mem wrote {read_data:?} at address 0x{:x}", self.write_addr);
-            vec![("read_data".to_string(), read_data)]
-        } else {
+        }
+
+        if self.delay_current < self.delay {
+            self.delay_current += 1;
             vec![]
+        } else {
+            let read_data = self.read();
+            self.delay_current = 0;
+            vec![("read_data".to_string(), read_data)]
         }
     }
 }
 
 impl Ext for Mem {
     fn name(&self) -> String {
-        "Mem".to_string()
+        self.name.clone()
     }
     fn instantiate(&mut self, path: Path) {
-        self.instances.insert(path, MemInstance::new(&self.initial_data));
+        self.instances.insert(path, MemInstance::new(&self.initial_data, self.delay));
     }
 
     fn incoming_ports(&self) -> Vec<PortName> {

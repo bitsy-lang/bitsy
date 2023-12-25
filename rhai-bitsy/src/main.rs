@@ -89,7 +89,7 @@ fn sim(package: Arc<Package>, top_name: &str) -> Arc<Mutex<Sim>> {
     };
 
     let exts: Vec<Box<dyn Ext>> = vec![
-        Box::new(bitsy_lang::sim::ext::monitor::Monitor::new()),
+        Box::new(bitsy_lang::sim::ext::monitor::Monitor::new("Monitor".to_string())),
 //        Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new()),
 //        Box::new(bitsy_lang::sim::ext::ram::Ram::new()),
 //        Box::new(bitsy_lang::sim::ext::mem::Mem::new()),

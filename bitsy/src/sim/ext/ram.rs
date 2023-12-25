@@ -7,13 +7,15 @@ use std::collections::BTreeMap;
 /// Reads and writes an 8-bit word at a time.
 #[derive(Debug)]
 pub struct Ram {
+    name: String,
     instances: BTreeMap<Path, RamInstance>,
     initial_data: Vec<u8>,
 }
 
 impl Ram {
-    pub fn new() -> Ram {
+    pub fn new(name: String) -> Ram {
         Ram {
+            name,
             instances: BTreeMap::new(),
             initial_data: vec![],
         }
@@ -125,7 +127,7 @@ impl RamInstance {
 }
 
 impl Ext for Ram {
-    fn name(&self) -> String { "Ram".to_string() }
+    fn name(&self) -> String { self.name.clone() }
     fn instantiate(&mut self, path: Path) {
         self.instances.insert(path, RamInstance::new(&self.initial_data));
     }

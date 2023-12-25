@@ -2,6 +2,7 @@ use super::*;
 
 #[derive(Debug)]
 pub struct Video {
+    name: String,
     signal: u8,
     hsync: bool,
     vsync: bool,
@@ -11,8 +12,9 @@ pub struct Video {
 }
 
 impl Video {
-    pub fn new() -> Video {
+    pub fn new(name: String) -> Video {
         Video {
+            name,
             signal: 0,
             hsync: false,
             vsync: false,
@@ -28,7 +30,7 @@ impl Video {
 }
 
 impl Ext for Video {
-    fn name(&self) -> String { "Video".to_string() }
+    fn name(&self) -> String { self.name.clone() }
     fn instantiate(&mut self, _path: Path) {}
     fn incoming_ports(&self) -> Vec<PortName> { vec!["signal".to_string(), "hsync".to_string(), "vsync".to_string()] }
 

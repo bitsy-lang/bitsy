@@ -156,50 +156,46 @@ fn testbench_for(filename: &str) -> Option<String> {
 
 fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
     let mut exts: Vec<Box<dyn Ext>> = Vec::new();
-    for TestbenchLink(extname, params) in &testbench.1 {
+    for TestbenchLink(extname, driver, params) in &testbench.1 {
         let mut params_map: BTreeMap<String, String> = params.iter().cloned().collect::<BTreeMap<_, _>>();
-        let ext: Box<dyn Ext> = match extname.as_str() {
+        let ext: Box<dyn Ext> = match driver.as_str() {
             "Monitor" => {
-                let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new());
+                let e = Box::new(bitsy_lang::sim::ext::monitor::Monitor::new(extname.clone()));
                 e
             },
             "RiscVDecoder" => {
-                let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new());
+                let e = Box::new(bitsy_lang::sim::ext::riscv_decoder::RiscvDecoder::new(extname.clone()));
                 e
             },
             "Ram" => {
-                let mut e = Box::new(bitsy_lang::sim::ext::ram::Ram::new());
+                let mut e = Box::new(bitsy_lang::sim::ext::ram::Ram::new(extname.clone()));
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
                 e
             },
             "Mem" => {
-                let mut e = Box::new(bitsy_lang::sim::ext::mem::Mem::new());
+                let mut e = Box::new(bitsy_lang::sim::ext::mem::Mem::new(extname.clone()));
                 if let Some(data_filename) = params_map.remove("file") {
                     e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
                 }
-                e
-            },
-            "InstrMem" => {
-                let mut e = Box::new(bitsy_lang::sim::ext::instrmem::InstrMem::new());
-                if let Some(data_filename) = params_map.remove("file") {
-                    e.load_from_file(data_filename.clone()).expect(&format!("Couldn't load {data_filename}"));
+                if let Some(cycles) = params_map.remove("delay") {
+                    e.set_read_delay(cycles.parse().unwrap());
                 }
                 e
             },
             "Video" => {
-                let mut e = Box::new(bitsy_lang::sim::ext::video::Video::new());
+                let mut e = Box::new(bitsy_lang::sim::ext::video::Video::new(extname.clone()));
                 if params_map.remove("disabled") == Some("true".to_string()) {
                     e.disable()
                 }
                 e
             },
             "Terminal" => {
-                let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new());
+                let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new(extname.clone()));
                 e
             },
-            _ => panic!("Unknown ext module being linked: {extname}")
+            _ => panic!("Unknown ext module being linked: {driver}")
         };
         assert!(params_map.is_empty(), "Unused params for ext module linkage: {extname}: {params_map:?}");
         exts.push(ext);

@@ -1,8 +1,8 @@
 top Top
-link Video {
+link Video = Video {
 //    disabled = "true"
 }
-link Ram {
+link Ram = Ram {
     file = "data/heart.bin"
 }
 

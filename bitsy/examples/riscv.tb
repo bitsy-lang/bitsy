@@ -1,16 +1,18 @@
 top Top
-link RiscVDecoder {
+link RiscVDecoder = RiscVDecoder {
 }
 
-link InstrMem {
+link InstrMem = Mem {
     file = "programs/hello.exe.bin"
+    delay = "0"
 }
 
-link Mem {
+link Mem = Mem {
     file = "data/hello.bin"
+    delay = "0"
 }
 
-link Terminal {}
+link Terminal = Terminal {}
 
 reset
 run

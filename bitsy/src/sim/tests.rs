@@ -203,7 +203,7 @@ fn monitor() {
     ").unwrap();
     let top = top.top("Top").unwrap();
 
-    let mut bitsy = Sim::new(&top, vec![Box::new(Monitor::new())]);
+    let mut bitsy = Sim::new(&top, vec![Box::new(Monitor::new("Monitor".to_string()))]);
 
     bitsy.reset();
     bitsy.clock();

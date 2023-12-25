@@ -12,9 +12,9 @@ TestbenchTop: String = {
 }
 
 TestbenchLink: TestbenchLink = {
-    "link" <id:Id> "{" <params:(Id "=" Str)*> "}" => {
+    "link" <name:Id> "=" <driver:Id> "{" <params:(Id "=" Str)*> "}" => {
         let params: Vec<(String, String)> = params.iter().map(|(id, _, value)| (id.to_string(), value.to_string())).collect();
-        TestbenchLink(id, params)
+        TestbenchLink(name, driver, params)
     },
 }
 

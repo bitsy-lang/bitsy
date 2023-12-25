@@ -4,11 +4,11 @@ use super::*;
 /// On reset and on clock, decodes the 32-bit value presented to `in` as a RV32I instruction and
 /// prints it to the screen.
 #[derive(Debug)]
-pub struct RiscvDecoder(Option<String>);
+pub struct RiscvDecoder(String, Option<String>);
 
 impl RiscvDecoder {
-  pub fn new() -> RiscvDecoder {
-      RiscvDecoder(None)
+  pub fn new(name: String) -> RiscvDecoder {
+      RiscvDecoder(name, None)
   }
 }
 
@@ -21,7 +21,7 @@ impl Ext for RiscvDecoder {
     fn update(&mut self, _path: Path, _port: &PortName, value: Value) -> Vec<(PortName, Value)> {
         if let Value::Word(32, v) = value {
             let instr = riscy::decode(v as u32);
-            self.0 = Some(format!("{instr:?}"));
+            self.1 = Some(format!("{instr:?}"));
 //            println!("RiscVDecoder: {instr:?}");
         } else if let Value::X = value {
             // do nothing
@@ -32,17 +32,17 @@ impl Ext for RiscvDecoder {
     }
 
     fn clock(&mut self, _path: Path) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
+        if let Some(s) = &self.1 {
             println!("{s}");
-            self.0 = None;
+            self.1 = None;
         }
         vec![]
     }
 
     fn reset(&mut self, _path: Path) -> Vec<(PortName, Value)> {
-        if let Some(s) = &self.0 {
+        if let Some(s) = &self.1 {
             println!("{s}");
-            self.0 = None;
+            self.1 = None;
         }
         vec![]
     }

@@ -8,7 +8,7 @@ lalrpop_mod!(testbench_grammar);
 pub struct Testbench(pub(crate) Option<String>, pub(crate) Vec<TestbenchLink>, pub(crate) Vec<TestbenchCommand>);
 
 #[derive(Debug, Clone)]
-pub(crate) struct TestbenchLink(pub(crate) String, pub(crate) Vec<(String, String)>);
+pub(crate) struct TestbenchLink(pub(crate) String, pub(crate) String, pub(crate) Vec<(String, String)>);
 
 #[derive(Debug, Clone)]
 pub(crate) enum TestbenchCommand {
