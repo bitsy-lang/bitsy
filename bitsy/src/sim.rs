@@ -414,10 +414,10 @@ impl Sim {
             self.poke_net(val_net_id, value);
         }
 
-        for (ext_id, ext) in self.exts.iter_mut().enumerate() {
-            let ext = &mut *ext;
-            let path = self.sim_circuit.path_by_ext_inst_id[&ext_id].clone();
-            ext.clock(path);
+        for (ext_inst_id, path) in &self.sim_circuit.path_by_ext_inst_id {
+            let ext_id = self.ext_id_by_ext_inst_id[ext_inst_id];
+            let ext = &mut self.exts[ext_id];
+            ext.clock(path.clone());
         }
     }
 
@@ -427,11 +427,10 @@ impl Sim {
                 self.poke_net(reginfo.val_net_id, reset.eval(&self));
             }
         }
-
-        for (ext_id, ext) in self.exts.iter_mut().enumerate() {
-            let ext = &mut *ext;
-            let path = self.sim_circuit.path_by_ext_inst_id[&ext_id].clone();
-            ext.reset(path);
+        for (ext_inst_id, path) in &self.sim_circuit.path_by_ext_inst_id {
+            let ext_id = self.ext_id_by_ext_inst_id[ext_inst_id];
+            let ext = &mut self.exts[ext_id];
+            ext.reset(path.clone());
         }
     }
 
