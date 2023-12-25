@@ -322,13 +322,16 @@ mod Control {
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
     mem_to_reg := opcode == Opcode::LOAD;
-    alu_op := if funct3 == word(OpFunct3::ADD) {
-        AluOp::ADD
-    } else if funct3 == word(OpFunct3::AND) {
-        AluOp::AND
-    } else {
-        AluOp::ADD
+
+    node maybe_funct3 of Valid<OpFunct3>;
+    maybe_funct3 := trycast(funct3);
+
+    alu_op := match maybe_funct3 {
+        @Valid(@ADD) => AluOp::ADD;
+        @Valid(@AND) => AluOp::AND;
+        otherwise => AluOp::ADD;
     };
+
     alu_source := if opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE {
         AluSource::IMM
     } else {
@@ -348,9 +351,9 @@ mod Alu {
 
     r := match op {
         @AND => a && b;
-        @OR => a || b;
-        @ADD => a + b;
-        @SUB => a - b;
+        @OR  => a || b;
+        @ADD => a  + b;
+        @SUB => a  - b;
     };
 }
 
@@ -401,29 +404,13 @@ mod Decoder {
     outgoing funct3  of Word<3>;
     outgoing funct7  of Word<7>;
 
-    opcode :=
-        let opcode_bits = instr[7..0];
-        if opcode_bits == word(Opcode::OP) {
-            Opcode::OP
-        } else if opcode_bits == word(Opcode::OP_IMM) {
-            Opcode::OP_IMM
-        } else if opcode_bits == word(Opcode::LOAD) {
-            Opcode::LOAD
-        } else if opcode_bits == word(Opcode::STORE) {
-            Opcode::STORE
-        } else if opcode_bits == word(Opcode::JAL) {
-            Opcode::JAL
-        } else if opcode_bits == word(Opcode::BRANCH) {
-            Opcode::BRANCH
-        } else if opcode_bits == word(Opcode::LUI) {
-            Opcode::LUI
-        } else if opcode_bits == word(Opcode::AUIPC) {
-            Opcode::AUIPC
-        } else if opcode_bits == word(Opcode::JALR) {
-            Opcode::JALR
-        } else {
-            Opcode::OP
-        };
+    node maybe_opcode of Valid<Opcode>;
+    maybe_opcode := trycast(instr[7..0]);
+
+    opcode := match maybe_opcode {
+        @Valid(o) => o;
+        @Invalid  => Opcode::OP;
+    };
 
     rd     := instr[12..7];
     funct3 := instr[15..12];

@@ -364,11 +364,7 @@ impl Type {
             (_, Pat::Otherwise) => ctx.clone(),
             (Type::Valid(inner_type), Pat::At(ctor, subpats)) => {
                 if ctor == "Valid" && subpats.len() == 1 {
-                    if let Pat::Bind(x) = &subpats[0] {
-                        ctx.extend(x.clone().into(), *inner_type.clone())
-                    } else {
-                        unreachable!()
-                    }
+                    inner_type.extend_context_for_pat(ctx.clone(), &subpats[0])
                 } else if ctor == "Invalid" {
                     ctx.clone()
                 } else {
