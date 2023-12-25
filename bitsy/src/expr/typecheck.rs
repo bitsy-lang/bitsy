@@ -37,7 +37,7 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
                 }
             },
-            (_type_expected, Expr::Ctor(_loc, _typ, _name, es)) => {
+            (Type::Valid(_typ2), Expr::Ctor(_loc, _typ, _name, es)) => {
                 // TODO
                 if let Type::Valid(ref typ) = type_expected {
                     if es.len() == 1 {
@@ -49,6 +49,20 @@ impl Expr {
                     }
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
+                }
+            },
+            (Type::Alt(typedef), Expr::Ctor(_loc, _typ, name, es)) => {
+                if let Some(typs) = typedef.alt(name) {
+                    if es.len() == typs.len() {
+                        for (e, typ) in es.iter().zip(typs.iter()) {
+                            e.typecheck(typ.clone(), ctx.clone())?;
+                        }
+                        Ok(())
+                    } else {
+                        Err(TypeError::Other(self.clone(), format!("Invalid alt type")))
+                    }
+                } else {
+                    Err(TypeError::Other(self.clone(), format!("Invalid alt type")))
                 }
             },
             (Type::Struct(typedef), Expr::Struct(_loc, _typ, fields)) => {
@@ -323,6 +337,10 @@ impl Type {
                         let alts: Vec<String> = typedef.values.iter().map(|(name, _val)| name.clone()).collect();
                         alts.contains(ctor)
                     },
+                    Type::Alt(typedef) => {
+                        let alts: Vec<String> = typedef.alts.iter().map(|(name, _val)| name.clone()).collect();
+                        alts.contains(ctor)
+                    },
                     _ => false,
                 }
             },
@@ -332,8 +350,10 @@ impl Type {
     }
 
     fn extend_context_for_pat(&self, ctx: Context<Path, Type>, pat: &Pat) -> Context<Path, Type> {
-        if let Type::Valid(inner_type) = self {
-            if let Pat::At(ctor, subpats) = pat {
+        match (self, pat) {
+            (_, Pat::Bind(x)) => ctx.extend(x.clone().into(), self.clone()),
+            (_, Pat::Otherwise) => ctx.clone(),
+            (Type::Valid(inner_type), Pat::At(ctor, subpats)) => {
                 if ctor == "Valid" && subpats.len() == 1 {
                     if let Pat::Bind(x) = &subpats[0] {
                         ctx.extend(x.clone().into(), *inner_type.clone())
@@ -345,11 +365,23 @@ impl Type {
                 } else {
                     unreachable!()
                 }
-            } else {
+            },
+            (Type::Enum(_typedef), Pat::At(_ctor, _subpats)) => {
                 ctx.clone()
-            }
-        } else {
-            ctx.clone()
+            },
+            (Type::Alt(typedef), Pat::At(ctor, subpats)) => {
+                if let Some(typs) = typedef.alt(ctor) {
+                    let mut new_ctx = ctx.clone();
+                    assert_eq!(subpats.len(), typs.len());
+                    for (subpat, typ) in subpats.iter().zip(typs.iter()) {
+                        new_ctx = typ.extend_context_for_pat(ctx.clone(), subpat)
+                    }
+                    new_ctx
+                } else {
+                    unreachable!()
+                }
+            },
+            _ => unreachable!(),
         }
     }
 }

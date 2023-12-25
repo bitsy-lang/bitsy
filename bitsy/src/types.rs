@@ -25,6 +25,8 @@ pub enum Type {
     Enum(Arc<EnumTypeDef>),
     /// A user-defined `struct`.
     Struct(Arc<StructTypeDef>),
+    /// A user-defined `alt`.
+    Alt(Arc<AltTypeDef>),
 }
 
 impl Type {
@@ -35,6 +37,7 @@ impl Type {
             Type::Valid(_typ) => "Valid",
             Type::Enum(typedef) => &typedef.name,
             Type::Struct(typedef) => &typedef.name,
+            Type::Alt(typedef) => &typedef.name,
         }
     }
 
@@ -57,6 +60,7 @@ impl Type {
             Type::Vec(typ, n) => typ.bitwidth() * n,
             Type::Enum(typedef) => typedef.bitwidth(),
             Type::Struct(typedef) => typedef.bitwidth(),
+            Type::Alt(typedef) => todo!(), // TODO typedef.bitwidth(),
         }
     }
 }
@@ -73,6 +77,24 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
+}
+
+/// A user-defined `alt` type.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AltTypeDef {
+    pub name: String,
+    pub alts: Vec<(String, Vec<Type>)>,
+}
+
+impl AltTypeDef {
+    pub fn alt(&self, name: &str) -> Option<Vec<Type>> {
+        for (nam, typs) in &self.alts {
+            if name == nam {
+                return Some(typs.clone())
+            }
+        }
+        None
+    }
 }
 
 /// A user-defined `fn` function.
@@ -140,6 +162,7 @@ impl std::fmt::Debug for Type {
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
             Type::Struct(typedef) => write!(f, "{}", typedef.name),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
+            Type::Alt(typedef) => write!(f, "{}", typedef.name),
         }
     }
 }

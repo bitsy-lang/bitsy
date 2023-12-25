@@ -12,6 +12,7 @@ Item: Item = {
     <m:ModDef> => Item::ModDef(m),
     <e:EnumTypeDef> => Item::EnumTypeDef(e),
     <e:StructTypeDef> => Item::StructTypeDef(e),
+    <e:AltTypeDef> => Item::AltTypeDef(e),
     <m:ExtDef> => Item::ExtDef(m),
     <f:FnDef> => Item::FnDef(f),
 }
@@ -62,6 +63,31 @@ StructTypeDef: StructTypeDef = {
         StructTypeDef {
             name,
             fields: fields.iter().map(|(name, _, typ, _)| (name.clone(), typ.clone())).collect::<Vec<_>>(),
+        }
+    },
+}
+
+AltTypeDef: AltTypeDef = {
+    <ll:@L> <vis:"pub"?> "alt" "type" <name:Id> "{"
+        <alts:(Id "(" TypeList ")" ";")*>
+    "}" <rr:@R> => {
+        AltTypeDef {
+            name,
+            alts: alts.iter().map(|(name, _, typs, _, _)| (name.clone(), typs.clone())).collect::<Vec<_>>(),
+        }
+    },
+}
+
+TypeList: Vec<Type> = {
+    <args:((Type ("," Type)* ","?)?)> => {
+        if let Some((typ, args, _comma)) = args {
+            let mut results = vec![typ];
+            for (_comma, typ) in args {
+                results.push(typ);
+            }
+            results
+        } else {
+            vec![]
         }
     },
 }

@@ -21,6 +21,7 @@ pub enum Item {
     ExtDef(ModDef),
     EnumTypeDef(EnumTypeDef),
     StructTypeDef(StructTypeDef),
+    AltTypeDef(AltTypeDef),
     FnDef(FnDef),
 }
 
@@ -31,6 +32,7 @@ impl Item {
             Item::ExtDef(ModDef(_loc, name, _decls)) => name,
             Item::EnumTypeDef(typedef) => typedef.name.as_str(),
             Item::StructTypeDef(typedef) => typedef.name.as_str(),
+            Item::AltTypeDef(typedef) => typedef.name.as_str(),
             Item::FnDef(fndef) => fndef.name.as_str(),
         }
     }
@@ -66,7 +68,14 @@ pub struct StructTypeDef {
     pub fields: Vec<(String, Type)>,
 }
 
-/// A user-defined `struct` type.
+/// A user-defined `alt` type.
+#[derive(Debug, Clone)]
+pub struct AltTypeDef {
+    pub name: String,
+    pub alts: Vec<(String, Vec<Type>)>,
+}
+
+/// A user-defined function.
 #[derive(Debug, Clone)]
 pub struct FnDef {
     pub name: String,

@@ -181,6 +181,7 @@ pub enum Item {
     ExtDef(Arc<Component>),
     EnumTypeDef(Arc<EnumTypeDef>),
     StructTypeDef(Arc<StructTypeDef>),
+    AltTypeDef(Arc<AltTypeDef>),
     FnDef(Arc<FnDef>),
 }
 
@@ -191,6 +192,7 @@ impl Item {
             Item::ExtDef(component) => component.name(),
             Item::EnumTypeDef(typedef) => &typedef.name,
             Item::StructTypeDef(typedef) => &typedef.name,
+            Item::AltTypeDef(typedef) => &typedef.name,
             Item::FnDef(typedef) => &typedef.name,
         }
     }
@@ -207,6 +209,7 @@ impl Item {
         match self {
             Item::EnumTypeDef(_typedef) => true,
             Item::StructTypeDef(_typedef) => true,
+            Item::AltTypeDef(_typedef) => true,
             _ => false,
         }
     }
@@ -222,6 +225,7 @@ impl Item {
         match self {
             Item::EnumTypeDef(typedef) => Some(Type::Enum(typedef.clone())),
             Item::StructTypeDef(typedef) => Some(Type::Struct(typedef.clone())),
+            Item::AltTypeDef(typedef) => Some(Type::Alt(typedef.clone())),
             _ => None,
         }
     }

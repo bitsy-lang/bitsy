@@ -1,0 +1,21 @@
+alt type Foo {
+    Bar(Word<8>);
+    Baz(Word<1>, Word<4>);
+}
+
+pub mod Top {
+    node out of Foo;
+    reg counter of Word<1> reset 0;
+    counter <= counter + 1;
+    out := if counter == 0 {
+        @Bar(10)
+    } else {
+        @Baz(1, 2)
+    };
+
+    outgoing z of Word<4>;
+    z := match out {
+        @Bar(x) => x[4..0];
+        @Baz(x, y) => y;
+    };
+}

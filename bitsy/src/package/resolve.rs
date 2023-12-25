@@ -94,6 +94,11 @@ fn resolve_item(item: &ast::Item, items: &BTreeMap<String, Item>) -> Item {
             let typedef = resolve_struct_typedef(typedef, ctx);
             Item::StructTypeDef(typedef)
         },
+        ast::Item::AltTypeDef(typedef) => {
+            let ctx = Context::from(user_types.clone().into_iter().collect());
+            let typedef = resolve_alt_typedef(typedef, ctx);
+            Item::AltTypeDef(typedef)
+        },
         ast::Item::FnDef(fndef) => {
             let ctx = Context::from(user_types.clone().into_iter().collect());
             let fn_ctx = Context::from(fndefs.clone().into_iter().collect());
@@ -109,6 +114,7 @@ fn item_dependencies(item: &ast::Item) -> BTreeSet<String> {
         ast::Item::ExtDef(moddef) => moddef_dependencies(moddef),
         ast::Item::EnumTypeDef(_typedef) => BTreeSet::new(),
         ast::Item::StructTypeDef(typedef) => structtypedef_dependencies(typedef),
+        ast::Item::AltTypeDef(typedef) => altypedef_dependencies(typedef),
         ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
     }
 }
@@ -165,6 +171,18 @@ fn structtypedef_dependencies(typedef: &ast::StructTypeDef) -> BTreeSet<String> 
         .collect()
 }
 
+fn altypedef_dependencies(typedef: &ast::AltTypeDef) -> BTreeSet<String> {
+    let mut deps = vec![];
+    for (_name, typs) in & typedef.alts {
+        for typ in typs {
+            deps.extend(type_dependencies(typ).into_iter())
+        }
+
+    }
+    deps.into_iter().collect()
+}
+
+
 fn fndef_dependencies(typedef: &ast::FnDef) -> BTreeSet<String> {
     let mut result = type_dependencies(&typedef.ret);
     for (_name, typ) in &typedef.args {
@@ -209,7 +227,7 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
                 "@Invalid",
             ];
 
-            if !SPECIALS.contains(&func.as_str()) {
+            if !SPECIALS.contains(&func.as_str()) && !func.starts_with("@") {
                 results.insert(func.clone());
             }
             for e in es {
@@ -283,6 +301,26 @@ fn resolve_enum_typedef(typedef: &ast::EnumTypeDef) -> Arc<EnumTypeDef> {
     let package_typedef = Arc::new(EnumTypeDef {
         name: typedef.name.to_string(),
         values: typedef.values.clone(),
+    });
+    package_typedef
+}
+
+fn resolve_alt_typedef(
+    typedef: &ast::AltTypeDef,
+    ctx: Context<String, Type>,
+) -> Arc<AltTypeDef> {
+    let mut alts: BTreeMap<String, Vec<Type>> = BTreeMap::new();
+    for (name, typs) in &typedef.alts {
+        let mut alt_types = vec![];
+        for typ in typs {
+            alt_types.push(resolve_type(typ, ctx.clone()));
+        }
+        alts.insert(name.to_string(), alt_types);
+    }
+
+    let package_typedef = Arc::new(AltTypeDef {
+        name: typedef.name.to_string(),
+        alts: alts.into_iter().collect(),
     });
     package_typedef
 }
@@ -473,7 +511,13 @@ fn resolve_expr(
                 },
                 fnname => {
                     let func = fnname.to_string();
-                    if let Some(fndef) = fndef_ctx.lookup(&func) {
+                    if fnname.starts_with("@") {
+                        let package_es = es
+                            .into_iter()
+                            .map(|expr| resolve_expr(expr, ctx.clone(), fndef_ctx.clone()))
+                            .collect();
+                        Expr::Ctor(loc.clone(), OnceCell::new(), fnname[1..].to_string(), package_es)
+                    } else if let Some(fndef) = fndef_ctx.lookup(&func) {
                         let package_es = es
                             .into_iter()
                             .map(|expr| resolve_expr(expr, ctx.clone(), fndef_ctx.clone()))
