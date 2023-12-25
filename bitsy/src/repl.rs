@@ -135,25 +135,25 @@ impl Repl {
                     }
                 }
             },
-            TestbenchCommand::Eval(e) => {
-                print!("EVAL {e:?}");
-                let result = e.rebase(self.current_path.clone()).eval(&self.sim);
-                println!("=> {result:?}");
-            },
-            TestbenchCommand::Assert(e) => {
-                let result = e.eval(&self.sim);
-                println!("ASSERT {e:?}");
-                if let Value::Word(1, 1) = result {
-                    // Do nothing.
-                } else {
-                    println!("Assertion failed");
-                    for path in e.paths() {
-                        println!("    {path} => {:?}", self.sim.peek(path.clone()));
-
-                    }
-                    panic!("");
-                }
-            },
+//            TestbenchCommand::Eval(e) => {
+//                print!("EVAL {e:?}");
+//                let result = e.rebase(self.current_path.clone()).eval(&self.sim);
+//                println!("=> {result:?}");
+//            },
+//            TestbenchCommand::Assert(e) => {
+//                let result = e.eval(&self.sim);
+//                println!("ASSERT {e:?}");
+//                if let Value::Word(1, 1) = result {
+//                    // Do nothing.
+//                } else {
+//                    println!("Assertion failed");
+//                    for path in e.paths() {
+//                        println!("    {path} => {:?}", self.sim.peek(path.clone()));
+//
+//                    }
+//                    panic!("");
+//                }
+//            },
         }
     }
 

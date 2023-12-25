@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use bitsy_lang::*;
 use bitsy_lang::sim::*;
 use bitsy_lang::sim::ext::Ext;

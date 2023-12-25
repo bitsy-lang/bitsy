@@ -7,11 +7,11 @@ pub Testbench: Testbench = {
     <top:TestbenchTop?> <links:TestbenchLink*> <commands:TestbenchCommand*> => Testbench(top, links, commands),
 }
 
-pub TestbenchTop: String = {
+TestbenchTop: String = {
     "top" <id:Id> => id,
 }
 
-pub TestbenchLink: TestbenchLink = {
+TestbenchLink: TestbenchLink = {
     "link" <id:Id> "{" <params:(Id "=" Str)*> "}" => {
         let params: Vec<(String, String)> = params.iter().map(|(id, _, value)| (id.to_string(), value.to_string())).collect();
         TestbenchLink(id, params)
@@ -39,13 +39,13 @@ pub TestbenchCommand: TestbenchCommand = {
 //    "assert" <e:Expr> => TestbenchCommand::Assert(*e),     // TODO
 }
 
-pub WatchFormat: WatchFormat = {
+WatchFormat: WatchFormat = {
     "hex" => WatchFormat::Hex,
     "bin" => WatchFormat::Bin,
     "bool" => WatchFormat::Bool,
 }
 
-pub Path: Path = {
+Path: Path = {
     <id:Id> <dots:("." Id)*> => {
         let mut path = id;
         for (_, dot) in dots {
@@ -56,21 +56,21 @@ pub Path: Path = {
     },
 }
 
-pub Reference: Path = {
+Reference: Path = {
     <submod:Id> "." <id:Id> => format!("{submod}.{id}").into(),
     <id:Id> => id.into(),
 }
 
-pub Str: String = {
+Str: String = {
     <s:r#""[^"]*""#> => s[1..s.len()-1].to_string(),
 }
 
-pub Id: String = {
+Id: String = {
     "top" => "top".to_string(),
     <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
 }
 
-pub Line: String = {
+Line: String = {
     <line:r"[^(link)]\n\r]*[\r\n]"> => line.to_string(),
 }
 

@@ -1,9 +1,8 @@
-#![allow(unused, dead_code)]
 // TODO Remove this.
 
 use serde_json::{Value, json};
 use bitsy_lang::Package;
-use bitsy_lang::{Loc, HasLoc, SourceInfo};
+use bitsy_lang::HasLoc;
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -19,10 +18,10 @@ pub(crate) fn run_lsp() {
 
     let (message_send, message_recv) = channel::<Value>();
 
-    let thread = thread::spawn(move || {
+    let _thread = thread::spawn(move || {
         loop {
             let message = read_message();
-            message_send.send(message);
+            message_send.send(message).unwrap();
         }
     });
 
@@ -51,7 +50,7 @@ pub(crate) fn run_lsp() {
                     },
                 }
             },
-            Err(e) => return,
+            Err(_e) => return,
         }
     }
 }
@@ -62,7 +61,7 @@ fn read_message() -> Value {
 
     let mut buffer = String::new();
 //    let mut headers: HashMap<String, String> = HashMap::new();
-    stdin.read_line(&mut buffer);
+    stdin.read_line(&mut buffer).unwrap();
     assert!(buffer.starts_with("Content-Length: "));
     let length = buffer.split(": ").collect::<Vec<_>>()[1].trim().parse::<usize>().unwrap();
     // throw away empty line
@@ -218,7 +217,6 @@ impl Buffer {
         // TODO should fake parsing package from file
         self.package = match bitsy_lang::load_package_from_string(&self.text) {
             Ok(package) => package,
-            Ok(circuit) => circuit,
             Err(errors) => {
                 info!("Errors: {errors:?}");
                 for error in errors {
@@ -266,24 +264,6 @@ impl Buffer {
     }
 }
 
-fn pos_to_lineno_col(text: &str, pos: usize) -> (usize, usize) {
-    let mut lineno = 0;
-    let mut col = 0;
-    let mut cur_pos = 0;
-
-    let lines = text.split("\n");
-    for line in lines {
-        if cur_pos + line.len() < pos {
-            lineno += 1;
-            cur_pos += line.len() + 1; // + 1 for the newline
-        } else {
-            break;
-        }
-    }
-
-    (lineno, pos - cur_pos)
-}
-
 impl State {
     fn initialize(&mut self, request: Value) {
         let response: Value = json!({
@@ -320,7 +300,7 @@ impl State {
     fn text_document_did_change(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
         let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
-        let mut buffer = self.buffer(&uri);
+        let buffer = self.buffer(&uri);
         buffer.update_text(message["params"]["contentChanges"][0]["text"].as_str().unwrap().to_string());
         buffer.send_diagnostics();
     }
@@ -328,7 +308,7 @@ impl State {
     fn text_document_did_save(&mut self, message: Value) {
         debug!("{}", serde_json::to_string_pretty(&message).unwrap());
         let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
-        let mut buffer = self.buffer(&uri);
+        let buffer = self.buffer(&uri);
         buffer.send_diagnostics();
     }
 

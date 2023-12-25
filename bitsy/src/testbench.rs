@@ -22,8 +22,8 @@ pub(crate) enum TestbenchCommand {
     Show,
     Run,
     Debug,
-    Eval(Expr),
-    Assert(Expr),
+//    Eval(Expr),
+//    Assert(Expr),
 }
 
 #[derive(Debug, Clone)]
