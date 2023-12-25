@@ -766,4 +766,32 @@ impl Expr {
             Expr::Hole(loc, typ, name) => Expr::Hole(loc.clone(), typ.clone(), name.clone()),
         })
     }
+
+    fn depends_on_net(&self, net_id: NetId) -> bool {
+        match self {
+            Expr::Reference(_loc, _typ, _path) => false,
+            Expr::Net(_loc, _typ, other_netid) => net_id == *other_netid,
+            Expr::Word(_loc, _typ, _width, _value) => false,
+            Expr::Enum(_loc, _typ, _typedef, _name) => false,
+            Expr::Ctor(_loc, _typ, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Struct(_loc, _typ, fields) => fields.iter().any(|(_name, e)| e.depends_on_net(net_id)),
+            Expr::Let(_loc, _typ, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
+            Expr::Match(_loc, _typ, e, arms) => e.depends_on_net(net_id) || arms.iter().any(|MatchArm(_pat, arm_e)| arm_e.depends_on_net(net_id)),
+            Expr::UnOp(_loc, _typ, _op, e) => e.depends_on_net(net_id),
+            Expr::BinOp(_loc, _typ, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::If(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::Mux(_loc, _typ, cond, e1, e2) => cond.depends_on_net(net_id) || e1.depends_on_net(net_id) || e2.depends_on_net(net_id),
+            Expr::Cat(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Sext(_loc, _typ, e) => e.depends_on_net(net_id),
+            Expr::Zext(_loc, _typ, e) => e.depends_on_net(net_id),
+            Expr::ToWord(_loc, _typ, e) => e.depends_on_net(net_id),
+            Expr::Vec(_loc, _typ, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::IdxField(_loc, _typ, e, _field) => e.depends_on_net(net_id),
+            Expr::Idx(_loc, _typ, e, _i) => e.depends_on_net(net_id),
+            Expr::IdxRange(_loc, _typ, e, _j, _i) => e.depends_on_net(net_id),
+            Expr::Call(_loc, _typ, _fndef, es) => es.iter().any(|e| e.depends_on_net(net_id)),
+            Expr::Hole(_loc, _typ, _name) => false,
+        }
+    }
+
 }
