@@ -12,7 +12,7 @@ impl<K: Eq + Clone, T: Clone> Context<K, T> {
     }
 
     pub fn lookup(&self, v: &K) -> Option<T> {
-        for (v0, t) in &self.0 {
+        for (v0, t) in self.0.iter().rev() {
             if v0 == v {
                 return Some(t.clone());
             }

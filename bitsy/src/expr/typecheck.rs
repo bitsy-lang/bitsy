@@ -84,7 +84,7 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))
                 }
             },
-            (_type_expected, Expr::Match(_loc, _typ, subject, arms)) => {
+            (_type_expected, Expr::Match(loc, _typ, subject, arms)) => {
                 if let Some(subject_typ) = subject.typeinfer(ctx.clone()) {
                     let invalid_arms: Vec<&MatchArm> = arms.into_iter().filter(|MatchArm(pat, _e)| !subject_typ.valid_pat(pat)).collect();
                     if invalid_arms.len() > 0 {
@@ -379,7 +379,7 @@ impl Type {
                     let mut new_ctx = ctx.clone();
                     assert_eq!(subpats.len(), typs.len());
                     for (subpat, typ) in subpats.iter().zip(typs.iter()) {
-                        new_ctx = typ.extend_context_for_pat(ctx.clone(), subpat)
+                        new_ctx = typ.extend_context_for_pat(new_ctx.clone(), subpat)
                     }
                     new_ctx
                 } else {

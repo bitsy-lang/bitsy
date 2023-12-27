@@ -304,13 +304,25 @@ MatchArm: MatchArm = {
 
 Pat: Pat = {
     <id:Ctor> => Pat::At(id[1..].to_string(), vec![]),
-    <id:Ctor> "(" <p:Pat> <ps:("," Pat)*> ")" => {
-        let mut subpats = vec![p];
-        subpats.extend(ps.iter().map(|(_, pat)| pat.clone()));
+    <id:Ctor> "(" <subpats:PatList> ")" => {
         Pat::At(id[1..].to_string(), subpats)
     },
     <id:Id> => Pat::Bind(id.to_string()),
     "otherwise" => Pat::Otherwise,
+}
+
+PatList: Vec<Pat> = {
+    <pats:((Pat ("," Pat)* ","?)?)> => {
+        if let Some((pat, pats, _comma)) = pats {
+            let mut results = vec![pat];
+            for (_comma, pat) in pats {
+                results.push(pat);
+            }
+            results
+        } else {
+            vec![]
+        }
+    },
 }
 
 ExprRef: Box<Expr> = {

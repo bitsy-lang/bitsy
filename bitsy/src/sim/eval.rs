@@ -188,7 +188,6 @@ impl Expr {
                 } else {
                     unreachable!()
                 };
-                eprintln!("typedef = {typedef:?}");
                 let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {
                     return Value::X;
@@ -321,7 +320,7 @@ impl Pat {
                             assert_eq!(pats.len(), vs.len());
                             let mut ctx_result = ctx.clone();
                             for (pat, v) in pats.iter().zip(vs.iter()) {
-                                if let Some(ctx) = pat.bind(v, ctx.clone()) {
+                                if let Some(ctx) = pat.bind(v, ctx_result.clone()) {
                                     ctx_result = ctx;
                                 } else {
                                     return None;
