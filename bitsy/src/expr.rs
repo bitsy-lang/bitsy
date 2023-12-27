@@ -45,6 +45,7 @@ pub enum Expr {
     ToWord(Loc, OnceCell<Type>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
     Vec(Loc, OnceCell<Type>, Vec<Arc<Expr>>),
+    /// An index into a struct type. Eg, `foo->bar`.
     IdxField(Loc, OnceCell<Type>, Arc<Expr>, String),
     /// A static index. Eg, `foo[0]`.
     Idx(Loc, OnceCell<Type>, Arc<Expr>, u64),
@@ -292,23 +293,6 @@ impl Expr {
         }
     }
 
-    pub fn paths(&self) -> Vec<Path> {
-        let paths = std::cell::RefCell::new(vec![]);
-        let mut func = |e: &Expr| {
-            if let Expr::Reference(_loc, _typ, path) = e {
-                paths.borrow_mut().push(path.clone());
-            } else if let Expr::Net(_loc, _typ, _netid) = e {
-                panic!("paths() only works on symbolic expressions.");
-            }
-        };
-        self.with_subexprs(&mut func);
-
-        let mut results = paths.into_inner();
-        results.sort();
-        results.dedup();
-        results
-    }
-
     pub fn is_constant(&self) -> bool {
         self.free_vars().is_empty()
     }
@@ -401,35 +385,49 @@ impl Expr {
         self.paths().contains(&path)
     }
 
-    pub fn type_of(&self) -> Type {
-        self.type_of_cell().unwrap().get().unwrap().clone()
+    fn paths(&self) -> Vec<Path> {
+        let paths = std::cell::RefCell::new(vec![]);
+        let mut func = |e: &Expr| {
+            if let Expr::Reference(_loc, _typ, path) = e {
+                paths.borrow_mut().push(path.clone());
+            } else if let Expr::Net(_loc, _typ, _netid) = e {
+                panic!("paths() only works on symbolic expressions.");
+            }
+        };
+        self.with_subexprs(&mut func);
+
+        let mut results = paths.into_inner();
+        results.sort();
+        results.dedup();
+        results
     }
 
-    fn type_of_cell(&self) -> Option<&OnceCell<Type>> {
-        match self {
-            Expr::Net(_loc, typ, _netid) => Some(typ),
-            Expr::Reference(_loc, typ, _path) => Some(typ),
-            Expr::Word(_loc, typ, _width, _val) => Some(typ),
-            Expr::Enum(_loc, typ, _typedef, _name) => Some(typ),
-            Expr::Ctor(_loc, typ, _name, _e) => Some(typ),
-            Expr::Struct(_loc, typ, _fields) => Some(typ),
-            Expr::Let(_loc, typ, _name, _e, _b) => Some(typ),
-            Expr::UnOp(_loc, typ, _op, _e) => Some(typ),
-            Expr::BinOp(_loc, typ, _op, _e1, _e2) => Some(typ),
-            Expr::If(_loc, typ, _cond, _e1, _e2) => Some(typ),
-            Expr::Match(_loc, typ, _e, _arms) => Some(typ),
-            Expr::Mux(_loc, typ, _cond, _e1, _e2) => Some(typ),
-            Expr::Cat(_loc, typ, _es) => Some(typ),
-            Expr::Sext(_loc, typ, _e) => Some(typ),
-            Expr::Zext(_loc, typ, _e) => Some(typ),
-            Expr::TryCast(_loc, typ, _e) => Some(typ),
-            Expr::ToWord(_loc, typ, _e) => Some(typ),
-            Expr::Vec(_loc, typ, _es) => Some(typ),
-            Expr::Idx(_loc, typ, _e, _i) => Some(typ),
-            Expr::IdxField(_loc, typ, _e, _field) => Some(typ),
-            Expr::IdxRange(_loc, typ, _e, _j, _i) => Some(typ),
-            Expr::Call(_loc, typ, _fndef, _es) => Some(typ),
-            Expr::Hole(_loc, typ, _opt_name) => Some(typ),
-        }
+    pub fn type_of(&self) -> Type {
+        let cell = match self {
+            Expr::Net(_loc, typ, _netid) => typ,
+            Expr::Reference(_loc, typ, _path) => typ,
+            Expr::Word(_loc, typ, _width, _val) => typ,
+            Expr::Enum(_loc, typ, _typedef, _name) => typ,
+            Expr::Ctor(_loc, typ, _name, _e) => typ,
+            Expr::Struct(_loc, typ, _fields) => typ,
+            Expr::Let(_loc, typ, _name, _e, _b) => typ,
+            Expr::UnOp(_loc, typ, _op, _e) => typ,
+            Expr::BinOp(_loc, typ, _op, _e1, _e2) => typ,
+            Expr::If(_loc, typ, _cond, _e1, _e2) => typ,
+            Expr::Match(_loc, typ, _e, _arms) => typ,
+            Expr::Mux(_loc, typ, _cond, _e1, _e2) => typ,
+            Expr::Cat(_loc, typ, _es) => typ,
+            Expr::Sext(_loc, typ, _e) => typ,
+            Expr::Zext(_loc, typ, _e) => typ,
+            Expr::TryCast(_loc, typ, _e) => typ,
+            Expr::ToWord(_loc, typ, _e) => typ,
+            Expr::Vec(_loc, typ, _es) => typ,
+            Expr::Idx(_loc, typ, _e, _i) => typ,
+            Expr::IdxField(_loc, typ, _e, _field) => typ,
+            Expr::IdxRange(_loc, typ, _e, _j, _i) => typ,
+            Expr::Call(_loc, typ, _fndef, _es) => typ,
+            Expr::Hole(_loc, typ, _opt_name) => typ,
+        };
+        cell.get().unwrap().clone()
     }
 }
