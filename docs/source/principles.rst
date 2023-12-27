@@ -3,6 +3,14 @@ Principles
 There are few principles Bitsy adheres to in its general design.
 
 
+Craftsmanship
+-------------
+Tools reflect the values of those who weild them.
+Bitsy was designed with the digital designer and the verification engineer in mind.
+Attention has been paid to every detail.
+And as a result, Bitsy is a pleasure to work with.
+
+
 Simplicity
 ----------
 Bitsy is simple and easy to learn.
