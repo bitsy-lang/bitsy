@@ -43,6 +43,7 @@ class BitsyLexer(RegexLexer):
             (r'\b([A-Z_][a-zA-Z_0-9]*)\b', Name.Class),
             (r'\b[A-Z_]\b', Name.Constant),
             (r'\?[a-zA-Z_][_a-zA-Z_0-9]*', Name.Constant),
+            (r'\?', Name.Constant),
             (words(CONSTANTS, suffix=r'\b'), Name.Constant),
             (words(BUILTINS, suffix=r'\b'), Name.Builtin),
             (r'\b([a-zA-Z_][_a-zA-Z_0-9]*)\b', Name.Variable),

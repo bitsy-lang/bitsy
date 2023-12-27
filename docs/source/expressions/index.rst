@@ -140,3 +140,13 @@ You can then use these functions in expressions:
         reg counter of Word<8> reset 0;
         counter <= inc(counter);
     }
+
+**Holes**
+
+A hole is an undefined expression.
+They are handy for when you want to get an unfinished program to typecheck.
+
+We write holes as `?` for an unnamed hole or `?foo` for a hole with a name (here, `foo`).
+
+A circuit with a hole is unfinished.
+However, a hole-aware evaluator may still be able to simulate in their presence.
