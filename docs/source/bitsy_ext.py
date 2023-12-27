@@ -14,6 +14,7 @@ class BitsyLexer(RegexLexer):
     KEYWORDS = [
         'top', 'reg', 'node', 'mod', 'ext', 'if', 'reset',
         'incoming', 'outgoing', 'enum', 'of', 'type',
+        'fn', 'pub', 'otherwise', 'match',
     ]
 
     BUILTINS = ['Bit', 'Word', 'Vec', 'tuple', 'Nat', 'Shape', 'io']
@@ -27,22 +28,23 @@ class BitsyLexer(RegexLexer):
             (r'!', Punctuation),
             (r'=', Punctuation),
             (r'==', Punctuation),
+            (r'::', Punctuation),
             (r'\.', Punctuation),
             (r'[-+()<>{}\[\],;]', Punctuation),
             (r'\$', Punctuation),
-            (r'[0-9][0-9]*w[0-9][0-9]*', Number.Integer),
-            (r'[0-9]b[0-1]*w[0-9][0-9]*', Number.Integer),
-            (r'[0-9]x[0-9a-fA-F]*w[0-9][0-9]*', Number.Integer),
+            (r'[0-9][0-9_]*w[0-9][0-9]*', Number.Integer),
+            (r'[0-9]b[0-1_]*w[0-9][0-9]*', Number.Integer),
+            (r'[0-9]x[0-9a-fA-F_]*w[0-9][0-9]*', Number.Integer),
             (r'[0-9]+', Number.Integer),
             (words(KEYWORDS, suffix=r'\b'), Keyword),
-            (r'@\b([a-zA-Z][a-zA-Z0-9]*)\b', Name.Decorator),
+            (r'@\b([a-zA-Z_][a-zA-Z_0-9]*)\b', Name.Decorator),
             (r'\s+', Text),
             (r'#.*$', Comment.Single),
-            (r'\b([A-Z][a-zA-Z0-9]*)\b', Name.Class),
-            (r'\b[A-Z]\b', Name.Constant),
+            (r'\b([A-Z_][a-zA-Z_0-9]*)\b', Name.Class),
+            (r'\b[A-Z_]\b', Name.Constant),
             (words(CONSTANTS, suffix=r'\b'), Name.Constant),
             (words(BUILTINS, suffix=r'\b'), Name.Builtin),
-            (r'\b([_a-zA-Z][_a-zA-Z0-9]*)\b', Name.Variable),
+            (r'\b([a-zA-Z_][_a-zA-Z_0-9]*)\b', Name.Variable),
             (r'//.*$', Comment.Single),  # Line comments starting with //
             (r'/\*', Comment.Multiline, 'block_comment'),  # Block comment /* ... */
         ],

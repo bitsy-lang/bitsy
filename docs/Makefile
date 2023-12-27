@@ -31,7 +31,7 @@ clean:
 	cp ./latexbuild/$@ $(BUILDDIR)/html/
 
 push: auto
-	rsync -azvhP $(BUILDDIR)/html/* digitalocean:/root/projects/bitsy/docs/build/html
+	rsync -cazvhP $(BUILDDIR)/html/* digitalocean:/root/projects/bitsy/docs/build/html
 
 rustdocs:
 	cargo doc --manifest-path ../bitsy/Cargo.toml
