@@ -13,4 +13,4 @@ all: $(EXECUTABLES) $(BINS)
 	riscv64-unknown-elf-objcopy -O binary -j .text --set-start 0 $< $@
 
 clean:
-	rm $(EXECUTABLES) $(BINS)
+	rm -f $(EXECUTABLES) $(BINS)
