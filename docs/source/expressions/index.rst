@@ -33,6 +33,7 @@ Some basic operations are supported:
 * `!=` different
 * `<` less than
 * `+` sum (wrapping)
+* `+%` sum (carrying)
 * `-` difference (wrapping)
 
 **Concatenation, Indexing, and Slicing**
@@ -46,10 +47,6 @@ Note that we use a plain old literal and not `0w8` here.
 This creates a static indexing of the word.
 It has type `Word<1>`.
 
-If you do use `0w8` or any value `i` of shape `Word<k>`,
-you end up with dynamic indexing.
-An out of bounds dynamic index results in `XXX`.
-
 You can also slice a word with the syntax `w[8..4]`.
 This will give you a `Word<4>` with the same result as if you had written
 `cat(w[7], w[6], w[5], w[4])`.
@@ -59,18 +56,87 @@ However, experience from programming languages such as Python and Rust shows
 that this is a very natural way to handle slicing
 (albeit the ordering is reversed to align with the way we write out bitstrings).
 
-**if statements**
+**mux and if expressions**
 
-`if` expressions create muxes.
+`mux` is used to create a simple multiplexer.
+The syntax is `mux(s, a, b)`, and evaluates to `a` when `s` is asserted and `b` when `s` is asserted.
 
+`if` expressions be used to create mux trees with more than one condition.
 All `if` expressions must have an `else` branch.
 
-**Undefined Values**
+**let statements**
 
-The is the undefined value is used for terminals which aren't being driven or
-invalid values are driven (eg, when `Valid` where the invalid bit is set but a payload is given).
+`let` statements allow you to name subexpressions.
 
-The undefined value is written `XXX`.
+An example is `let x = foo + bar; x + 1`.
+This defines a new variable `x` with the value `foo + bar`.
+This value is only in scope for the remainder of the expression.
 
-Any operation involving `XXX` will result in `XXX`.
-This includes `if` expressions when the condition or any branch is `XXX`.
+**match statements**
+
+`match` statements allow you to select an expression based on a result.
+Think of it like a fancy `if` statement that works well with enum types and alt types.
+
+Each `match` statement has a subject, which is used to determine which match arm is used.
+
+.. code-block:: bitsy
+
+    node typ of InstrType;
+    typ := match opcode {
+        @OP => InstrType::R;
+        @OP_IMM => InstrType::I;
+        @LOAD => InstrType::I;
+        @STORE => InstrType::S;
+        @JAL => InstrType::J;
+        @BRANCH => InstrType::B;
+        @LUI => InstrType::U;
+        @AUIPC => InstrType::U;
+        @JALR => InstrType::I;
+    };
+
+**sext and zext**
+
+You can extend a word to a larger word by using `sext` (sign-extend) and `zext` (zero-extend).
+The width of the result is automatically inferred from context.
+You cannot use `sext` on a `Word<0>`.
+
+**word and trycast**
+
+Given an enum type, you can cast it to its underlying numeric value using the `word` builtin.
+For example, given the enum type:
+
+.. code-block:: bitsy
+
+    enum type OpFunct7 {
+        ADD  = 0b0000000w7;
+        SUB  = 0b0100000w7;
+    }
+
+The expression `word(OpFunct7@ADD)` evaluates to `0b0000000w7` and
+`word(OpFunct7@SUB)` evaluates to `0b0100000w7`.
+
+You can't cast from a word back to an enum,
+since the value may not be a valid value in that enum type.
+However, you can use `trycast` to get a `Valid` for that type.
+
+In other words, `trycast(0b0000000w7)` evaluates to `@Valid(OpFunct7::ADD)`,
+while `trycast(0b1111111w7)` evaluates to `@Invalid`.
+
+**User-defined functions**
+
+You can define your own functions in Bitsy:
+
+.. code-block:: bitsy
+
+    fn inc(x of Word<8>) -> Word<8> {
+        x + 1
+    }
+
+You can then use these functions in expressions:
+
+.. code-block:: bitsy
+
+    pub mod Top {
+        reg counter of Word<8> reset 0;
+        counter <= inc(counter);
+    }

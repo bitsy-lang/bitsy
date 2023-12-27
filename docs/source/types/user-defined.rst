@@ -41,3 +41,52 @@ you could define `Color` as:
         green of Word<8>;
         blue  of Word<8>;
     }
+
+You can construct values of a struct type with the syntax
+`{red = 0, green = 0, blue = 0}`.
+You can take a value with a struct type and refer to its components with the syntax
+`color->red`, etc.
+
+Alts
+----
+An `alt type` is what's sometimes known as an algebraic data type.
+Some programming languages also call them `enum` types.
+
+Alt types are defined with a set of constructors.
+Each constructor takes zero or more arguments.
+The type of each argument is given when defining the alt type.
+
+Here is an example of a definition for an alt type:
+
+.. code-block:: bitsy
+
+    alt type State {
+        Idle();
+        Running(Word<32>, Word<32>);
+        Done(Word<32>);
+    }
+
+We define `State` to have three constructors: `Idle`, `Running`, and `Done`.
+
+You construct values of an alt type by calling the constructors.
+Prepend the constructors with an `@` symbol to distinguish them from functions:
+
+.. code-block:: bitsy
+
+   mod StateMachine {
+        reg state of State reset @Idle();
+        // ...
+   }
+
+To make use of an alt type, you can match on it:
+
+.. code-block:: bitsy
+
+   mod StateMachine {
+        reg state of State reset @Idle();
+        state <= match state {
+            @Idle() => ?idle_next_state;
+            @Running(x, y) => ?running_next_state;
+            @Done(x) => ?done_next_state;
+        };
+   }
