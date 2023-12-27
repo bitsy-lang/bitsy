@@ -1,0 +1,42 @@
+struct type Request {
+    x of Word<32>;
+    y of Word<5>;
+}
+
+alt type State {
+    Idle();
+    Running(Word<32>, Word<5>);
+    Done(Word<32>);
+}
+
+pub mod Top {
+    mod shifter of Shifter;
+    shifter.request := @Valid({x = 1, y = 3});
+}
+
+mod Shifter {
+    incoming request of Valid<Request>;
+    outgoing result of Valid<Word<32>>;
+    reg state of State reset @Idle;
+
+    state <= match state {
+        @Idle() => match request {
+            @Invalid => @Idle;
+            @Valid(request) => @Running(request->x, request->y);
+        };
+        @Running(x, y) =>
+            if y == 0 {
+                @Done(x)
+            } else {
+                let shifted_x = cat(x[31..0], 0w1);
+                @Running(shifted_x, y - 1)
+            };
+        @Done(result) => @Idle;
+    };
+
+    result := match state {
+        @Done(result) => @Valid(result);
+        otherwise => @Invalid;
+    };
+}
+

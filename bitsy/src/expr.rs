@@ -22,7 +22,7 @@ pub enum Expr {
     /// Constructor for structs. Eg, `{ x = 0, y = 0}`.
     Struct(Loc, OnceCell<Type>, Vec<(String, Arc<Expr>)>),
     /// Let binding. Eg, `let x = a + b in x + x`.
-    Let(Loc, OnceCell<Type>, String, Arc<Expr>, Arc<Expr>),
+    Let(Loc, OnceCell<Type>, String, Option<Type>, Arc<Expr>, Arc<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
     UnOp(Loc, OnceCell<Type>, UnOp, Arc<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
@@ -131,7 +131,7 @@ impl HasLoc for Expr {
             Expr::Enum(loc, _typ, _typedef, _name) => loc.clone(),
             Expr::Ctor(loc, _typ, _name, _e) => loc.clone(),
             Expr::Struct(loc, _typ, _fields) => loc.clone(),
-            Expr::Let(loc, _typ, _name, _e, _b) => loc.clone(),
+            Expr::Let(loc, _typ, _name, _typascription, _e, _b) => loc.clone(),
             Expr::UnOp(loc, _typ, _op, _e) => loc.clone(),
             Expr::BinOp(loc, _typ, _op, _e1, _e2) => loc.clone(),
             Expr::If(loc, _typ, _cond, _e1, _e2) => loc.clone(),
@@ -207,7 +207,7 @@ impl Expr {
                     e.with_subexprs(callback);
                 }
             },
-            Expr::Let(_loc, _typ, _name, e, b) => {
+            Expr::Let(_loc, _typ, _name, _typascription, e, b) => {
                 callback(self);
                 e.with_subexprs(callback);
                 b.with_subexprs(callback);
@@ -333,7 +333,7 @@ impl Expr {
                 }
                 result
             },
-            Expr::Let(_loc, _typ, x, e, b) => {
+            Expr::Let(_loc, _typ, x, _type_ascription, e, b) => {
                 let mut result = b.free_vars();
                 result.remove(&x.to_string().into());
                 result.union(&e.free_vars()).cloned().collect()
@@ -413,7 +413,7 @@ impl Expr {
             Expr::Enum(_loc, typ, _typedef, _name) => Some(typ),
             Expr::Ctor(_loc, typ, _name, _e) => Some(typ),
             Expr::Struct(_loc, typ, _fields) => Some(typ),
-            Expr::Let(_loc, typ, _name, _e, _b) => Some(typ),
+            Expr::Let(_loc, typ, _name, _typascription, _e, _b) => Some(typ),
             Expr::UnOp(_loc, typ, _op, _e) => Some(typ),
             Expr::BinOp(_loc, typ, _op, _e1, _e2) => Some(typ),
             Expr::If(_loc, typ, _cond, _e1, _e2) => Some(typ),

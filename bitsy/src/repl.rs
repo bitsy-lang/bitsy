@@ -191,10 +191,10 @@ impl Repl {
         for Watch(path, format) in &self.watches {
             let value = self.sim.peek(&**path);
             match format {
-                WatchFormat::Normal =>  println!("    {:>10}   {path}", format!("{value:?}")),
-                WatchFormat::Hex =>     println!("    {:>10}   {path}", format!("{value:x}")),
-                WatchFormat::Bin =>     println!("    {:>10}   {path}", format!("{value:b}")),
-                WatchFormat::Bool =>    println!("    {:>10}   {path}", value.to_bool().unwrap()),
+                WatchFormat::Normal =>  println!("    {:>30}   {path}", format!("{value:?}")),
+                WatchFormat::Hex =>     println!("    {:>30}   {path}", format!("{value:x}")),
+                WatchFormat::Bin =>     println!("    {:>30}   {path}", format!("{value:b}")),
+                WatchFormat::Bool =>    println!("    {:>30}   {path}", value.to_bool().unwrap()),
             }
         }
     }

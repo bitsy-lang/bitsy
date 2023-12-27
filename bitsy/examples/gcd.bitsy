@@ -1,0 +1,54 @@
+struct type Request {
+    x of Word<32>;
+    y of Word<32>;
+}
+
+alt type State {
+    Idle();
+    Running(Word<32>, Word<32>);
+    Done(Word<32>);
+}
+
+pub mod Top {
+    mod gcd of Gcd;
+    gcd.request := @Valid({x = 7, y = 12});
+}
+
+mod Gcd {
+    incoming request of Valid<Request>;
+    outgoing result of Valid<Word<32>>;
+    reg state of State reset @Idle;
+
+    state <= match state {
+        @Idle() => match request {
+            @Invalid => @Idle;
+            @Valid(request) => @Running(request->x, request->y);
+        };
+        @Running(x, y) =>
+            if y == 0 {
+                @Done(x)
+            } else {
+                let sorted of Sort2 = sort(x, y);
+                @Running(sorted->max - sorted->min, sorted->min)
+            };
+        @Done(result) => @Idle;
+    };
+
+    result := match state {
+        @Done(result) => @Valid(result);
+        otherwise => @Invalid;
+    };
+}
+
+struct type Sort2 {
+    min of Word<32>;
+    max of Word<32>;
+}
+
+fn sort(x of Word<32>, y of Word<32>) -> Sort2 {
+    if x < y {
+        { min = x, max = y }
+    } else {
+        { min = y, max = x }
+    }
+}

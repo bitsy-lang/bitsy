@@ -77,8 +77,11 @@ impl Expr {
                 }
                 Ok(())
             },
-            (_type_expected, Expr::Let(_loc, _typ, name, e, b)) => {
-                if let Some(typ) = e.typeinfer(ctx.clone()) {
+            (_type_expected, Expr::Let(_loc, _typ, name, ascription, e, b)) => {
+                if let Some(typ) = ascription {
+                    e.typecheck(typ.clone(), ctx.clone())?;
+                    b.typecheck(type_expected.clone(), ctx.extend(name.clone().into(), typ.clone()))
+                } else if let Some(typ) = e.typeinfer(ctx.clone()) {
                     b.typecheck(type_expected.clone(), ctx.extend(name.clone().into(), typ))
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Can infer type of {e:?} in let expression.")))

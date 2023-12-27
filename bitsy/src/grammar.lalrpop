@@ -275,9 +275,10 @@ ExprIf: Box<Expr> = {
 }
 
 ExprLet: Box<Expr> = {
-    <ll:@L> "let" <x:Id> "=" <e:Expr> ";"
+    <ll:@L> "let" <x:Id> <ascription:("of" Type)?> "=" <e:Expr> ";"
     <b:Expr> <rr:@R> => {
-        Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, e, b))
+        let type_ascription = ascription.map(|(_of, typ)| typ);
+        Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, type_ascription, e, b))
     },
 }
 

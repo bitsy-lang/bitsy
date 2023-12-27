@@ -1,0 +1,10 @@
+top Top
+watch top.shifter.request
+watch top.shifter.state
+reset
+clock
+clock
+clock
+clock
+clock
+clock

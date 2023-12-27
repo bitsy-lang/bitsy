@@ -583,12 +583,12 @@ impl Expr {
                         .collect(),
                     )
             },
-            Expr::Let(loc, typ, name, e, b) => {
+            Expr::Let(loc, typ, name, ascription, e, b) => {
                 let new_e = e.rebase_rec(current_path.clone(), shadowed);
                 let mut new_shadowed = shadowed.clone();
                 new_shadowed.insert(name.clone().into());
                 let new_b = b.rebase_rec(current_path, &new_shadowed);
-                Expr::Let(loc.clone(), typ.clone(), name.clone(), new_e, new_b)
+                Expr::Let(loc.clone(), typ.clone(), name.clone(), ascription.clone(), new_e, new_b)
             },
             Expr::Match(loc, typ, e, arms) => {
                 let new_arms = arms.iter().map(|MatchArm(pat, e)| {
@@ -693,12 +693,12 @@ impl Expr {
                         .collect(),
                     )
             },
-            Expr::Let(loc, typ, name, e, b) => {
+            Expr::Let(loc, typ, name, ascription, e, b) => {
                 let new_e = e.references_to_nets_rec(net_id_by_path, shadowed);
                 let mut new_shadowed = shadowed.clone();
                 new_shadowed.insert(name.clone().into());
                 let new_b = b.references_to_nets_rec(net_id_by_path, &new_shadowed);
-                Expr::Let(loc.clone(), typ.clone(), name.clone(), new_e, new_b)
+                Expr::Let(loc.clone(), typ.clone(), name.clone(), ascription.clone(), new_e, new_b)
             },
             Expr::UnOp(loc, typ, op, e) => Expr::UnOp(loc.clone(), typ.clone(), *op, e.references_to_nets_rec(net_id_by_path, shadowed)),
             Expr::BinOp(loc, typ, op, e1, e2) => {
@@ -777,7 +777,7 @@ impl Expr {
             Expr::Enum(_loc, _typ, _typedef, _name) => false,
             Expr::Ctor(_loc, _typ, _name, es) => es.iter().any(|e| e.depends_on_net(net_id)),
             Expr::Struct(_loc, _typ, fields) => fields.iter().any(|(_name, e)| e.depends_on_net(net_id)),
-            Expr::Let(_loc, _typ, _name, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
+            Expr::Let(_loc, _typ, _name, _ascription, e, b) => e.depends_on_net(net_id) || b.depends_on_net(net_id),
             Expr::Match(_loc, _typ, e, arms) => e.depends_on_net(net_id) || arms.iter().any(|MatchArm(_pat, arm_e)| arm_e.depends_on_net(net_id)),
             Expr::UnOp(_loc, _typ, _op, e) => e.depends_on_net(net_id),
             Expr::BinOp(_loc, _typ, _op, e1, e2) => e1.depends_on_net(net_id) || e2.depends_on_net(net_id),

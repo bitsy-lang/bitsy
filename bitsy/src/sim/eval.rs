@@ -38,7 +38,7 @@ impl Expr {
                 }
                 Value::Struct(typ.get().unwrap().clone(), field_values)
             },
-            Expr::Let(_loc, _typ, name, e, b) => {
+            Expr::Let(_loc, _typ, name, _ascription, e, b) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 b.eval_with_ctx(bitsy, ctx.extend(name.clone().into(), v))
             },

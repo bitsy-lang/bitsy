@@ -100,7 +100,7 @@ pub enum Expr {
     /// A call-like expression, including `cat` and constructors like `@Valid`.
     Call(Loc, String, Vec<Expr>),
     /// Let binding. Eg, `let x = a + b in x + x`.
-    Let(Loc, String, Box<Expr>, Box<Expr>),
+    Let(Loc, String, Option<Type>, Box<Expr>, Box<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
     UnOp(Loc, UnOp, Box<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.

@@ -236,8 +236,11 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
             }
             results
         },
-        ast::Expr::Let(_loc, _x, e, b) => {
+        ast::Expr::Let(_loc, _x, type_ascription, e, b) => {
             let mut results = BTreeSet::new();
+            if let Some(typ) = type_ascription {
+                results.extend(type_dependencies(typ).into_iter());
+            }
             for e in &[e, b] {
                 results.extend(expr_dependencies(e).into_iter());
             }
@@ -531,10 +534,11 @@ fn resolve_expr(
                 },
             }
         },
-        ast::Expr::Let(loc, x, e, b) => {
+        ast::Expr::Let(loc, x, type_ascription, e, b) => {
             let package_e = resolve_expr(e, ctx.clone(), fndef_ctx.clone());
             let package_b = resolve_expr(b, ctx.clone(), fndef_ctx.clone());
-            Expr::Let(loc.clone(), OnceCell::new(), x.clone(), package_e, package_b)
+            let package_ascription = type_ascription.clone().map(|typ| resolve_type(&typ, ctx.clone()));
+            Expr::Let(loc.clone(), OnceCell::new(), x.clone(), package_ascription, package_e, package_b)
         },
         ast::Expr::UnOp(loc, op, e1) => Expr::UnOp(
             loc.clone(),
