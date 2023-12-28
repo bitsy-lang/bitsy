@@ -97,7 +97,7 @@ FnDef: FnDef = {
         <body:Expr>
     "}" => {
         FnDef {
-            name: name.to_string(),
+            name,
             args,
             ret,
             body: *body,
@@ -105,12 +105,12 @@ FnDef: FnDef = {
     },
 }
 
-ArgList: Vec<(String, Type)> = {
+ArgList: Vec<(Ident, Type)> = {
     <args:((Id "of" Type ("," Id "of" Type)* ","?)?)> => {
         if let Some((name, _of, typ, args, _comma)) = args {
-            let mut results = vec![(name.to_string(), typ)];
+            let mut results = vec![(name, typ)];
             for (_comma, name, _of, typ) in args {
-                results.push((name.to_string(), typ));
+                results.push((name, typ));
             }
             results
         } else {
@@ -158,7 +158,7 @@ Wire: Wire = {
 }
 
 ModInst: Decl = {
-    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Loc::from(source_info, ll, rr), id, modname.into()),
+    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Loc::from(source_info, ll, rr), id, modname),
 }
 
 Expr: Box<Expr> = {
@@ -202,9 +202,9 @@ ExprCall: Box<Expr> = {
     <ll:@L> <e:ExprBase> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Loc::from(source_info, ll, rr), e, field.clone())),
     <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
     <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
-    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name.into(), es)),
-    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name.into(), vec![])),
-    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name.into(), es)),
+    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
+    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, vec![])),
+    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
     <e:StructCtor> => e,
     <e:ExprBase> => e,
 }
@@ -304,9 +304,9 @@ MatchArm: MatchArm = {
 }
 
 Pat: Pat = {
-    <id:Ctor> => Pat::At(id[1..].to_string(), vec![]),
+    <id:Ctor> => Pat::At(id.as_str()[1..].to_string(), vec![]),
     <id:Ctor> "(" <subpats:PatList> ")" => {
-        Pat::At(id[1..].to_string(), subpats)
+        Pat::At(id.as_str()[1..].to_string(), subpats)
     },
     <id:Id> => Pat::Bind(id.to_string()),
     "otherwise" => Pat::Otherwise,
@@ -355,15 +355,11 @@ WordLit: WordLit = {
     },
 }
 
-Ctor: String = {
-    <id:r"@[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
-}
-
 Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
     "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
     "Valid" "<" <typ:Type> ">" => Type::Valid(Box::new(typ)),
-    <id:Id> => Type::TypeRef(id.into()),
+    <id:Id> => Type::TypeRef(id),
 }
 
 Target: Target = {
@@ -381,8 +377,24 @@ Str: String = {
     <s:r#""[^"]*""#> => s[1..s.len()-1].to_string(),
 }
 
-Id: String = {
-    <id:r"[_A-Za-z][_A-Za-z0-9]*"> => id.to_string(),
+Id: Ident = {
+    <rr:@R> <id:r"[_A-Za-z][_A-Za-z0-9]*"> <ll:@L> => {
+        let loc = Loc::from(source_info, ll, rr);
+        Ident {
+            name: id.to_string(),
+            loc,
+        }
+    },
+}
+
+Ctor: Ident = {
+    <rr:@R> <id:r"@[_A-Za-z][_A-Za-z0-9]*"> <ll:@L> => {
+        let loc = Loc::from(source_info, ll, rr);
+        Ident {
+            name: id.to_string(),
+            loc,
+        }
+    },
 }
 
 match {
