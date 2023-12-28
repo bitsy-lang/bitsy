@@ -2,8 +2,6 @@ use super::*;
 mod resolve;
 
 use once_cell::sync::OnceCell;
-
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 pub use ast::WireType;
@@ -19,7 +17,7 @@ pub struct Package {
 
 impl Package {
     pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
-        let items = resolve::resolve(ast);
+        let items = resolve::resolve(ast)?;
         let package = Package {
             items,
         };
