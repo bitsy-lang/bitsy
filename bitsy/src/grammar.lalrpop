@@ -199,14 +199,11 @@ ExprAdd: Box<Expr> = {
 ExprCall: Box<Expr> = {
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
     <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![*e; n as usize])),
-    <ll:@L> <e:ExprBase> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Loc::from(source_info, ll, rr), e, field.clone())),
-    <ll:@L> <e:ExprBase> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprBase> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
-    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
     <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, vec![])),
     <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
+    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
     <e:StructCtor> => e,
-    <e:ExprBase> => e,
+    <e:ExprDot> => e,
 }
 
 StructCtor: Box<Expr> = {
@@ -244,12 +241,20 @@ ExprList: Vec<Expr> = {
     },
 }
 
+ExprDot: Box<Expr> = {
+    <ll:@L> <e:ExprDot> "." <id:Id> <rr:@R> => Box::new(Expr::Dot(Loc::from(source_info, ll, rr), e, id)),
+    <ll:@L> <e:ExprDot> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Loc::from(source_info, ll, rr), e, field.clone())),
+    <ll:@L> <e:ExprDot> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprDot> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
+    <e:ExprBase> => e,
+}
+
 ExprBase: Box<Expr> = {
     <e:ExprLit> => e,
-    <e:ExprRef> => e,
     <e:ExprIf> => e,
     <e:ExprMatch> => e,
     <e:ExprHole> => e,
+    <e:ExprId> => e,
     "(" <e:Expr> ")" => e,
 }
 
@@ -326,8 +331,8 @@ PatList: Vec<Pat> = {
     },
 }
 
-ExprRef: Box<Expr> = {
-    <ll:@L> <target:Target> <rr:@R> => Box::new(Expr::Ref(Loc::from(source_info, ll, rr), target)),
+ExprId: Box<Expr> = {
+    <ll:@L> <id:Id> <rr:@R> => Box::new(Expr::Ident(Loc::from(source_info, ll, rr), id)),
 }
 
 WordLit: WordLit = {

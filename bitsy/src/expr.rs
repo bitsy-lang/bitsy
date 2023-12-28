@@ -88,7 +88,7 @@ pub enum Pat {
 }
 
 impl Pat {
-    pub fn bound_vars(&self) -> Vec<Path> {
+    pub fn bound_vars(&self) -> Vec<String> {
         let mut results = vec![];
         match self {
             Pat::At(_s, pats) => {
@@ -96,7 +96,7 @@ impl Pat {
                     results.extend(pat.bound_vars());
                 }
             },
-            Pat::Bind(x) => results.push(x.clone().into()),
+            Pat::Bind(x) => results.push(x.clone()),
             Pat::Otherwise => (),
         }
         results.sort();
@@ -111,7 +111,7 @@ impl MatchArm {
         let MatchArm(pat, e) = self;
         let bound_vars = pat.bound_vars();
         for x in e.free_vars().iter() {
-            if !bound_vars.contains(x) {
+            if !bound_vars.contains(&x.to_string().into()) {
                 results.push(x.clone());
             }
         }

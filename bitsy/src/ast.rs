@@ -89,7 +89,9 @@ pub struct FnDef {
 #[derive(Debug, Clone)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Ref(Loc, Target),
+    Ident(Loc, Ident),
+
+    Dot(Loc, Box<Expr>, Ident),
     /// A literal Word.
     Word(Loc, Option<Width>, u64),
     /// A literal enum value.
