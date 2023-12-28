@@ -3,4 +3,6 @@ reorder_imports = false
 reorder_modules = false
 blank_lines_upper_bound = 1
 blank_lines_lower_bound = 1
-fn_call_width = 100
+fn_call_width = 120
+max_width = 120
+use_small_heuristics = "Off"
