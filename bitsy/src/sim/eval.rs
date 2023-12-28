@@ -225,6 +225,28 @@ impl Expr {
                 }
                 Value::Vec(vs)
             },
+            Expr::VecDynIdx(_loc, _typ, e, i) => {
+                let e_value = e.eval_with_ctx(bitsy, ctx.clone());
+                let i_value = i.eval_with_ctx(bitsy, ctx.clone());
+                if e_value.is_x() || i_value.is_x() {
+                    return Value::X;
+                }
+                let vs = e_value.to_vec().unwrap();
+                let idx: usize = i_value.to_u64().unwrap().try_into().unwrap();
+                vs[idx].clone()
+            },
+            Expr::VecUpdateDynIdx(_loc, _typ, e, i, ei) => {
+                let e_value = e.eval_with_ctx(bitsy, ctx.clone());
+                let i_value = i.eval_with_ctx(bitsy, ctx.clone());
+                let ei_value = ei.eval_with_ctx(bitsy, ctx.clone());
+                if e_value.is_x() || i_value.is_x() || ei_value.is_x() {
+                    return Value::X;
+                }
+                let mut vs = e_value.to_vec().unwrap();
+                let idx: usize = i_value.to_u64().unwrap().try_into().unwrap();
+                vs[idx] = ei_value;
+                Value::Vec(vs)
+            },
             Expr::IdxField(_loc, _typ, e, field) => {
                 let value = e.eval_with_ctx(bitsy, ctx.clone());
                 if let Value::X = value {

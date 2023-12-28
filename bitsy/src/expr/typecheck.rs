@@ -257,10 +257,9 @@ impl Expr {
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };
 
-        if let Some(typ) = self.type_of_cell() {
-            if let Ok(()) = &result {
-                let _ = typ.set(type_expected);
-            }
+        if let Ok(()) = &result {
+            let typ = self.type_of_cell();
+            let _ = typ.set(type_expected);
         }
         result
     }
@@ -301,6 +300,29 @@ impl Expr {
                 }
             },
             Expr::Vec(_loc, _typ, _es) => None,
+            Expr::VecDynIdx(_loc, _typ, e, i) => {
+                // TODO
+                i.typeinfer(ctx.clone());
+                match e.typeinfer(ctx.clone()) {
+                    Some(Type::Vec(inner_type, _len)) => {
+                        Some(*inner_type)
+                    },
+                    _ => None,
+                }
+
+            },
+            Expr::VecUpdateDynIdx(_loc, _typ, e, i, ei) => {
+                // TODO
+                i.typeinfer(ctx.clone());
+                ei.typeinfer(ctx.clone());
+                match e.typeinfer(ctx.clone()) {
+                    Some(Type::Vec(inner_type, len)) => {
+                        Some(Type::Vec(inner_type, len))
+                    },
+                    _ => None,
+                }
+
+            },
             Expr::Idx(_loc, _typ, e, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if *i < n => Some(Type::word(1)),
@@ -320,9 +342,8 @@ impl Expr {
         };
 
         if let Some(type_actual) = &result {
-            if let Some(typ) = self.type_of_cell() {
-                let _ = typ.set(type_actual.clone());
-            }
+            let typ = self.type_of_cell();
+            typ.set(type_actual.clone()).unwrap();
         }
         result
     }

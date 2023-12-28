@@ -224,6 +224,8 @@ fn expr_dependencies(expr: &ast::Expr) -> BTreeSet<String> {
                 "zext",
                 "trycast",
                 "word",
+                "dynindex",
+                "updatedynindex",
                 "@Valid",
                 "@Invalid",
             ];
@@ -505,6 +507,8 @@ fn resolve_expr(
                 "zext" => Expr::Zext(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "trycast" => Expr::TryCast(loc.clone(), OnceCell::new(), package_es[0].clone()),
                 "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
+                "dynindex" => Expr::VecDynIdx(loc.clone(), OnceCell::new(), package_es[0].clone(), package_es[1].clone()),
+                "updatedynindex" => Expr::VecUpdateDynIdx(loc.clone(), OnceCell::new(), package_es[0].clone(), package_es[1].clone(), package_es[2].clone()),
                 "@Valid" => {
                     Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es)
                 },

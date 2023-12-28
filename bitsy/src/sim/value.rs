@@ -44,6 +44,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn to_vec(&self) -> Option<Vec<Value>> {
+        match self {
+            Value::Vec(vs) => Some(vs.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[test]

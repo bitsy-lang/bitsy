@@ -51,6 +51,10 @@ pub enum Expr {
     Idx(Loc, OnceCell<Type>, Arc<Expr>, u64),
     /// A static index range. Eg, `foo[8..4]`.
     IdxRange(Loc, OnceCell<Type>, Arc<Expr>, u64, u64),
+
+    VecDynIdx(Loc, OnceCell<Type>, Arc<Expr>, Arc<Expr>),
+
+    VecUpdateDynIdx(Loc, OnceCell<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A function call. Eg, `foo(x, y)`.
     Call(Loc, OnceCell<Type>, Arc<FnDef>, Vec<Arc<Expr>>),
     /// A hole. Eg, `?foo`.
@@ -144,6 +148,8 @@ impl HasLoc for Expr {
             Expr::TryCast(loc, _typ, _e) => loc.clone(),
             Expr::ToWord(loc, _typ, _e) => loc.clone(),
             Expr::Vec(loc, _typ, _es) => loc.clone(),
+            Expr::VecDynIdx(loc, _typ, _e, _i) => loc.clone(),
+            Expr::VecUpdateDynIdx(loc, _typ, _e, _i, _ei) => loc.clone(),
             Expr::IdxField(loc, _typ, _e, _field) => loc.clone(),
             Expr::Idx(loc, _typ, _e, _i) => loc.clone(),
             Expr::IdxRange(loc, _typ, _e, _j, _i) => loc.clone(),
@@ -269,6 +275,17 @@ impl Expr {
                     e.with_subexprs(callback);
                 }
             },
+            Expr::VecDynIdx(_loc, _typ, e, i) => {
+                callback(self);
+                e.with_subexprs(callback);
+                i.with_subexprs(callback);
+            },
+            Expr::VecUpdateDynIdx(_loc, _typ, e, i, ei) => {
+                callback(self);
+                e.with_subexprs(callback);
+                i.with_subexprs(callback);
+                ei.with_subexprs(callback);
+            },
             Expr::IdxField(_loc, _typ, e, _field) => {
                 callback(self);
                 e.with_subexprs(callback);
@@ -367,6 +384,20 @@ impl Expr {
             },
             Expr::Sext(_loc, _typ, e) => e.free_vars(),
             Expr::Zext(_loc, _typ, e) => e.free_vars(),
+            Expr::VecDynIdx(_loc, _typ, e, i) => {
+                let mut result = BTreeSet::new();
+                for ex in &[e, i] {
+                    result.extend(ex.free_vars())
+                }
+                result
+            },
+            Expr::VecUpdateDynIdx(_loc, _typ, e, i, ei) => {
+                let mut result = BTreeSet::new();
+                for ex in &[e, i, ei] {
+                    result.extend(ex.free_vars())
+                }
+                result
+            },
             Expr::IdxField(_loc, _typ, e, _field) => e.free_vars(),
             Expr::Idx(_loc, _typ, e, _i) => e.free_vars(),
             Expr::IdxRange(_loc, _typ, e, _j, _i) => e.free_vars(),
@@ -403,7 +434,11 @@ impl Expr {
     }
 
     pub fn type_of(&self) -> Type {
-        let cell = match self {
+        let cell = self.type_of_cell();
+        cell.get().unwrap().clone()
+    }
+    pub fn type_of_cell(&self) -> &OnceCell<Type> {
+        match self {
             Expr::Net(_loc, typ, _netid) => typ,
             Expr::Reference(_loc, typ, _path) => typ,
             Expr::Word(_loc, typ, _width, _val) => typ,
@@ -422,12 +457,13 @@ impl Expr {
             Expr::TryCast(_loc, typ, _e) => typ,
             Expr::ToWord(_loc, typ, _e) => typ,
             Expr::Vec(_loc, typ, _es) => typ,
+            Expr::VecDynIdx(_loc, typ, _e, _i) => typ,
+            Expr::VecUpdateDynIdx(_loc, typ, _e, _i, _ei) => typ,
             Expr::Idx(_loc, typ, _e, _i) => typ,
             Expr::IdxField(_loc, typ, _e, _field) => typ,
             Expr::IdxRange(_loc, typ, _e, _j, _i) => typ,
             Expr::Call(_loc, typ, _fndef, _es) => typ,
             Expr::Hole(_loc, typ, _opt_name) => typ,
-        };
-        cell.get().unwrap().clone()
+        }
     }
 }

@@ -1,0 +1,9 @@
+pub mod Top {
+    outgoing out of Word<8>;
+    reg i of Word<3> reset 0;
+    i <= i + 1;
+
+    node vecs of Vec<Word<8>, 8>;
+    vecs := [0, 1, 2, 3, 4, 5, 6, 7];
+    out := dynindex(updatedynindex(vecs, 3w3, 100w8), i);
+}
