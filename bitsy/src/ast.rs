@@ -90,7 +90,7 @@ pub struct FnDef {
 pub enum Expr {
     /// A referenec to a port, reg, or node.
     Ident(Loc, Ident),
-
+    /// A dotted expression. Eg, `foo.bar`.
     Dot(Loc, Box<Expr>, Ident),
     /// A literal Word.
     Word(Loc, Option<Width>, u64),
