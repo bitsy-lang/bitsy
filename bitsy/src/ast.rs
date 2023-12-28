@@ -178,8 +178,8 @@ pub struct When(pub Box<Expr>, pub Vec<Wire>);
 /// An identifier in the grammar.
 #[derive(Debug, Clone)]
 pub struct Ident {
-    loc: Loc,
-    name: Name,
+    pub loc: Loc,
+    pub name: Name,
 }
 
 impl std::fmt::Display for Ident {

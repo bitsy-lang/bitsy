@@ -383,7 +383,7 @@ Str: String = {
 }
 
 Id: Ident = {
-    <rr:@R> <id:r"[_A-Za-z][_A-Za-z0-9]*"> <ll:@L> => {
+    <ll:@L> <id:r"[_A-Za-z][_A-Za-z0-9]*"> <rr:@R> => {
         let loc = Loc::from(source_info, ll, rr);
         Ident {
             name: id.to_string(),

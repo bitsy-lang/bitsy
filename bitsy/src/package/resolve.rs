@@ -345,28 +345,28 @@ impl Namespace {
 
 }
 
-fn item_dependencies(item: &ast::Item) -> BTreeSet<String> {
+fn item_dependencies(item: &ast::Item) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
     match item {
         ast::Item::ModDef(moddef) => moddef_dependencies(moddef),
         ast::Item::ExtDef(moddef) => moddef_dependencies(moddef),
-        ast::Item::EnumTypeDef(_typedef) => BTreeSet::new(),
+        ast::Item::EnumTypeDef(_typedef) => Ok(Vec::new()),
         ast::Item::StructTypeDef(typedef) => structtypedef_dependencies(typedef),
         ast::Item::AltTypeDef(typedef) => altypedef_dependencies(typedef),
         ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
     }
 }
 
-fn moddef_dependencies(moddef: &ast::ModDef) -> BTreeSet<String> {
+fn moddef_dependencies(moddef: &ast::ModDef) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
     let mut results = vec![];
-    let component_names = moddef_component_names(moddef);
+    let component_names = moddef_component_names(moddef)?;
     let ast::ModDef(_loc, _name, decls) = moddef;
     for decl in decls {
-        results.extend(decl_dependencies(decl, &component_names).into_iter());
+        results.extend(decl_dependencies(decl, &component_names)?.into_iter());
     }
-    results.into_iter().collect()
+    Ok(results)
 }
 
-fn moddef_component_names(moddef: &ast::ModDef) -> BTreeSet<String> {
+fn moddef_component_names(moddef: &ast::ModDef) -> Result<BTreeSet<String>, Vec<BitsyError>> {
     let mut result = BTreeSet::new();
     let ast::ModDef(_loc, _name, decls) = moddef;
     for decl in decls {
@@ -393,10 +393,10 @@ fn moddef_component_names(moddef: &ast::ModDef) -> BTreeSet<String> {
             ast::Decl::When(_loc, _when) => (),
         }
     }
-    result
+    Ok(result)
 }
 
-fn moddef_component_names_anonymous(decls: &[ast::Decl]) -> BTreeSet<String> {
+fn moddef_component_names_anonymous(decls: &[ast::Decl]) -> Result<BTreeSet<String>, Vec<BitsyError>> {
     let mut result = BTreeSet::new();
     for decl in decls {
         match decl {
@@ -422,99 +422,103 @@ fn moddef_component_names_anonymous(decls: &[ast::Decl]) -> BTreeSet<String> {
             ast::Decl::When(_loc, _when) => (),
         }
     }
-    result
+    Ok(result)
 }
 
-fn decl_dependencies(decl: &ast::Decl, component_names: &BTreeSet<String>) -> BTreeSet<String> {
+fn decl_dependencies(decl: &ast::Decl, component_names: &BTreeSet<String>) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
     let mut results = vec![];
     match decl {
         ast::Decl::Mod(_loc, _name, decls) => {
-            let component_names = moddef_component_names_anonymous(&*decls);
+            let component_names = moddef_component_names_anonymous(&*decls)?;
             for decl in decls {
-                results.extend(decl_dependencies(decl, &component_names).into_iter());
+                results.extend(decl_dependencies(decl, &component_names)?.into_iter());
             }
         },
-        ast::Decl::ModInst(_loc, _name, moddef_name) => results.push(moddef_name.to_string()),
-        ast::Decl::Incoming(_loc, _name, typ) => results.extend(type_dependencies(typ)),
-        ast::Decl::Outgoing(_loc, _name, typ) => results.extend(type_dependencies(typ)),
-        ast::Decl::Node(_loc, _name, typ) => results.extend(type_dependencies(typ)),
+        ast::Decl::ModInst(_loc, _name, moddef_name) => results.push(moddef_name.clone()),
+        ast::Decl::Incoming(_loc, _name, typ) => results.extend(type_dependencies(typ)?),
+        ast::Decl::Outgoing(_loc, _name, typ) => results.extend(type_dependencies(typ)?),
+        ast::Decl::Node(_loc, _name, typ) => results.extend(type_dependencies(typ)?),
         ast::Decl::Reg(_loc, _name, typ, reset) => {
-            results.extend(type_dependencies(typ).into_iter());
+            results.extend(type_dependencies(typ)?.into_iter());
             if let Some(expr) = reset {
-                results.extend(expr_dependencies(expr, component_names).into_iter());
+                results.extend(expr_dependencies(expr, component_names)?.into_iter());
             }
         },
         ast::Decl::Wire(_loc, wire) => {
             let ast::Wire(_loc2, _target, expr, _wire_type) = wire;
-            results.extend(expr_dependencies(expr, component_names).into_iter())
+            results.extend(expr_dependencies(expr, component_names)?.into_iter())
         },
         ast::Decl::When(_loc, ast::When(cond, wires)) => {
-            results.extend(expr_dependencies(cond, component_names).into_iter());
+            results.extend(expr_dependencies(cond, component_names)?.into_iter());
             for ast::Wire(_loc2, _target, expr, _wire_type) in wires {
-                results.extend(expr_dependencies(expr, component_names).into_iter())
+                results.extend(expr_dependencies(expr, component_names)?.into_iter())
             }
         },
     }
-    results.into_iter().collect()
+    Ok(results.into_iter().collect())
 }
 
-fn structtypedef_dependencies(typedef: &ast::StructTypeDef) -> BTreeSet<String> {
-    typedef.fields.iter().map(|(_name, typ)| type_dependencies(typ)).flatten().collect()
+fn structtypedef_dependencies(typedef: &ast::StructTypeDef) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
+    let mut results = Vec::new();
+    for (_name, typ) in &typedef.fields {
+        results.extend(type_dependencies(typ)?.into_iter());
+    }
+    Ok(results)
 }
 
-fn altypedef_dependencies(typedef: &ast::AltTypeDef) -> BTreeSet<String> {
+fn altypedef_dependencies(typedef: &ast::AltTypeDef) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
     let mut deps = vec![];
     for (_name, typs) in &typedef.alts {
         for typ in typs {
-            deps.extend(type_dependencies(typ).into_iter())
+            deps.extend(type_dependencies(typ)?.into_iter())
         }
     }
-    deps.into_iter().collect()
+    Ok(deps.into_iter().collect())
 }
 
-fn fndef_dependencies(typedef: &ast::FnDef) -> BTreeSet<String> {
-    let mut result = type_dependencies(&typedef.ret);
+fn fndef_dependencies(typedef: &ast::FnDef) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
+    let mut result = type_dependencies(&typedef.ret)?;
     let mut arguments = BTreeSet::new();
     for (name, typ) in &typedef.args {
         arguments.insert(name.to_string());
-        result.extend(type_dependencies(typ).into_iter());
+        result.extend(type_dependencies(typ)?.into_iter());
     }
 
-    result.extend(expr_dependencies(&typedef.body, &arguments).into_iter());
-    result
+    result.extend(expr_dependencies(&typedef.body, &arguments)?.into_iter());
+    Ok(result)
 }
 
-fn type_dependencies(typ: &ast::Type) -> BTreeSet<String> {
+fn type_dependencies(typ: &ast::Type) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
     match typ {
-        ast::Type::Word(_n) => BTreeSet::new(),
+        ast::Type::Word(_n) => Ok(Vec::new()),
         ast::Type::Vec(t, _n) => type_dependencies(t),
         ast::Type::Valid(t) => type_dependencies(t),
-        ast::Type::TypeRef(r) => vec![r.to_string()].into_iter().collect(),
+        ast::Type::TypeRef(r) => Ok(vec![r.clone()]),
     }
 }
 
-fn expr_dependencies(expr: &ast::Expr, shadowed: &BTreeSet<String>) -> BTreeSet<String> {
-    match expr {
+fn expr_dependencies(expr: &ast::Expr, shadowed: &BTreeSet<String>) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
+    Ok(match expr {
         ast::Expr::Ident(_loc, ident) => {
-            if shadowed.contains(&ident.to_string()) {
-                BTreeSet::new()
+            if shadowed.contains(&ident.name) {
+                Vec::new()
             } else {
-                vec![ident.to_string()].into_iter().collect()
+                vec![ident.clone()]
             }
         },
-        ast::Expr::Dot(_loc, e, _x) => expr_dependencies(e, shadowed),
-        ast::Expr::Word(_loc, _w, _v) => BTreeSet::new(),
-        ast::Expr::Enum(_loc, typ, _value) => type_dependencies(typ),
-        ast::Expr::Struct(_loc, _fields) => BTreeSet::new(),
+        ast::Expr::Dot(_loc, e, _x) => expr_dependencies(e, shadowed)?,
+        ast::Expr::Word(_loc, _w, _v) => Vec::new(),
+        ast::Expr::Enum(_loc, typ, _value) => type_dependencies(typ)?,
+        ast::Expr::Struct(_loc, _fields) => Vec::new(),
         ast::Expr::Vec(_loc, es) => {
-            let mut results = BTreeSet::new();
+            let mut results = Vec::new();
             for e in es {
-                results.extend(expr_dependencies(e, shadowed).into_iter());
+                results.extend(expr_dependencies(e, shadowed)?.into_iter());
             }
             results
         },
         ast::Expr::Call(_loc, func, es) => {
-            let mut results = BTreeSet::new();
+            let mut results = Vec::new();
             #[rustfmt::skip]
             const SPECIALS: &[&str] = &[
                 "cat",
@@ -528,10 +532,10 @@ fn expr_dependencies(expr: &ast::Expr, shadowed: &BTreeSet<String>) -> BTreeSet<
             ];
 
             if !SPECIALS.contains(&func.as_str()) && !func.as_str().starts_with("@") {
-                results.insert(func.to_string());
+                results.push(func.clone());
             }
             for e in es {
-                results.extend(expr_dependencies(e, shadowed).into_iter());
+                results.extend(expr_dependencies(e, shadowed)?.into_iter());
             }
             results
         },
@@ -539,44 +543,44 @@ fn expr_dependencies(expr: &ast::Expr, shadowed: &BTreeSet<String>) -> BTreeSet<
             let mut new_shadowed = shadowed.clone();
             new_shadowed.insert(x.to_string());
 
-            let mut results = BTreeSet::new();
+            let mut results = Vec::new();
             if let Some(typ) = type_ascription {
-                results.extend(type_dependencies(typ).into_iter());
+                results.extend(type_dependencies(typ)?.into_iter());
             }
-            results.extend(expr_dependencies(e, shadowed).into_iter());
-            results.extend(expr_dependencies(b, &new_shadowed).into_iter());
+            results.extend(expr_dependencies(e, shadowed)?.into_iter());
+            results.extend(expr_dependencies(b, &new_shadowed)?.into_iter());
             results
         },
-        ast::Expr::UnOp(_loc, _op, e1) => expr_dependencies(e1, shadowed),
+        ast::Expr::UnOp(_loc, _op, e1) => expr_dependencies(e1, shadowed)?,
         ast::Expr::BinOp(_loc, _op, e1, e2) => {
-            let mut results = BTreeSet::new();
+            let mut results = Vec::new();
             for e in &[e1, e2] {
-                results.extend(expr_dependencies(e, shadowed).into_iter());
+                results.extend(expr_dependencies(e, shadowed)?.into_iter());
             }
             results
         },
         ast::Expr::If(_loc, c, e1, e2) => {
-            let mut results = BTreeSet::new();
+            let mut results = Vec::new();
             for e in &[c, e1, e2] {
-                results.extend(expr_dependencies(e, shadowed).into_iter());
+                results.extend(expr_dependencies(e, shadowed)?.into_iter());
             }
             results
         },
         ast::Expr::Match(_loc, e, arms) => {
-            let mut results = BTreeSet::new();
-            results.extend(expr_dependencies(e, shadowed).into_iter());
+            let mut results = Vec::new();
+            results.extend(expr_dependencies(e, shadowed)?.into_iter());
             for ast::MatchArm(pat, e) in arms {
                 let mut new_shadowed = shadowed.clone();
                 new_shadowed.extend(pat.bound_vars().into_iter());
-                results.extend(expr_dependencies(e, &new_shadowed).into_iter());
+                results.extend(expr_dependencies(e, &new_shadowed)?.into_iter());
             }
             results
         },
-        ast::Expr::IdxField(_loc, e, _field) => expr_dependencies(e, shadowed),
-        ast::Expr::Idx(_loc, e, _i) => expr_dependencies(e, shadowed),
-        ast::Expr::IdxRange(_loc, e, _j, _i) => expr_dependencies(e, shadowed),
-        ast::Expr::Hole(_loc, _name) => BTreeSet::new(),
-    }
+        ast::Expr::IdxField(_loc, e, _field) => expr_dependencies(e, shadowed)?,
+        ast::Expr::Idx(_loc, e, _i) => expr_dependencies(e, shadowed)?,
+        ast::Expr::IdxRange(_loc, e, _j, _i) => expr_dependencies(e, shadowed)?,
+        ast::Expr::Hole(_loc, _name) => Vec::new(),
+    })
 }
 
 fn target_to_path(target: &ast::Target) -> Path {
@@ -606,11 +610,11 @@ fn order_items(package: &ast::Package) -> Result<Vec<&ast::Item>, Vec<BitsyError
         let (node, _item) = items[item.name()];
         items.insert(item.name().to_string(), (node, item));
 
-        for item_dependency in item_dependencies(item) {
-            if let Some((dependency, _item)) = items.get(&item_dependency) {
+        for item_dependency in item_dependencies(item)? {
+            if let Some((dependency, _item)) = items.get(&item_dependency.name) {
                 graph.add_edge(node, *dependency, ());
             } else {
-                errors.push(BitsyError::Unknown(None, format!("{item_dependency} not found")));
+                errors.push(BitsyError::Unknown(Some(item_dependency.loc.clone()), format!("{item_dependency} not found")));
             }
         }
     }
