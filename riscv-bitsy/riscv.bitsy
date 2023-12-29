@@ -70,6 +70,11 @@ enum type SystemFunct3 {
     CSRRCI     = 0b111w3;
 }
 
+enum type SystemFunct12 {
+    ECALL  = 0b0000000w12;
+    EBREAK = 0b0000001w12;
+}
+
 enum type Funct7 {
     ADD  = 0b0000000w7;
     SUB  = 0b0100000w7;
@@ -136,6 +141,10 @@ pub mod Core {
     //mod riscv_decoder of RiscvDecoder;
     //riscv_decoder.in := ifetch.instr;
 
+    outgoing ecall of Word<1>;
+    outgoing ebreak of Word<1>;
+    outgoing exception of Word<1>;
+
     outgoing instr_mem_read_addr of Word<32>;
     incoming instr_mem_read_data of Word<32>;
 
@@ -144,6 +153,10 @@ pub mod Core {
     outgoing mem_write_data   of Word<32>;
     outgoing mem_read_addr    of Word<32>;
     incoming mem_read_data    of Word<32>;
+
+    ecall     := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::ECALL);
+    ebreak    := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::EBREAK);
+    exception := decoder.exception;
 
     mem_read_addr  := rf.rs1_val + immgen.imm;
     mem_write_addr := rf.rs1_val + immgen.imm;
@@ -175,6 +188,7 @@ pub mod Core {
     control.opcode := decoder.opcode;
     control.funct3 := decoder.funct3;
     control.funct7 := decoder.funct7;
+    control.funct12 := decoder.funct12;
 
     alu.a := rf.rs1_val;
     alu.b := match control.alu_source {
@@ -341,6 +355,7 @@ mod Control {
     incoming opcode of Opcode;
     incoming funct3 of Word<3>;
     incoming funct7 of Word<7>;
+    incoming funct12 of Word<12>;
 
     outgoing branch of Word<1>;
     outgoing mem_read of Word<1>;
@@ -438,6 +453,13 @@ mod Decoder {
     outgoing rs2 of Word<5>;
     outgoing funct3  of Word<3>;
     outgoing funct7  of Word<7>;
+    outgoing funct12  of Word<12>;
+    outgoing exception of Word<1>;
+
+    exception := match maybe_opcode {
+        @Valid(_o) => 0;
+        @Invalid  => 1;
+    };
 
     node maybe_opcode of Valid<Opcode>;
     maybe_opcode := trycast(instr[7..0]);
@@ -447,11 +469,12 @@ mod Decoder {
         @Invalid  => Opcode::OP;
     };
 
-    rd     := instr[12..7];
-    funct3 := instr[15..12];
-    rs1    := instr[20..15];
-    rs2    := instr[25..20];
-    funct7 := instr[32..25];
+    rd      := instr[12..7];
+    funct3  := instr[15..12];
+    rs1     := instr[20..15];
+    rs2     := instr[25..20];
+    funct7  := instr[32..25];
+    funct12 := instr[32..20];
 }
 
 /*

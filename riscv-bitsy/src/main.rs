@@ -1,9 +1,18 @@
 use bitsy_lang::sim::ext::Ext;
 use bitsy_lang::sim::Sim;
-use bitsy_lang::sim::Value;
+//use bitsy_lang::sim::Value;
 use std::collections::BTreeMap;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    program: String,
+}
 
 fn main() {
+    let args = Args::parse();
+
     let text = std::fs::read_to_string("riscv.bitsy").unwrap().to_string();
 
     let package = match bitsy_lang::load_package_from_string(&text) {
@@ -28,12 +37,16 @@ fn main() {
         }
     };
 
-    let mut sim = make_sim(circuit.clone());
+    let mut sim = make_sim(circuit.clone(), &args);
     sim.reset();
     loop {
-        let instr = sim.peek("top.core.ifetch.instr");
-        // ebreak = 0x00100073
-        if instr == Value::Word(32, 0x00100073) {
+        let ebreak = sim.peek("top.core.ebreak");
+        // let ecall = sim.peek("top.core.ecall");
+        let exception = sim.peek("top.core.exception");
+        if ebreak.to_bool().unwrap() {
+            break;
+        } else if exception.to_bool().unwrap() {
+            eprintln!("EXCEPTION");
             break;
         }
         sim.clock();
@@ -41,7 +54,7 @@ fn main() {
     println!();
 }
 
-fn make_sim(circuit: bitsy_lang::Circuit) -> Sim {
+fn make_sim(circuit: bitsy_lang::Circuit, args: &Args) -> Sim {
     let mut exts: Vec<Box<dyn Ext>> = Vec::new();
     let links: Vec<(String, String, BTreeMap<String, String>)> = vec![
         (
@@ -58,7 +71,7 @@ fn make_sim(circuit: bitsy_lang::Circuit) -> Sim {
             "InstrMem".to_string(),
             "Mem".to_string(),
             vec![
-                ("file".to_string(), "programs/hello.exe.bin".to_string()),
+                ("file".to_string(), args.program.clone()),
                 ("delay".to_string(), "0".to_string()),
             ]
             .into_iter()

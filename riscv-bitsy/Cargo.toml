@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bitsy-lang = { path = "../bitsy" }
+clap = { version = "4.4.11", features = ["derive"] }

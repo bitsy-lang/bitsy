@@ -833,6 +833,7 @@ name = "riscv-bitsy"
 version = "0.1.0"
 dependencies = [
  "bitsy-lang",
+ "clap 4.4.12",
 ]
 
 [[package]]
