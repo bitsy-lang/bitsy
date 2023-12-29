@@ -1,0 +1,541 @@
+/*
+    The `Alu` mod always sources its first argument from the value of RS1 in the register file.
+    However, it may source its second argument from either RS2 or from the immediate generator.
+    `AluSource` is the type of the `alu_source` output of the `Control` mod and determines which to use.
+*/
+enum type AluSource {
+    IMM = 0w1;
+    RS2 = 0w1;
+}
+
+/*
+    There are several instruction formats in RISC-V.
+    `InstrType` tells us which we have so we can decode.
+*/
+enum type InstrType {
+    I = 1w3;
+    S = 2w3;
+    B = 3w3;
+    U = 4w3;
+    J = 5w3;
+    R = 6w3;
+}
+
+/*
+    Some RISC-V instructions have a funct3 field, which tells us things like
+    which operation, what kind of branch, or what size to load or store.
+    `OpFunct3` tells us which operation to perform for OP and OP-IMM instructions.
+*/
+enum type OpFunct3 {
+    ADD  = 0b000w3;
+    SLL  = 0b001w3;
+    SLT  = 0b010w3;
+    SLTU = 0b011w3;
+    XOR  = 0b100w3;
+    SR   = 0b101w3;
+    OR   = 0b110w3;
+    AND  = 0b111w3;
+}
+
+enum type BranchFunct3 {
+    EQ   = 0b000w3;
+    NEQ  = 0b001w3;
+    BLT  = 0b100w3;
+    BGE  = 0b101w3;
+    BLTU = 0b110w3;
+    BGEU = 0b111w3;
+}
+
+enum type LoadFunct3 {
+    LB  = 0b000w3;
+    LH  = 0b001w3;
+    LW  = 0b010w3;
+    LBU = 0b100w3;
+    LHU = 0b101w3;
+}
+
+enum type StoreFunct3 {
+    SB  = 0b000w3;
+    SH  = 0b001w3;
+    SW  = 0b010w3;
+}
+
+enum type SystemFunct3 {
+    ECALLBREAK = 0b000w3;
+    CSRRW      = 0b001w3;
+    CSRRS      = 0b010w3;
+    CSRRC      = 0b011w3;
+    CSRRWI     = 0b101w3;
+    CSRRSI     = 0b110w3;
+    CSRRCI     = 0b111w3;
+}
+
+enum type Funct7 {
+    ADD  = 0b0000000w7;
+    SUB  = 0b0100000w7;
+}
+
+/*
+    The lower 7 bits of every RISC-V instruction are the opcode.
+    `Opcode` allows us to name these opcodes as they appear in the spec.
+*/
+enum type Opcode {
+    OP      = 0b01_100_11w7;
+    OP_IMM  = 0b00_100_11w7;
+    LOAD    = 0b00_000_11w7;
+    STORE   = 0b01_000_11w7;
+    JAL     = 0b11_011_11w7;
+    BRANCH  = 0b11_000_11w7;
+    LUI     = 0b01_101_11w7;
+    AUIPC   = 0b00_101_11w7;
+    JALR    = 0b11_001_11w7;
+    FENCE   = 0b00_011_11w7;
+    SYSTEM  = 0b11_100_11w7;
+}
+
+enum type AluOp {
+    AND = 0w4;
+    OR  = 1w4;
+    ADD = 2w4;
+    SUB = 6w4;
+}
+
+/*
+    `Top` is a simple system to demonstrate the use of `Core`.
+*/
+pub mod Top {
+    mod core of Core;
+    mod instr_mem of InstrMem;
+    mod mem of MemorySubsystem;
+
+    instr_mem.write_enable := 0w1;
+    instr_mem.write_addr := 0w32;
+    instr_mem.write_data := 0w32;
+
+    mem.read_addr    := core.mem_read_addr;
+    mem.write_addr   := core.mem_write_addr;
+    mem.write_data   := core.mem_write_data;
+    mem.write_enable := core.mem_write_enable;
+
+    instr_mem.read_addr := core.instr_mem_read_addr;
+    core.instr_mem_read_data := instr_mem.read_data;
+    core.mem_read_data := mem.read_data;
+}
+
+/*
+    `Core` is the top-level processor core.
+*/
+pub mod Core {
+    mod rf of Rf;
+    mod control of Control;
+    mod alu of Alu;
+    mod immgen of Immgen;
+    mod decoder of Decoder;
+    mod ifetch of Ifetch;
+
+    //mod riscv_decoder of RiscvDecoder;
+    //riscv_decoder.in := ifetch.instr;
+
+    outgoing instr_mem_read_addr of Word<32>;
+    incoming instr_mem_read_data of Word<32>;
+
+    outgoing mem_write_enable of Word<1>;
+    outgoing mem_write_addr   of Word<32>;
+    outgoing mem_write_data   of Word<32>;
+    outgoing mem_read_addr    of Word<32>;
+    incoming mem_read_data    of Word<32>;
+
+    mem_read_addr  := rf.rs1_val + immgen.imm;
+    mem_write_addr := rf.rs1_val + immgen.imm;
+    mem_write_data := alu.r;
+    mem_write_enable := control.mem_write;
+
+    ifetch.branch_offset := immgen.imm;
+    ifetch.branch_enable := control.branch;
+
+    instr_mem_read_addr := ifetch.instr_mem_addr;
+    ifetch.instr_mem_data := instr_mem_read_data;
+
+    rf.rs1 := decoder.rs1;
+    rf.rs2 := decoder.rs2;
+    rf.rd := decoder.rd;
+    rf.write_enable := control.reg_write;
+    rf.write_data := if control.mem_to_reg {
+        mem_read_data
+    } else if decoder.opcode == Opcode::LUI {
+        immgen.imm
+    } else {
+        alu.r
+    };
+
+    decoder.instr := ifetch.instr;
+    immgen.instr := ifetch.instr;
+    immgen.opcode := decoder.opcode;
+
+    control.opcode := decoder.opcode;
+    control.funct3 := decoder.funct3;
+    control.funct7 := decoder.funct7;
+
+    alu.a := rf.rs1_val;
+    alu.b := match control.alu_source {
+        @IMM => immgen.imm;
+        @RS2 => rf.rs2_val;
+    };
+    alu.op := control.alu_op;
+}
+
+/*
+    `Rf` is the register file.
+*/
+mod Rf {
+    incoming rs1 of Word<5>;
+    incoming rs2 of Word<5>;
+    incoming rd  of Word<5>;
+
+    incoming write_enable of Word<1>;
+    incoming write_data   of Word<32>;
+
+    outgoing rs1_val of Word<32>;
+    outgoing rs2_val of Word<32>;
+
+    reg x1 of Word<32> reset 0;
+    reg x2 of Word<32> reset 0;
+    reg x3 of Word<32> reset 0;
+    reg x4 of Word<32> reset 0;
+    reg x5 of Word<32> reset 0;
+    reg x6 of Word<32> reset 0;
+    reg x7 of Word<32> reset 0;
+    reg x8 of Word<32> reset 0;
+    reg x9 of Word<32> reset 0;
+    reg x10 of Word<32> reset 0;
+    reg x11 of Word<32> reset 0;
+    reg x12 of Word<32> reset 0;
+    reg x13 of Word<32> reset 0;
+    reg x14 of Word<32> reset 0;
+    reg x15 of Word<32> reset 0;
+    reg x16 of Word<32> reset 0;
+    reg x17 of Word<32> reset 0;
+    reg x18 of Word<32> reset 0;
+    reg x19 of Word<32> reset 0;
+    reg x20 of Word<32> reset 0;
+    reg x21 of Word<32> reset 0;
+    reg x22 of Word<32> reset 0;
+    reg x23 of Word<32> reset 0;
+    reg x24 of Word<32> reset 0;
+    reg x25 of Word<32> reset 0;
+    reg x26 of Word<32> reset 0;
+    reg x27 of Word<32> reset 0;
+    reg x28 of Word<32> reset 0;
+    reg x29 of Word<32> reset 0;
+    reg x30 of Word<32> reset 0;
+    reg x31 of Word<32> reset 0;
+
+    // skip x0
+    x1 <= mux(write_enable && rd == 1, write_data, x1);
+    x2 <= mux(write_enable && rd == 2, write_data, x2);
+    x3 <= mux(write_enable && rd == 3, write_data, x3);
+    x4 <= mux(write_enable && rd == 4, write_data, x4);
+    x5 <= mux(write_enable && rd == 5, write_data, x5);
+    x6 <= mux(write_enable && rd == 6, write_data, x6);
+    x7 <= mux(write_enable && rd == 7, write_data, x7);
+    x8 <= mux(write_enable && rd == 8, write_data, x8);
+    x9 <= mux(write_enable && rd == 9, write_data, x9);
+    x10 <= mux(write_enable && rd == 10, write_data, x10);
+    x11 <= mux(write_enable && rd == 11, write_data, x11);
+    x12 <= mux(write_enable && rd == 12, write_data, x12);
+    x13 <= mux(write_enable && rd == 13, write_data, x13);
+    x14 <= mux(write_enable && rd == 14, write_data, x14);
+    x15 <= mux(write_enable && rd == 15, write_data, x15);
+    x16 <= mux(write_enable && rd == 16, write_data, x16);
+    x17 <= mux(write_enable && rd == 17, write_data, x17);
+    x18 <= mux(write_enable && rd == 18, write_data, x18);
+    x19 <= mux(write_enable && rd == 19, write_data, x19);
+    x20 <= mux(write_enable && rd == 20, write_data, x20);
+    x21 <= mux(write_enable && rd == 21, write_data, x21);
+    x22 <= mux(write_enable && rd == 22, write_data, x22);
+    x23 <= mux(write_enable && rd == 23, write_data, x23);
+    x24 <= mux(write_enable && rd == 24, write_data, x24);
+    x25 <= mux(write_enable && rd == 25, write_data, x25);
+    x26 <= mux(write_enable && rd == 26, write_data, x26);
+    x27 <= mux(write_enable && rd == 27, write_data, x27);
+    x28 <= mux(write_enable && rd == 28, write_data, x28);
+    x29 <= mux(write_enable && rd == 29, write_data, x29);
+    x30 <= mux(write_enable && rd == 30, write_data, x30);
+    x31 <= mux(write_enable && rd == 31, write_data, x31);
+
+    rs1_val :=
+             if rs1 == 1 { x1 }
+        else if rs1 == 2 { x2 }
+        else if rs1 == 3 { x3 }
+        else if rs1 == 4 { x4 }
+        else if rs1 == 5 { x5 }
+        else if rs1 == 6 { x6 }
+        else if rs1 == 7 { x7 }
+        else if rs1 == 8 { x8 }
+        else if rs1 == 9 { x9 }
+        else if rs1 == 10 { x10 }
+        else if rs1 == 11 { x11 }
+        else if rs1 == 12 { x12 }
+        else if rs1 == 13 { x13 }
+        else if rs1 == 14 { x14 }
+        else if rs1 == 15 { x15 }
+        else if rs1 == 16 { x16 }
+        else if rs1 == 17 { x17 }
+        else if rs1 == 18 { x18 }
+        else if rs1 == 19 { x19 }
+        else if rs1 == 20 { x20 }
+        else if rs1 == 21 { x21 }
+        else if rs1 == 22 { x22 }
+        else if rs1 == 23 { x23 }
+        else if rs1 == 24 { x24 }
+        else if rs1 == 25 { x25 }
+        else if rs1 == 26 { x26 }
+        else if rs1 == 27 { x27 }
+        else if rs1 == 28 { x28 }
+        else if rs1 == 29 { x29 }
+        else if rs1 == 30 { x30 }
+        else if rs1 == 31 { x31 }
+        else { 0w32 };
+
+    rs2_val :=
+             if rs2 == 1 { x1 }
+        else if rs2 == 2 { x2 }
+        else if rs2 == 3 { x3 }
+        else if rs2 == 4 { x4 }
+        else if rs2 == 5 { x5 }
+        else if rs2 == 6 { x6 }
+        else if rs2 == 7 { x7 }
+        else if rs2 == 8 { x8 }
+        else if rs2 == 9 { x9 }
+        else if rs2 == 10 { x10 }
+        else if rs2 == 11 { x11 }
+        else if rs2 == 12 { x12 }
+        else if rs2 == 13 { x13 }
+        else if rs2 == 14 { x14 }
+        else if rs2 == 15 { x15 }
+        else if rs2 == 16 { x16 }
+        else if rs2 == 17 { x17 }
+        else if rs2 == 18 { x18 }
+        else if rs2 == 19 { x19 }
+        else if rs2 == 20 { x20 }
+        else if rs2 == 21 { x21 }
+        else if rs2 == 22 { x22 }
+        else if rs2 == 23 { x23 }
+        else if rs2 == 24 { x24 }
+        else if rs2 == 25 { x25 }
+        else if rs2 == 26 { x26 }
+        else if rs2 == 27 { x27 }
+        else if rs2 == 28 { x28 }
+        else if rs2 == 29 { x29 }
+        else if rs2 == 30 { x30 }
+        else if rs2 == 31 { x31 }
+        else { 0w32 };
+}
+
+/*
+    `Control` is the control unit.
+    It receives the decoded instruction and sends out signals which
+    guide the behavior of the rest of the core.
+*/
+mod Control {
+    incoming opcode of Opcode;
+    incoming funct3 of Word<3>;
+    incoming funct7 of Word<7>;
+
+    outgoing branch of Word<1>;
+    outgoing mem_read of Word<1>;
+    outgoing mem_write of Word<1>;
+    outgoing mem_to_reg of Word<1>;
+    outgoing alu_op of AluOp;
+    outgoing alu_source of AluSource;
+    outgoing reg_write of Word<1>;
+
+    branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
+
+    mem_read := opcode == Opcode::LOAD;
+    mem_write := opcode == Opcode::STORE;
+    mem_to_reg := opcode == Opcode::LOAD;
+
+    node maybe_funct3 of Valid<OpFunct3>;
+    maybe_funct3 := trycast(funct3);
+
+    alu_op := match maybe_funct3 {
+        @Valid(@ADD) => AluOp::ADD;
+        @Valid(@AND) => AluOp::AND;
+        otherwise => AluOp::ADD;
+    };
+
+    alu_source := if opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE {
+        AluSource::IMM
+    } else {
+        AluSource::RS2
+    };
+    reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::LUI;
+}
+
+/*
+    `Alu` is the arithmetic logic unit.
+*/
+mod Alu {
+    incoming a of Word<32>;
+    incoming b of Word<32>;
+    incoming op of AluOp;
+    outgoing r of Word<32>;
+
+    r := match op {
+        @AND => a && b;
+        @OR  => a || b;
+        @ADD => a  + b;
+        @SUB => a  - b;
+    };
+}
+
+/*
+    `Immgen` is the immediate generator.
+    It takes the instruction and calculates the 32-bit immediate
+*/
+mod Immgen {
+    incoming instr of Word<32>;
+    incoming opcode of Opcode;
+    outgoing imm of Word<32>;
+
+    node typ of InstrType;
+    typ := match opcode {
+        @OP     => InstrType::R;
+        @OP_IMM => InstrType::I;
+        @LOAD   => InstrType::I;
+        @STORE  => InstrType::S;
+        @JAL    => InstrType::J;
+        @BRANCH => InstrType::B;
+        @LUI    => InstrType::U;
+        @AUIPC  => InstrType::U;
+        @JALR   => InstrType::I;
+        @FENCE  => InstrType::I;
+        @SYSTEM => InstrType::I;
+    };
+
+    imm := match typ {
+        @I => sext(cat(instr[31], instr[32..20]));
+        @S => sext(cat(instr[31], instr[32..25], instr[12..7]));
+        @B => sext(cat(instr[31], instr[7], instr[31..25], instr[12..8], 0w1));
+        @U => sext(cat(instr[32..12], 0w12));
+        @J => sext(cat(instr[31], instr[20..12], instr[20], instr[31..21], 0w1));
+        @R => 0;
+    };
+}
+
+/*
+    `Decoder` is the instruction decoder.
+    It takes the instruction parses it into its relevant pieces.
+    Not all pieces are guaranteed to be meaningful for all instructions.
+*/
+mod Decoder {
+    incoming instr of Word<32>;
+
+    outgoing opcode of Opcode;
+    outgoing rd  of Word<5>;
+    outgoing rs1 of Word<5>;
+    outgoing rs2 of Word<5>;
+    outgoing funct3  of Word<3>;
+    outgoing funct7  of Word<7>;
+
+    node maybe_opcode of Valid<Opcode>;
+    maybe_opcode := trycast(instr[7..0]);
+
+    opcode := match maybe_opcode {
+        @Valid(o) => o;
+        @Invalid  => Opcode::OP;
+    };
+
+    rd     := instr[12..7];
+    funct3 := instr[15..12];
+    rs1    := instr[20..15];
+    rs2    := instr[25..20];
+    funct7 := instr[32..25];
+}
+
+/*
+    `Ifetch` is the instruction fetch unit.
+    It maintains the program counter (`pc`).
+    It receives signals for when to branch.
+    It emits the 32-bit instruction as `instr`.
+
+*/
+mod Ifetch {
+    incoming branch_offset of Word<32>;
+    incoming branch_enable of Word<1>;
+
+    outgoing instr_mem_addr of Word<32>;
+    incoming instr_mem_data of Word<32>;
+
+    outgoing instr of Word<32>;
+
+    reg pc of Word<32> reset 0;
+    instr_mem_addr := pc;
+
+    pc <= if branch_enable {
+        pc + branch_offset
+    } else {
+        pc + 4
+    };
+
+    instr := instr_mem_data;
+}
+
+/*
+    `MemorySubsystem` dispatches reads and writes to either system memory or a device.
+    [0000_0000 - 0001_0000] System Memory
+    [0001_0000 - 0001_0001] Terminal
+*/
+mod MemorySubsystem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
+
+    mod mem of DataMem;
+
+    mem.write_enable := write_addr < 0x10000w32 && write_enable;
+    mem.write_addr := write_addr;
+    mem.write_data := write_data;
+    mem.read_addr := read_addr;
+    read_data := if read_addr < 0x10000w32 {
+        mem.read_data
+    } else {
+        0w32
+    };
+
+    mod term of Terminal;
+
+    term.out_valid := write_enable && write_addr == 0x10000w32;
+    term.out_data := write_data;
+}
+
+//ext mod RiscvDecoder {
+//    incoming in of Word<32>;
+//}
+
+ext mod InstrMem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
+}
+
+ext mod DataMem {
+    incoming read_addr of Word<32>;
+    outgoing read_data of Word<32>;
+
+    incoming write_enable of Word<1>;
+    incoming write_addr of Word<32>;
+    incoming write_data of Word<32>;
+}
+
+ext mod Terminal {
+    incoming out_data of Word<32>;
+    incoming out_valid of Word<1>;
+}
