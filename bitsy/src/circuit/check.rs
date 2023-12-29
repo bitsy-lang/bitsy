@@ -124,6 +124,26 @@ impl Package {
             }
         }
 
+        for When(expr, wires) in &component.whens() {
+            match expr.typecheck(Type::Word(1), ctx.clone()) {
+                Err(e) => errors.push(BitsyError::TypeError(e)),
+                Ok(()) => expr.assert_has_types(),
+            }
+            for Wire(loc, target, expr, _wiretype) in wires {
+                let target_typ = if let Some(typ) = ctx.lookup(target) {
+                    typ
+                } else {
+                    errors.push(BitsyError::NoSuchComponent(loc.clone(), target.to_string()));
+                    continue;
+                };
+
+                match expr.typecheck(target_typ, ctx.clone()) {
+                    Err(e) => errors.push(BitsyError::TypeError(e)),
+                    Ok(()) => expr.assert_has_types(),
+                }
+            }
+        }
+
         for child in component.children() {
             if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
                 // TODO This is done to turn the reference to the type into the actual type.
@@ -196,6 +216,12 @@ impl Package {
 
         for Wire(_loc, target, _expr, _typ) in &component.wires() {
             terminals_remaining = terminals_remaining.into_iter().filter(|(path, _component)| path != target).collect();
+        }
+
+        for When(_expr, wires) in &component.whens() {
+            for Wire(_loc, target, _expr, _typ) in wires {
+                terminals_remaining = terminals_remaining.into_iter().filter(|(path, _component)| path != target).collect();
+            }
         }
 
         for (path, remaining_component) in terminals_remaining.into_iter() {

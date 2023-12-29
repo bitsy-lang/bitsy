@@ -56,6 +56,15 @@ impl Component {
         }
     }
 
+    pub(crate) fn whens(&self) -> Vec<When> {
+        match self {
+            Component::Mod(_loc, _name, _children, _wires, whens) => {
+                whens.clone()
+            }
+            _ => vec![],
+        }
+    }
+
     pub(crate) fn paths_rec(&self, path: Path) -> Vec<Path> {
         let mut results = vec![];
         for child in self.children() {
