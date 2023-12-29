@@ -76,7 +76,6 @@ impl Package {
             }
         }
         errors
-
     }
 
     fn check_wires_duplicate_targets(&self, component: Arc<Component>) -> Vec<BitsyError> {
@@ -125,16 +124,16 @@ impl Package {
             }
         }
 
-         for child in component.children() {
-             if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
-                 // TODO This is done to turn the reference to the type into the actual type.
-                 let typ = self.type_of(child.clone()).unwrap();
-                 match reset.typecheck(typ, ctx.clone()) {
-                     Err(e) => errors.push(BitsyError::TypeError(e)),
-                     Ok(()) => reset.assert_has_types(),
-                 }
-             }
-         }
+        for child in component.children() {
+            if let Component::Reg(_loc, _name, _typ, Some(reset)) = &*child {
+                // TODO This is done to turn the reference to the type into the actual type.
+                let typ = self.type_of(child.clone()).unwrap();
+                match reset.typecheck(typ, ctx.clone()) {
+                    Err(e) => errors.push(BitsyError::TypeError(e)),
+                    Ok(()) => reset.assert_has_types(),
+                }
+            }
+        }
 
         errors
     }
@@ -156,12 +155,15 @@ impl Package {
         for Wire(loc, target, _expr, wiretype) in &component.wires() {
             if let Some(component) = self.component_from(component.clone(), target.clone()) {
                 match (&*component, wiretype) {
-                    (Component::Reg(_loc, name, _typ, _reset), WireType::Direct) =>
-                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Direct)),
-                    (Component::Node(_loc, name, _typ), WireType::Latch) =>
-                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Latch)),
-                    (Component::Outgoing(_loc, name, _typ), WireType::Latch) =>
-                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Latch)),
+                    (Component::Reg(_loc, name, _typ, _reset), WireType::Direct) => {
+                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Direct))
+                    },
+                    (Component::Node(_loc, name, _typ), WireType::Latch) => {
+                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Latch))
+                    },
+                    (Component::Outgoing(_loc, name, _typ), WireType::Latch) => {
+                        errors.push(BitsyError::WrongWireType(loc.clone(), name.clone(), WireType::Latch))
+                    },
                     (_, _) => (),
                 }
             }
@@ -177,8 +179,9 @@ impl Package {
                 let is_local = !target.contains(".");
                 if is_local {
                     match &*component {
-                        Component::Incoming(loc, name, _typ) =>
-                            errors.push(BitsyError::IncomingPortDriven(loc.clone(), name.clone())),
+                        Component::Incoming(loc, name, _typ) => {
+                            errors.push(BitsyError::IncomingPortDriven(loc.clone(), name.clone()))
+                        },
                         _ => (),
                     }
                 }
@@ -214,4 +217,3 @@ impl Package {
         errors
     }
 }
-
