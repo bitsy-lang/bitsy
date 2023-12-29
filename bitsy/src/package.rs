@@ -1,7 +1,5 @@
 use super::*;
-mod resolve;
 
-use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
 pub use ast::WireType;

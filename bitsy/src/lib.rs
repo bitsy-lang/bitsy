@@ -11,6 +11,7 @@ pub mod ast;
 
 mod types;
 mod package;
+mod resolve;
 mod component;
 mod circuit;
 mod parse;
@@ -25,6 +26,7 @@ mod tests;
 
 pub use types::*;
 pub use package::*;
+pub use resolve::*;
 pub use component::*;
 pub use circuit::*;
 pub use parse::*;
