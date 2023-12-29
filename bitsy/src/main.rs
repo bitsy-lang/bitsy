@@ -192,7 +192,7 @@ fn make_sim(circuit: Circuit, testbench: &Testbench) -> Sim {
                 e
             },
             "Terminal" => {
-                let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new(extname.clone()));
+                let e = Box::new(bitsy_lang::sim::ext::terminal::Terminal::new(extname.clone(), Some("terminal.txt")));
                 e
             },
             _ => panic!("Unknown ext module being linked: {driver}")

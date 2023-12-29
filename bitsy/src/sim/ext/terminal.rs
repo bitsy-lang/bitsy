@@ -5,20 +5,37 @@ use std::io::Write;
 pub struct Terminal {
     name: String,
     chr: char,
-    file: std::fs::File,
+    file: Option<std::fs::File>,
     out_valid: bool,
 }
 
 impl Terminal {
-  pub fn new(name: String) -> Terminal {
-      let file = std::fs::File::create("terminal.txt").unwrap();
-      Terminal {
-          name,
-          chr: '\0',
-          file,
-          out_valid: false,
-      }
-  }
+    pub fn new(name: String, filename: Option<&str>) -> Terminal {
+        let file = if let Some(filename) = filename {
+            Some(std::fs::File::create(filename).unwrap())
+        } else {
+            None
+        };
+        Terminal {
+            name,
+            chr: '\0',
+            file,
+            out_valid: false,
+        }
+    }
+
+    fn print(&mut self) {
+        if self.out_valid {
+            let s = self.chr;
+            if let Some(file) = &mut self.file {
+                write!(file, "{s}").unwrap();
+                file.flush().unwrap();
+            } else {
+                print!("{s}");
+                std::io::stdout().flush().unwrap();
+            }
+        }
+    }
 }
 
 impl Ext for Terminal {
@@ -48,21 +65,12 @@ impl Ext for Terminal {
     }
 
     fn clock(&mut self, _path: Path) -> Vec<(PortName, Value)> {
-        if self.out_valid {
-            let s = self.chr;
-            eprintln!("TERMINAL OUTPUT: {}", s as u32);
-            write!(self.file, "{s}").unwrap();
-            self.file.flush().unwrap();
-        }
+        self.print();
         vec![]
     }
 
     fn reset(&mut self, _path: Path) -> Vec<(PortName, Value)> {
-        if self.out_valid {
-            let s = self.chr;
-            write!(self.file, "{s}").unwrap();
-            self.file.flush().unwrap();
-        }
+        self.print();
         vec![]
     }
 }
