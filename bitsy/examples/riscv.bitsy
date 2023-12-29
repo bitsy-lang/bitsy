@@ -32,10 +32,42 @@ enum type OpFunct3 {
     SLT  = 0b010w3;
     SLTU = 0b011w3;
     XOR  = 0b100w3;
-    SRL  = 0b101w3;
-    SRA  = 0b101w3;
+    SR   = 0b101w3;
     OR   = 0b110w3;
     AND  = 0b111w3;
+}
+
+enum type BranchFunct3 {
+    EQ   = 0b000w3;
+    NEQ  = 0b001w3;
+    BLT  = 0b100w3;
+    BGE  = 0b101w3;
+    BLTU = 0b110w3;
+    BGEU = 0b111w3;
+}
+
+enum type LoadFunct3 {
+    LB  = 0b000w3;
+    LH  = 0b001w3;
+    LW  = 0b010w3;
+    LBU = 0b100w3;
+    LHU = 0b101w3;
+}
+
+enum type StoreFunct3 {
+    SB  = 0b000w3;
+    SH  = 0b001w3;
+    SW  = 0b010w3;
+}
+
+enum type SystemFunct3 {
+    ECALLBREAK = 0b000w3;
+    CSRRW      = 0b001w3;
+    CSRRS      = 0b010w3;
+    CSRRC      = 0b011w3;
+    CSRRWI     = 0b101w3;
+    CSRRSI     = 0b110w3;
+    CSRRCI     = 0b111w3;
 }
 
 enum type Funct7 {
@@ -48,20 +80,22 @@ enum type Funct7 {
     `Opcode` allows us to name these opcodes as they appear in the spec.
 */
 enum type Opcode {
-    OP      = 0b0110011w7;
-    OP_IMM  = 0b0010011w7;
-    LOAD    = 0b0000011w7;
-    STORE   = 0b0100011w7;
-    JAL     = 0b1101111w7;
-    BRANCH  = 0b1100011w7;
-    LUI     = 0b0110111w7;
-    AUIPC   = 0b0010111w7;
-    JALR    = 0b1100111w7;
+    OP      = 0b01_100_11w7;
+    OP_IMM  = 0b00_100_11w7;
+    LOAD    = 0b00_000_11w7;
+    STORE   = 0b01_000_11w7;
+    JAL     = 0b11_011_11w7;
+    BRANCH  = 0b11_000_11w7;
+    LUI     = 0b01_101_11w7;
+    AUIPC   = 0b00_101_11w7;
+    JALR    = 0b11_001_11w7;
+    FENCE   = 0b00_011_11w7;
+    SYSTEM  = 0b11_100_11w7;
 }
 
 enum type AluOp {
     AND = 0w4;
-    OR = 1w4;
+    OR  = 1w4;
     ADD = 2w4;
     SUB = 6w4;
 }
