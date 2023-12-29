@@ -3,9 +3,14 @@ use super::*;
 grammar(source_info: &SourceInfo);
 
 pub Package: Package = {
-    <items:Item*> => Package {
+    <imports:Import*> <items:Item*> => Package {
+        imports,
         items,
     },
+}
+
+Import: String = {
+    "import" <filename:Str> => filename,
 }
 
 Item: Item = {

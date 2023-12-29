@@ -9,7 +9,7 @@ syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
 hi link blockComment Comment
 
-syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when alt
+syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when alt import from
 hi link bitsyKeyword Keyword
 syn keyword bitsyConstant true false XXX io
 hi link bitsyConstant Number
