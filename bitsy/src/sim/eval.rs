@@ -81,7 +81,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Match(_loc, _typ, subject, arms) => {
+            Expr::Match(loc, _typ, subject, arms) => {
                 let subject_value = subject.eval_with_ctx(bitsy, ctx.clone());
                 if subject_value.is_x() {
                     return Value::X;
@@ -93,7 +93,7 @@ impl Expr {
                         return e_value;
                     }
                 }
-                panic!("No match arm matched")
+                panic!("No match arm matched: {loc:?}")
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
@@ -108,7 +108,7 @@ impl Expr {
                     _ => Value::X,
                 }
             },
-            Expr::Cat(_loc, _typ, es) => {
+            Expr::Cat(loc, _typ, es) => {
                 let mut cat_width: u64 = 0;
                 let mut cat_val: u64 = 0;
                 let mut wss: Vec<Value> = vec![];
@@ -121,7 +121,7 @@ impl Expr {
                     } else if let Value::Vec(ws) = v {
                         wss.extend(ws.into_iter().rev());
                     } else {
-                        panic!("Can't cat on a non-Word");
+                        panic!("Can't cat on a non-Word {loc:?}");
                     }
                 }
                 if wss.len() == 0 {
@@ -130,7 +130,7 @@ impl Expr {
                     Value::Vec(wss.into_iter().rev().collect())
                 }
             },
-            Expr::Sext(_loc, typ, e) => {
+            Expr::Sext(loc, typ, e) => {
                 let n = if let Type::Word(n) = typ.get().unwrap() {
                     n
                 } else {
@@ -138,7 +138,7 @@ impl Expr {
                 };
                 match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
-                    Value::Word(0, _x) => panic!("Can't sext a Word<0>"),
+                    Value::Word(0, _x) => panic!("Can't sext a Word<0> {loc:?}"),
                     Value::Word(w, x) => {
                         if w <= *n {
                             let is_negative = x & (1 << (w - 1)) > 0;
@@ -149,15 +149,15 @@ impl Expr {
                                 Value::Word(*n, x)
                             }
                         } else {
-                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
+                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
                         }
                     },
-                    Value::Vec(_vs) => panic!("Can't sext a Vec"),
-                    Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
-                    _ => panic!("Can't sext {self:?}"),
+                    Value::Vec(_vs) => panic!("Can't sext a Vec {loc:?}"),
+                    Value::Enum(typedef, _name) => panic!("Can't sext a {} {loc:?}", typedef.name()),
+                    _ => panic!("Can't sext {self:?} {loc:?}"),
                 }
             },
-            Expr::Zext(_loc, typ, e) => {
+            Expr::Zext(loc, typ, e) => {
                 let n = if let Type::Word(n) = typ.get().unwrap() {
                     n
                 } else {
@@ -169,12 +169,12 @@ impl Expr {
                         if w <= *n {
                             Value::Word(*n, x)
                         } else {
-                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}.")
+                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
                         }
                     },
-                    Value::Vec(_vs) => panic!("Can't sext a Vec"),
-                    Value::Enum(typedef, _name) => panic!("Can't sext a {}", typedef.name()),
-                    _ => panic!("Can't sext {self:?}"),
+                    Value::Vec(_vs) => panic!("Can't sext a Vec {loc:?}"),
+                    Value::Enum(typedef, _name) => panic!("Can't sext a {} {loc:?}", typedef.name()),
+                    _ => panic!("Can't sext {self:?} {loc:?}"),
                 }
             },
             Expr::TryCast(_loc, typ, e) => {
@@ -200,7 +200,7 @@ impl Expr {
                 }
                 return Value::Ctor("Invalid".to_string(), vec![]);
             },
-            Expr::ToWord(_loc, _typ, e) => {
+            Expr::ToWord(loc, _typ, e) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
                 match v {
                     Value::X => Value::X,
@@ -208,10 +208,10 @@ impl Expr {
                         if let Type::Enum(typ) = typ {
                             Value::Word(typ.bitwidth(), typ.value_of(&name).unwrap())
                         } else {
-                            panic!();
+                            panic!("{loc:?}");
                         }
                     },
-                    _ => panic!("Can only call word() on enum values, but found {v:?}"),
+                    _ => panic!("Can only call word() on enum values, but found {v:?} {loc:?}"),
                 }
             },
             Expr::Vec(_loc, _typ, es) => {
