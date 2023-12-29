@@ -8,6 +8,7 @@ pub enum BitsyError {
     DuplicateComponent(Arc<Component>),
     MultipleDrivers(Loc, Name),
     NoDrivers(Arc<Component>),
+    NoDriversPort(Arc<Component>, Arc<Component>),
     WrongWireType(Loc, Name, WireType),
     IncomingPortDriven(Loc, Name),
     NoSuchComponent(Loc, String),
@@ -56,6 +57,7 @@ impl std::fmt::Display for BitsyError {
             BitsyError::DuplicateComponent(component) => write!(f, "Duplicate component: {}", component.name()),
             BitsyError::MultipleDrivers(_loc, name) => write!(f, "Component has multiple drivers: {name}."),
             BitsyError::NoDrivers(component) => write!(f, "Component is not driven: {}", component.name()),
+            BitsyError::NoDriversPort(component, port) => write!(f, "Port is not driven: {}.{}", component.name(), port.name()),
             BitsyError::WrongWireType(_loc, name, wire_type) => {
                 let symbol = match wire_type {
                     WireType::Direct => ":=",
@@ -80,6 +82,7 @@ impl HasLoc for BitsyError {
             BitsyError::DuplicateComponent(component) => component.loc(),
             BitsyError::MultipleDrivers(loc, _name) => loc.clone(),
             BitsyError::NoDrivers(component) => component.loc(),
+            BitsyError::NoDriversPort(component, _port) => component.loc(),
             BitsyError::WrongWireType(loc, _name, _wire_type) => loc.clone(),
             BitsyError::IncomingPortDriven(loc, _name) => loc.clone(),
             BitsyError::NoSuchComponent(loc, _name) => loc.clone(),

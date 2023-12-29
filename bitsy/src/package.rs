@@ -159,17 +159,16 @@ impl Package {
     pub(crate) fn component_from(&self, component: Arc<Component>, path: Path) -> Option<Arc<Component>> {
         let mut result: Arc<Component> = component;
         for part in path.split(".") {
+            if let Component::ModInst(_loc, _name, moddef) = &*result {
+                result = moddef.clone();
+            }
+
             if let Some(child) = result.child(part) {
-                if let Component::ModInst(_loc, _name, moddef) = &*child {
-                    result = moddef.clone();
-                } else {
-                    result = child.clone();
-                }
+                result = child.clone();
             }
         }
         Some(result)
     }
-
 }
 
 /// A top-level declaration in a [`Package`].

@@ -195,19 +195,20 @@ impl Package {
             terminals_remaining = terminals_remaining.into_iter().filter(|(path, _component)| path != target).collect();
         }
 
-        for (path, component) in terminals_remaining.into_iter() {
+        for (path, remaining_component) in terminals_remaining.into_iter() {
             let mut is_incoming_port = false;
 
-            if let Component::Incoming(_loc, _name, _typ) = &*component {
+            if let Component::Incoming(_loc, _name, _typ) = &*remaining_component {
                 is_incoming_port = true;
             }
 
             let is_local = !path.contains(".");
 
             if !is_local && is_incoming_port {
-                errors.push(BitsyError::NoDrivers(component.clone()));
+                let inst_component = self.component_from(component.clone(), path.parent()).unwrap();
+                errors.push(BitsyError::NoDriversPort(inst_component.clone(), remaining_component.clone()));
             } else if is_local && !is_incoming_port {
-                errors.push(BitsyError::NoDrivers(component.clone()));
+                errors.push(BitsyError::NoDrivers(remaining_component.clone()));
             }
         }
         errors
