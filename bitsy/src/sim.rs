@@ -198,12 +198,12 @@ fn make_dependents(
 fn make_net_id_by_ext_port(
     circuit: &Circuit,
     net_id_by_path: &BTreeMap<Path, NetId>,
-    ext_id_by_path: &BTreeMap<Path, ExtInstId>,
+    ext_inst_id_by_path: &BTreeMap<Path, ExtInstId>,
 ) -> BTreeMap<(ExtInstId, PortName), NetId> {
     let mut net_id_by_ext_port = BTreeMap::new();
 
     for (path, ext_component) in circuit.exts() {
-        let ext_id = ext_id_by_path[&path];
+        let ext_inst_id = ext_inst_id_by_path[&path];
         match &*ext_component {
             Component::Ext(_loc, _name, children) => {
                 for child in children {
@@ -211,7 +211,7 @@ fn make_net_id_by_ext_port(
                         Component::Outgoing(_loc, name, _typ) => {
                             let port_path = path.join(name.clone().into());
                             let net_id = net_id_by_path[&port_path];
-                            net_id_by_ext_port.insert((ext_id, name.clone()), net_id);
+                            net_id_by_ext_port.insert((ext_inst_id, name.clone()), net_id);
                         },
                         _ => (),
                     }
@@ -343,11 +343,12 @@ impl Sim {
             self.poke_net(*target_net_id, value);
         }
 
-        for (ext_id, port_name) in dependents.ext_inst_ports.iter() {
-            let ext = &mut *self.exts[*ext_id];
-            let path = self.sim_circuit.path_by_ext_inst_id[ext_id].clone();
+        for (ext_inst_id, port_name) in dependents.ext_inst_ports.iter() {
+            let ext_id = self.ext_id_by_ext_inst_id[ext_inst_id];
+            let ext = &mut *self.exts[ext_id];
+            let path = self.sim_circuit.path_by_ext_inst_id[&ext_inst_id].clone();
             for (updated_port_name, updated_value) in ext.update(path, port_name, value.clone()) {
-                let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_id, updated_port_name)];
+                let net_id = self.sim_circuit.net_id_by_ext_port[&(*ext_inst_id, updated_port_name)];
                 self.poke_net(net_id, updated_value);
             }
         }
