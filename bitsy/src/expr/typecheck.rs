@@ -304,6 +304,18 @@ impl Expr {
                 }
             },
             Expr::Vec(_loc, _typ, _es) => None,
+            Expr::IdxField(_loc, _typ, e, field) => {
+                match e.typeinfer(ctx.clone()) {
+                    Some(Type::Struct(typedef)) => {
+                        if let Some(type_actual) = typedef.type_of_field(field) {
+                            Some(type_actual.clone())
+                        } else {
+                            None
+                        }
+                    },
+                    _ => None,
+                }
+            },
             Expr::Idx(_loc, _typ, e, i) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Word(n)) if *i < n => Some(Type::word(1)),
