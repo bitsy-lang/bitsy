@@ -1,5 +1,6 @@
 use super::*;
 use crate::types::*;
+use std::sync::Arc;
 
 impl Expr {
     pub fn typecheck(self: &Arc<Self>, type_expected: Type, ctx: Context<Path, Type>) -> Result<(), TypeError> {

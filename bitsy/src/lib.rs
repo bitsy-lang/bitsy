@@ -10,6 +10,7 @@ pub mod sim;
 pub mod ast;
 
 mod types;
+mod typecheck;
 mod package;
 mod resolve;
 mod component;
@@ -25,6 +26,7 @@ mod error;
 mod tests;
 
 pub use types::*;
+pub use typecheck::*;
 pub use package::*;
 pub use resolve::*;
 pub use component::*;

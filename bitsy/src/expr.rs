@@ -1,5 +1,3 @@
-mod typecheck;
-
 use super::*;
 use crate::sim::NetId;
 use std::collections::BTreeSet;
@@ -405,7 +403,7 @@ impl Expr {
         self.type_of_cell().unwrap().get().unwrap().clone()
     }
 
-    fn type_of_cell(&self) -> Option<&OnceCell<Type>> {
+    pub(crate) fn type_of_cell(&self) -> Option<&OnceCell<Type>> {
         match self {
             Expr::Net(_loc, typ, _netid) => Some(typ),
             Expr::Reference(_loc, typ, _path) => Some(typ),
