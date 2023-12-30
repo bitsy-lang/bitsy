@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 use bitsy_lang::Package;
-use bitsy_lang::HasLoc;
+use bitsy_lang::HasSpan;
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -183,11 +183,11 @@ impl Buffer {
         if let Err(errors) = bitsy_lang::ast::parse_package_from_string(&self.text) {
                 info!("Errors: {errors:?}");
                 for error in errors {
-                    let start_line = error.loc().start().line() - 1;
-                    let start_character = error.loc().start().col() - 1;
+                    let start_line = error.span().start().line() - 1;
+                    let start_character = error.span().start().col() - 1;
 
-                    let end_line = error.loc().end().line() - 1;
-                    let end_character = error.loc().end().col() - 1;
+                    let end_line = error.span().end().line() - 1;
+                    let end_character = error.span().end().col() - 1;
 
                     let message = format!("{error}");
 
@@ -220,11 +220,11 @@ impl Buffer {
             Err(errors) => {
                 info!("Errors: {errors:?}");
                 for error in errors {
-                    let start_line = error.loc().start().line() - 1;
-                    let start_character = error.loc().start().col() - 1;
+                    let start_line = error.span().start().line() - 1;
+                    let start_character = error.span().start().col() - 1;
 
-                    let end_line = error.loc().end().line() - 1;
-                    let end_character = error.loc().end().col() - 1;
+                    let end_line = error.span().end().line() - 1;
+                    let end_character = error.span().end().col() - 1;
 
                     let message = format!("{error}");
 

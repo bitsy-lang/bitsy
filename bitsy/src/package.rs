@@ -130,23 +130,23 @@ impl Package {
         let mut results = vec![];
         for child in component.children() {
             match &*child {
-                Component::Node(_loc, name, _typ) => results.push((name.to_string().into(), child.clone())),
-                Component::Incoming(_loc, name, _typ) => results.push((name.to_string().into(), child.clone())),
-                Component::Outgoing(_loc, name, _typ) => results.push((name.to_string().into(), child.clone())),
-                Component::Reg(_loc, name, _typ, _reset) => results.push((name.to_string().into(), child.clone())),
-                Component::Mod(_loc, name, _children, _wires, _whens) => {
+                Component::Node(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
+                Component::Incoming(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
+                Component::Outgoing(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
+                Component::Reg(_span, name, _typ, _reset) => results.push((name.to_string().into(), child.clone())),
+                Component::Mod(_span, name, _children, _wires, _whens) => {
                     let mod_path: Path = name.to_string().into();
                     for (path, component) in child.port_paths() {
                         results.push((mod_path.join(path), component.clone()));
                     }
                 },
-                Component::ModInst(_loc, name, moddef) => {
+                Component::ModInst(_span, name, moddef) => {
                     let mod_path: Path = name.to_string().into();
                     for (path, component) in moddef.port_paths() {
                         results.push((mod_path.join(path), component.clone()));
                     }
                 },
-                Component::Ext(_loc, name, _children) => {
+                Component::Ext(_span, name, _children) => {
                     let ext_path: Path = name.to_string().into();
                     for (path, component) in child.port_paths() {
                         results.push((ext_path.join(path), component.clone()));
@@ -159,20 +159,20 @@ impl Package {
 
     pub fn type_of(&self, component: Arc<Component>) -> Option<Type> {
         match &*component {
-            Component::Mod(_loc, _name, _children, _wires, _whens) => None,
-            Component::ModInst(_loc, _name, _defname) => None,
-            Component::Ext(_loc, _name, _children) => None,
-            Component::Node(_loc, _name, typ) => Some(typ.clone()),
-            Component::Outgoing(_loc, _name, typ) => Some(typ.clone()),
-            Component::Incoming(_loc, _name, typ) => Some(typ.clone()),
-            Component::Reg(_loc, _name, typ, _reset) => Some(typ.clone()),
+            Component::Mod(_span, _name, _children, _wires, _whens) => None,
+            Component::ModInst(_span, _name, _defname) => None,
+            Component::Ext(_span, _name, _children) => None,
+            Component::Node(_span, _name, typ) => Some(typ.clone()),
+            Component::Outgoing(_span, _name, typ) => Some(typ.clone()),
+            Component::Incoming(_span, _name, typ) => Some(typ.clone()),
+            Component::Reg(_span, _name, typ, _reset) => Some(typ.clone()),
         }
     }
 
     pub(crate) fn component_from(&self, component: Arc<Component>, path: Path) -> Option<Arc<Component>> {
         let mut result: Arc<Component> = component;
         for part in path.split(".") {
-            if let Component::ModInst(_loc, _name, moddef) = &*result {
+            if let Component::ModInst(_span, _name, moddef) = &*result {
                 result = moddef.clone();
             }
 
@@ -256,50 +256,50 @@ impl Item {
     }
 }
 
-impl HasLoc for Item {
-    fn loc(&self) -> Loc {
+impl HasSpan for Item {
+    fn span(&self) -> Span {
         match self {
-            Item::ModDef(component) => component.loc(),
-            Item::ExtDef(component) => component.loc(),
-            Item::EnumTypeDef(typedef) => typedef.loc.clone(),
-            Item::StructTypeDef(typedef) => typedef.loc.clone(),
-            Item::AltTypeDef(typedef) => typedef.loc.clone(),
-            Item::FnDef(typedef) => typedef.loc.clone(),
+            Item::ModDef(component) => component.span(),
+            Item::ExtDef(component) => component.span(),
+            Item::EnumTypeDef(typedef) => typedef.span.clone(),
+            Item::StructTypeDef(typedef) => typedef.span.clone(),
+            Item::AltTypeDef(typedef) => typedef.span.clone(),
+            Item::FnDef(typedef) => typedef.span.clone(),
         }
     }
 }
 
 /// [`Wire`]s drive the value of port, node, or register.
 #[derive(Debug, Clone)]
-pub struct Wire(pub Loc, pub Path, pub Arc<Expr>, pub WireType);
+pub struct Wire(pub Span, pub Path, pub Arc<Expr>, pub WireType);
 
 #[derive(Debug, Clone)]
 pub struct When(pub Arc<Expr>, pub Vec<Wire>);
 
 impl Wire {
-    pub fn new(loc: Loc, target: Path, expr: Arc<Expr>, typ: WireType) -> Wire {
+    pub fn new(span: Span, target: Path, expr: Arc<Expr>, typ: WireType) -> Wire {
         // TODO REMOVE THIS.
-        Wire(loc, target, expr, typ)
+        Wire(span, target, expr, typ)
     }
 }
 
-impl HasLoc for Wire {
-    fn loc(&self) -> Loc {
-        let Wire(loc, _target, _expr, _wire_type) = self;
-        loc.clone()
+impl HasSpan for Wire {
+    fn span(&self) -> Span {
+        let Wire(span, _target, _expr, _wire_type) = self;
+        span.clone()
     }
 }
 
-impl HasLoc for Component {
-    fn loc(&self) -> Loc {
+impl HasSpan for Component {
+    fn span(&self) -> Span {
         match self {
-            Component::Mod(loc, _name, _children, _wires, _whens) => loc.clone(),
-            Component::ModInst(loc, _name, _moddef) => loc.clone(),
-            Component::Ext(loc, _name, _children) => loc.clone(),
-            Component::Incoming(loc, _name, _typ) => loc.clone(),
-            Component::Outgoing(loc, _name, _typ) => loc.clone(),
-            Component::Node(loc, _name, _typ) => loc.clone(),
-            Component::Reg(loc, _name, _typ, _expr) => loc.clone(),
+            Component::Mod(span, _name, _children, _wires, _whens) => span.clone(),
+            Component::ModInst(span, _name, _moddef) => span.clone(),
+            Component::Ext(span, _name, _children) => span.clone(),
+            Component::Incoming(span, _name, _typ) => span.clone(),
+            Component::Outgoing(span, _name, _typ) => span.clone(),
+            Component::Node(span, _name, _typ) => span.clone(),
+            Component::Reg(span, _name, _typ, _expr) => span.clone(),
         }
     }
 }

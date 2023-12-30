@@ -32,7 +32,7 @@ ModDef: ModDef = {
             children.push(decl);
         }
 
-        ModDef(Loc::from(source_info, ll, rr), id, children)
+        ModDef(Span::from(source_info, ll, rr), id, children)
     },
 }
 
@@ -46,7 +46,7 @@ ExtDef: ModDef = {
             children.push(decl);
         }
 
-        ModDef(Loc::from(source_info, ll, rr), id, children)
+        ModDef(Span::from(source_info, ll, rr), id, children)
     },
 }
 
@@ -57,7 +57,7 @@ EnumTypeDef: EnumTypeDef = {
         EnumTypeDef {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
-            loc: Loc::from(source_info, ll, rr),
+            span: Span::from(source_info, ll, rr),
         }
     },
 }
@@ -69,7 +69,7 @@ StructTypeDef: StructTypeDef = {
         StructTypeDef {
             name,
             fields: fields.iter().map(|(name, _, typ, _)| (name.clone(), typ.clone())).collect::<Vec<_>>(),
-            loc: Loc::from(source_info, ll, rr),
+            span: Span::from(source_info, ll, rr),
         }
     },
 }
@@ -81,7 +81,7 @@ AltTypeDef: AltTypeDef = {
         AltTypeDef {
             name,
             alts: alts.iter().map(|(name, _, typs, _, _)| (name.clone(), typs.clone())).collect::<Vec<_>>(),
-            loc: Loc::from(source_info, ll, rr),
+            span: Span::from(source_info, ll, rr),
         }
     },
 }
@@ -109,7 +109,7 @@ FnDef: FnDef = {
             args,
             ret,
             body: *body,
-            loc: Loc::from(source_info, ll, rr),
+            span: Span::from(source_info, ll, rr),
         }
     },
 }
@@ -130,14 +130,14 @@ ArgList: Vec<(Ident, Type)> = {
 
 
 Decl: Decl  = {
-    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Incoming(Loc::from(source_info, ll, rr), id, typ),
-    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Outgoing(Loc::from(source_info, ll, rr), id, typ),
-    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Node(Loc::from(source_info, ll, rr), id, typ),
-    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => Decl::Reg(Loc::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1)),
-    <ll:@L> <when:When> <rr:@R> => Decl::When(Loc::from(source_info, ll, rr), when),
+    <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Incoming(Span::from(source_info, ll, rr), id, typ),
+    <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Outgoing(Span::from(source_info, ll, rr), id, typ),
+    <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Node(Span::from(source_info, ll, rr), id, typ),
+    <ll:@L> "reg" <id:Id>  "of" <typ:Type> <reset_val:("reset" Expr)?> ";" <rr:@R> => Decl::Reg(Span::from(source_info, ll, rr), id, typ, reset_val.map(|opt| opt.1)),
+    <ll:@L> <when:When> <rr:@R> => Decl::When(Span::from(source_info, ll, rr), when),
     <m:Mod> => m,
     <m:ModInst> => m,
-    <ll:@L> <wire:Wire> <rr:@R> => Decl::Wire(Loc::from(source_info, ll, rr), wire),
+    <ll:@L> <wire:Wire> <rr:@R> => Decl::Wire(Span::from(source_info, ll, rr), wire),
 }
 
 When: When = {
@@ -156,18 +156,18 @@ Mod: Decl = {
             children.push(decl);
         }
 
-        Decl::Mod(Loc::from(source_info, ll, rr), id, children)
+        Decl::Mod(Span::from(source_info, ll, rr), id, children)
     },
 }
 
 Wire: Wire = {
-    <ll:@L> <target:Target> ":=" <e:Expr> ";" <rr:@R> => Wire(Loc::from(source_info, ll, rr), target, e, WireType::Direct),
-    <ll:@L> <target:Target> "<=" <e:Expr> ";" <rr:@R> => Wire(Loc::from(source_info, ll, rr), target, e, WireType::Latch),
-    <ll:@L> <target:Target> "<=!" <e:Expr> ";" <rr:@R> => Wire(Loc::from(source_info, ll, rr), target, e, WireType::Proc),
+    <ll:@L> <target:Target> ":=" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Direct),
+    <ll:@L> <target:Target> "<=" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Latch),
+    <ll:@L> <target:Target> "<=!" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Proc),
 }
 
 ModInst: Decl = {
-    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Loc::from(source_info, ll, rr), id, modname),
+    <ll:@L> "mod" <id:Id> "of" <modname:Id> ";" <rr:@R> => Decl::ModInst(Span::from(source_info, ll, rr), id, modname),
 }
 
 Expr: Box<Expr> = {
@@ -176,41 +176,41 @@ Expr: Box<Expr> = {
 }
 
 ExprOr: Box<Expr> = {
-    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Or, e1, e2)),
-    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "||" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Or, e1, e2)),
+    <ll:@L> <e1:ExprAnd> "^" <e2:ExprOr> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Xor, e1, e2)),
     <e:ExprAnd> => e,
 }
 
 ExprAnd: Box<Expr> = {
-    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::And, e1, e2)),
+    <ll:@L> <e1:ExprNot> "&&" <e2:ExprAnd> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::And, e1, e2)),
     <e:ExprNot> => e,
 }
 
 ExprNot: Box<Expr> = {
-    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Loc::from(source_info, ll, rr), UnOp::Not, e)),
+    <ll:@L> "!" <e:ExprEq> <rr:@R> => Box::new(Expr::UnOp(Span::from(source_info, ll, rr), UnOp::Not, e)),
     <e:ExprEq> => e,
 }
 
 ExprEq: Box<Expr> = {
-    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
-    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
+    <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
 ExprAdd: Box<Expr> = {
-    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Add, e1, e2)),
-    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
-    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Loc::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Add, e1, e2)),
+    <ll:@L> <e1:ExprCall> "+%" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::AddCarry, e1, e2)),
+    <ll:@L> <e1:ExprCall> "-" <e2:ExprAdd> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Sub, e1, e2)),
     <e:ExprCall> => e,
 }
 
 ExprCall: Box<Expr> = {
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Loc::from(source_info, ll, rr), vec![*e; n as usize])),
-    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, vec![])),
-    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
-    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Loc::from(source_info, ll, rr), name, es)),
+    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), es)),
+    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), vec![*e; n as usize])),
+    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![])),
+    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, es)),
+    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, es)),
     <e:StructCtor> => e,
     <e:ExprDot> => e,
 }
@@ -218,7 +218,7 @@ ExprCall: Box<Expr> = {
 StructCtor: Box<Expr> = {
     <ll:@L> "{" <fields:FieldExprList> "}" <rr:@R> => {
         let fields = fields.iter().map(|(name, e)| (name.to_string(), Box::new(e.clone()))).collect();
-        Box::new(Expr::Struct(Loc::from(source_info, ll, rr), fields))
+        Box::new(Expr::Struct(Span::from(source_info, ll, rr), fields))
     },
 }
 
@@ -251,10 +251,10 @@ ExprList: Vec<Expr> = {
 }
 
 ExprDot: Box<Expr> = {
-    <ll:@L> <e:ExprDot> "." <id:Id> <rr:@R> => Box::new(Expr::Dot(Loc::from(source_info, ll, rr), e, id)),
-    <ll:@L> <e:ExprDot> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Loc::from(source_info, ll, rr), e, field.clone())),
-    <ll:@L> <e:ExprDot> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Loc::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprDot> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Loc::from(source_info, ll, rr), e, j, i)),
+    <ll:@L> <e:ExprDot> "." <id:Id> <rr:@R> => Box::new(Expr::Dot(Span::from(source_info, ll, rr), e, id)),
+    <ll:@L> <e:ExprDot> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Span::from(source_info, ll, rr), e, field.clone())),
+    <ll:@L> <e:ExprDot> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Span::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprDot> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Span::from(source_info, ll, rr), e, j, i)),
     <e:ExprBase> => e,
 }
 
@@ -268,7 +268,7 @@ ExprBase: Box<Expr> = {
 }
 
 ExprHole: Box<Expr> = {
-    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Loc::from(source_info, ll, rr), name)),
+    <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Span::from(source_info, ll, rr), name)),
 }
 
 ExprIf: Box<Expr> = {
@@ -281,10 +281,10 @@ ExprIf: Box<Expr> = {
         let mut result = elseexpr;
 
         for (_, _, _, elseif_cond, _, elseif_body) in elseifs.into_iter().rev() {
-            result = Box::new(Expr::If(Loc::from(source_info, ll, rr), elseif_cond, elseif_body, result));
+            result = Box::new(Expr::If(Span::from(source_info, ll, rr), elseif_cond, elseif_body, result));
         }
 
-        Box::new(Expr::If(Loc::from(source_info, ll, rr), cond, e1, result))
+        Box::new(Expr::If(Span::from(source_info, ll, rr), cond, e1, result))
     },
 }
 
@@ -292,16 +292,16 @@ ExprLet: Box<Expr> = {
     <ll:@L> "let" <x:Id> <ascription:("of" Type)?> "=" <e:Expr> ";"
     <b:Expr> <rr:@R> => {
         let type_ascription = ascription.map(|(_of, typ)| typ);
-        Box::new(Expr::Let(Loc::from(source_info, ll, rr), x, type_ascription, e, b))
+        Box::new(Expr::Let(Span::from(source_info, ll, rr), x, type_ascription, e, b))
     },
 }
 
 ExprLit: Box<Expr> = {
-    <ll:@L> <typ:Type> "::" <name:Id> <rr:@R> => Box::new(Expr::Enum(Loc::from(source_info, ll, rr), typ, name.to_string())),
+    <ll:@L> <typ:Type> "::" <name:Id> <rr:@R> => Box::new(Expr::Enum(Span::from(source_info, ll, rr), typ, name.to_string())),
 
     <ll:@L> <lit:WordLit> <rr:@R> => {
         let WordLit(w, v) = lit;
-        Box::new(Expr::Word(Loc::from(source_info, ll, rr), w, v))
+        Box::new(Expr::Word(Span::from(source_info, ll, rr), w, v))
     },
 }
 
@@ -309,7 +309,7 @@ ExprMatch: Box<Expr> = {
     <ll:@L> "match" <e:Expr> "{"
         <arms:MatchArm*>
     "}" <rr:@R> => {
-        Box::new(Expr::Match(Loc::from(source_info, ll, rr), e, arms))
+        Box::new(Expr::Match(Span::from(source_info, ll, rr), e, arms))
     },
 }
 
@@ -341,7 +341,7 @@ PatList: Vec<Pat> = {
 }
 
 ExprId: Box<Expr> = {
-    <ll:@L> <id:Id> <rr:@R> => Box::new(Expr::Ident(Loc::from(source_info, ll, rr), id)),
+    <ll:@L> <id:Id> <rr:@R> => Box::new(Expr::Ident(Span::from(source_info, ll, rr), id)),
 }
 
 WordLit: WordLit = {
@@ -405,20 +405,20 @@ Str: String = {
 
 Id: Ident = {
     <ll:@L> <id:r"[_A-Za-z][_A-Za-z0-9]*"> <rr:@R> => {
-        let loc = Loc::from(source_info, ll, rr);
+        let span = Span::from(source_info, ll, rr);
         Ident {
             name: id.to_string(),
-            loc,
+            span,
         }
     },
 }
 
 Ctor: Ident = {
     <rr:@R> <id:r"@[_A-Za-z][_A-Za-z0-9]*"> <ll:@L> => {
-        let loc = Loc::from(source_info, ll, rr);
+        let span = Span::from(source_info, ll, rr);
         Ident {
             name: id.to_string(),
-            loc,
+            span,
         }
     },
 }

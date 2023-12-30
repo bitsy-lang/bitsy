@@ -1,6 +1,6 @@
 use super::error::BitsyError;
-use super::loc::Loc;
-use super::loc::HasLoc;
+use super::loc::Span;
+use super::loc::HasSpan;
 use super::loc::SourceInfo;
 
 use super::{BinOp, Length, Name, UnOp, Width, Pat};
@@ -30,8 +30,8 @@ pub enum Item {
 impl Item {
     pub fn name(&self) -> &str {
         match self {
-            Item::ModDef(ModDef(_loc, name, _decls)) => name.as_str(),
-            Item::ExtDef(ModDef(_loc, name, _decls)) => name.as_str(),
+            Item::ModDef(ModDef(_span, name, _decls)) => name.as_str(),
+            Item::ExtDef(ModDef(_span, name, _decls)) => name.as_str(),
             Item::EnumTypeDef(typedef) => typedef.name.as_str(),
             Item::StructTypeDef(typedef) => typedef.name.as_str(),
             Item::AltTypeDef(typedef) => typedef.name.as_str(),
@@ -40,33 +40,33 @@ impl Item {
     }
 }
 
-impl HasLoc for Item {
-    fn loc(&self) -> Loc {
+impl HasSpan for Item {
+    fn span(&self) -> Span {
         match self {
-            Item::ModDef(ModDef(loc, _name, _decls)) => loc.clone(),
-            Item::ExtDef(ModDef(loc, _name, _decls)) => loc.clone(),
-            Item::EnumTypeDef(typedef) => typedef.loc.clone(),
-            Item::StructTypeDef(typedef) => typedef.loc.clone(),
-            Item::AltTypeDef(typedef) => typedef.loc.clone(),
-            Item::FnDef(fndef) => fndef.loc.clone(),
+            Item::ModDef(ModDef(span, _name, _decls)) => span.clone(),
+            Item::ExtDef(ModDef(span, _name, _decls)) => span.clone(),
+            Item::EnumTypeDef(typedef) => typedef.span.clone(),
+            Item::StructTypeDef(typedef) => typedef.span.clone(),
+            Item::AltTypeDef(typedef) => typedef.span.clone(),
+            Item::FnDef(fndef) => fndef.span.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ModDef(pub Loc, pub Ident, pub Vec<Decl>);
+pub struct ModDef(pub Span, pub Ident, pub Vec<Decl>);
 
 /// A [`Decl`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]
 pub enum Decl {
-    Mod(Loc, Ident, Vec<Decl>),
-    ModInst(Loc, Ident, Ident),
-    Incoming(Loc, Ident, Type),
-    Outgoing(Loc, Ident, Type),
-    Node(Loc, Ident, Type),
-    Reg(Loc, Ident, Type, Option<Box<Expr>>),
-    Wire(Loc, Wire),
-    When(Loc, When),
+    Mod(Span, Ident, Vec<Decl>),
+    ModInst(Span, Ident, Ident),
+    Incoming(Span, Ident, Type),
+    Outgoing(Span, Ident, Type),
+    Node(Span, Ident, Type),
+    Reg(Span, Ident, Type, Option<Box<Expr>>),
+    Wire(Span, Wire),
+    When(Span, When),
 }
 
 /// A user-defined `enum` type.
@@ -74,7 +74,7 @@ pub enum Decl {
 pub struct EnumTypeDef {
     pub name: Ident,
     pub values: Vec<(Ident, WordLit)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// A user-defined `struct` type.
@@ -82,7 +82,7 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// A user-defined `alt` type.
@@ -90,7 +90,7 @@ pub struct StructTypeDef {
 pub struct AltTypeDef {
     pub name: Ident,
     pub alts: Vec<(Ident, Vec<Type>)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// A user-defined function.
@@ -100,44 +100,44 @@ pub struct FnDef {
     pub args: Vec<(Ident, Type)>,
     pub ret: Type,
     pub body: Expr,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// An expression.
 #[derive(Debug, Clone)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Ident(Loc, Ident),
+    Ident(Span, Ident),
     /// A dotted expression. Eg, `foo.bar`.
-    Dot(Loc, Box<Expr>, Ident),
+    Dot(Span, Box<Expr>, Ident),
     /// A literal Word.
-    Word(Loc, Option<Width>, u64),
+    Word(Span, Option<Width>, u64),
     /// A literal enum value.
-    Enum(Loc, Type, String),
+    Enum(Span, Type, String),
     /// A constructor for a struct type.
-    Struct(Loc, Vec<(String, Box<Expr>)>),
+    Struct(Span, Vec<(String, Box<Expr>)>),
     /// A constructor for a Vec
-    Vec(Loc, Vec<Expr>),
+    Vec(Span, Vec<Expr>),
     /// A call-like expression, including `cat` and constructors like `@Valid`.
-    Call(Loc, Ident, Vec<Expr>),
+    Call(Span, Ident, Vec<Expr>),
     /// Let binding. Eg, `let x = a + b in x + x`.
-    Let(Loc, Ident, Option<Type>, Box<Expr>, Box<Expr>),
+    Let(Span, Ident, Option<Type>, Box<Expr>, Box<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
-    UnOp(Loc, UnOp, Box<Expr>),
+    UnOp(Span, UnOp, Box<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
-    BinOp(Loc, BinOp, Box<Expr>, Box<Expr>),
+    BinOp(Span, BinOp, Box<Expr>, Box<Expr>),
     /// An `if` expression.
-    If(Loc, Box<Expr>, Box<Expr>, Box<Expr>),
+    If(Span, Box<Expr>, Box<Expr>, Box<Expr>),
     /// A `match` expression.
-    Match(Loc, Box<Expr>, Vec<MatchArm>),
+    Match(Span, Box<Expr>, Vec<MatchArm>),
     /// A field index. Eg, `foo->bar`.
-    IdxField(Loc, Box<Expr>, Ident),
+    IdxField(Span, Box<Expr>, Ident),
     /// A static index. Eg, `foo[0]`.
-    Idx(Loc, Box<Expr>, u64),
+    Idx(Span, Box<Expr>, u64),
     /// A static index over a range. Eg, `foo[8..4]`.
-    IdxRange(Loc, Box<Expr>, u64, u64),
+    IdxRange(Span, Box<Expr>, u64, u64),
     /// A hole. Eg, `?foo`.
-    Hole(Loc, Option<Ident>),
+    Hole(Span, Option<Ident>),
 }
 
 /// A reference to a hardware component, either in this module, or in a child module.
@@ -166,7 +166,7 @@ pub enum WireType {
 
 /// [`Wire`]s drive the value of port, node, or register.
 #[derive(Debug, Clone)]
-pub struct Wire(pub Loc, pub Target, pub Box<Expr>, pub WireType);
+pub struct Wire(pub Span, pub Target, pub Box<Expr>, pub WireType);
 
 /// A [`MatchArm`] is a case for a match expression.
 #[derive(Clone, Debug)]
@@ -196,7 +196,7 @@ pub struct When(pub Box<Expr>, pub Vec<Wire>);
 /// An identifier in the grammar.
 #[derive(Debug, Clone)]
 pub struct Ident {
-    pub loc: Loc,
+    pub span: Span,
     pub name: Name,
 }
 
@@ -206,9 +206,9 @@ impl std::fmt::Display for Ident {
     }
 }
 
-impl HasLoc for Ident {
-    fn loc(&self) -> Loc {
-        self.loc.clone()
+impl HasSpan for Ident {
+    fn span(&self) -> Span {
+        self.span.clone()
     }
 }
 
@@ -218,31 +218,31 @@ pub fn parse_package_from_string(package_text: &str) -> Result<Package, Vec<Bits
         Err(ParseError::UnrecognizedToken { token, expected }) => {
             let start_idx = token.0;
             let end_idx = token.2;
-            let loc = Loc::from(&source_info, start_idx, end_idx);
+            let span = Span::from(&source_info, start_idx, end_idx);
 
             let message = format!("Parse error: Expected one of {}", expected.join(" "));
-            return Err(vec![BitsyError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(span, message)]);
         },
         Err(ParseError::InvalidToken { location }) => {
-            let loc = Loc::from(&source_info, location, location + 1);
+            let span = Span::from(&source_info, location, location + 1);
             let message = format!("Parse error");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(span, message)]);
         },
         Err(ParseError::ExtraToken { token }) => {
             let start_idx = token.0;
             let end_idx = token.2;
-            let loc = Loc::from(&source_info, start_idx, end_idx);
+            let span = Span::from(&source_info, start_idx, end_idx);
             let message = format!("Parse error: extra token: {token:?}");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(span, message)]);
         },
         Err(ParseError::UnrecognizedEof { location, expected }) => {
-            let loc = Loc::from(&source_info, location, location + 1);
+            let span = Span::from(&source_info, location, location + 1);
             let message = format!("Parse error: Unexpected end of file: Expected {expected:?}");
-            return Err(vec![BitsyError::ParseError(loc, message)]);
+            return Err(vec![BitsyError::ParseError(span, message)]);
         },
         Err(ParseError::User { error }) => {
             let message = format!("Parse error: {error:?}");
-            return Err(vec![BitsyError::ParseError(Loc::unknown(), message)]);
+            return Err(vec![BitsyError::ParseError(Span::unknown(), message)]);
         },
         Ok(package) => Ok(package),
     }

@@ -1,7 +1,7 @@
 use super::Context;
 use super::Expr;
 use super::Path;
-use super::loc::Loc;
+use super::loc::Span;
 
 use std::sync::Arc;
 
@@ -84,7 +84,7 @@ impl Type {
 pub struct EnumTypeDef {
     pub name: String,
     pub values: Vec<(String, WordLit)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// A user-defined `struct` type.
@@ -92,7 +92,7 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 /// A user-defined `alt` type.
@@ -100,7 +100,7 @@ pub struct StructTypeDef {
 pub struct AltTypeDef {
     pub name: String,
     pub alts: Vec<(String, Vec<Type>)>,
-    pub loc: Loc,
+    pub span: Span,
 }
 
 impl AltTypeDef {
@@ -117,7 +117,7 @@ impl AltTypeDef {
 /// A user-defined `fn` function.
 #[derive(Debug, Clone)]
 pub struct FnDef {
-    pub loc: Loc,
+    pub span: Span,
     pub name: String,
     pub args: Vec<(String, Type)>,
     pub ret: Type,

@@ -37,12 +37,12 @@ impl SourceInfo {
         }
     }
 
-    pub fn start(&self, item: &dyn HasLoc) -> LineCol {
-        self.linelens.linecol(item.loc().start)
+    pub fn start(&self, item: &dyn HasSpan) -> LineCol {
+        self.linelens.linecol(item.span().start)
     }
 
-    pub fn end(&self, item: &dyn HasLoc) -> LineCol {
-        self.linelens.linecol(item.loc().end)
+    pub fn end(&self, item: &dyn HasSpan) -> LineCol {
+        self.linelens.linecol(item.span().end)
     }
 
     pub fn linecol_from(&self, pos: usize) -> LineCol {
@@ -79,15 +79,15 @@ impl std::fmt::Display for LineCol {
     }
 }
 
-/// A [`Loc`] tracks the span of an object parsed from a source.
+/// A [`Span`] tracks the span of an object parsed from a source.
 #[derive(Clone)]
-pub struct Loc {
+pub struct Span {
     start: Pos,
     end: Pos,
     source_info: SourceInfo,
 }
 
-impl std::fmt::Debug for Loc {
+impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match &self.source_info.source {
             Source::File(path) => write!(f, "[{}-{}:{:?}]", self.start(), self.end(), path),
@@ -97,7 +97,7 @@ impl std::fmt::Debug for Loc {
     }
 }
 
-impl std::fmt::Display for Loc {
+impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match &self.source_info.source {
             Source::File(path) => write!(f, "[{}-{}]", self.start(), self.end()),
@@ -107,18 +107,18 @@ impl std::fmt::Display for Loc {
     }
 }
 
-impl Loc {
+impl Span {
     /// When the location of something is unknown, you can use this.
-    pub fn unknown() -> Loc {
-        Loc {
+    pub fn unknown() -> Span {
+        Span {
             start: 0,
             end: 0,
             source_info: SourceInfo::unknown(),
         }
     }
 
-    pub fn from(source_info: &SourceInfo, start: usize, end: usize) -> Loc {
-        Loc {
+    pub fn from(source_info: &SourceInfo, start: usize, end: usize) -> Span {
+        Span {
             start,
             end,
             source_info: source_info.clone(),
@@ -145,9 +145,9 @@ impl Loc {
 }
 
 /// Many objects have location information.
-/// [`HasLoc`] allows you to call [`HasLoc::loc`] to get the span information.
-pub trait HasLoc {
-    fn loc(&self) -> Loc;
+/// [`HasSpan`] allows you to call [`HasLoc::loc`] to get the span information.
+pub trait HasSpan {
+    fn span(&self) -> Span;
 }
 
 #[derive(Clone, Debug)]

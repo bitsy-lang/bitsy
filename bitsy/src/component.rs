@@ -4,13 +4,13 @@ use std::sync::Arc;
 /// A [`Component`] is a declaration that lives inside of a `mod` or `ext` definiton.
 #[derive(Debug, Clone)]
 pub enum Component {
-    Mod(Loc, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
-    ModInst(Loc, Name, Arc<Component>),
-    Ext(Loc, Name, Vec<Arc<Component>>),
-    Incoming(Loc, Name, Type),
-    Outgoing(Loc, Name, Type),
-    Node(Loc, Name, Type),
-    Reg(Loc, Name, Type, Option<Arc<Expr>>),
+    Mod(Span, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
+    ModInst(Span, Name, Arc<Component>),
+    Ext(Span, Name, Vec<Arc<Component>>),
+    Incoming(Span, Name, Type),
+    Outgoing(Span, Name, Type),
+    Node(Span, Name, Type),
+    Reg(Span, Name, Type, Option<Arc<Expr>>),
 }
 
 impl Component {

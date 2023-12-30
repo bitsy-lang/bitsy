@@ -91,26 +91,26 @@ impl Namespace {
     }
 
     fn resolve_moddef(&self, moddef: &ast::ModDef) -> Result<Arc<Component>, Vec<BitsyError>> {
-        let ast::ModDef(loc, name, decls) = moddef;
+        let ast::ModDef(span, name, decls) = moddef;
         let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
         let (children, wires, whens) = self.resolve_decls(decls_slice)?;
-        Ok(Arc::new(Component::Mod(loc.clone(), name.to_string(), children, wires, whens)))
+        Ok(Arc::new(Component::Mod(span.clone(), name.to_string(), children, wires, whens)))
     }
 
     fn resolve_extmoddef(&self, moddef: &ast::ModDef) -> Result<Arc<Component>, Vec<BitsyError>> {
-        let ast::ModDef(loc, name, decls) = moddef;
+        let ast::ModDef(span, name, decls) = moddef;
         let decls_slice: &[&ast::Decl] = &decls.iter().collect::<Vec<_>>();
         let (children, wires, whens) = self.resolve_decls(decls_slice)?;
         assert!(wires.is_empty());
         assert!(whens.is_empty());
-        Ok(Arc::new(Component::Ext(loc.clone(), name.to_string(), children)))
+        Ok(Arc::new(Component::Ext(span.clone(), name.to_string(), children)))
     }
 
     fn resolve_enum_typedef(&self, typedef: &ast::EnumTypeDef) -> Result<Arc<EnumTypeDef>, Vec<BitsyError>> {
         let package_typedef = Arc::new(EnumTypeDef {
             name: typedef.name.to_string(),
             values: typedef.values.iter().map(|(name, val)| (name.to_string(), val.clone())).collect(),
-            loc: typedef.loc.clone(),
+            span: typedef.span.clone(),
         });
         Ok(package_typedef)
     }
@@ -124,7 +124,7 @@ impl Namespace {
         let package_typedef = Arc::new(StructTypeDef {
             name: typedef.name.to_string(),
             fields: fields.into_iter().collect(),
-            loc: typedef.loc.clone(),
+            span: typedef.span.clone(),
         });
         Ok(package_typedef)
     }
@@ -142,7 +142,7 @@ impl Namespace {
         let package_typedef = Arc::new(AltTypeDef {
             name: typedef.name.to_string(),
             alts: alts.into_iter().collect(),
-            loc: typedef.loc.clone(),
+            span: typedef.span.clone(),
         });
         Ok(package_typedef)
     }
@@ -154,7 +154,7 @@ impl Namespace {
         }
 
         let package_typedef = Arc::new(FnDef {
-            loc: Loc::unknown(),
+            span: Span::unknown(),
             name: fndef.name.to_string(),
             args: args.into_iter().collect(),
             ret: self.resolve_type(&fndef.ret)?,
@@ -188,45 +188,45 @@ impl Namespace {
 
         for decl in decls {
             match decl {
-                ast::Decl::Mod(loc, name, decls) => {
+                ast::Decl::Mod(span, name, decls) => {
                     let (inner_children, wires, whens) = self.resolve_decls(&decls.iter().collect::<Vec<_>>())?;
-                    let child = Component::Mod(loc.clone(), name.to_string(), inner_children, wires, whens);
+                    let child = Component::Mod(span.clone(), name.to_string(), inner_children, wires, whens);
                     children.push(Arc::new(child));
                 },
-                ast::Decl::ModInst(loc, name, moddef_name) => {
+                ast::Decl::ModInst(span, name, moddef_name) => {
                     let moddef = self.moddef(moddef_name.as_str()).unwrap();
-                    let child = Component::ModInst(loc.clone(), name.to_string(), moddef);
+                    let child = Component::ModInst(span.clone(), name.to_string(), moddef);
                     children.push(Arc::new(child));
                 },
-                ast::Decl::Incoming(loc, name, typ) => {
-                    let child = Component::Incoming(loc.clone(), name.to_string(), self.resolve_type(typ)?);
+                ast::Decl::Incoming(span, name, typ) => {
+                    let child = Component::Incoming(span.clone(), name.to_string(), self.resolve_type(typ)?);
                     children.push(Arc::new(child));
                 },
-                ast::Decl::Outgoing(loc, name, typ) => {
-                    let child = Component::Outgoing(loc.clone(), name.to_string(), self.resolve_type(typ)?);
+                ast::Decl::Outgoing(span, name, typ) => {
+                    let child = Component::Outgoing(span.clone(), name.to_string(), self.resolve_type(typ)?);
                     children.push(Arc::new(child));
                 },
-                ast::Decl::Node(loc, name, typ) => {
-                    let child = Component::Node(loc.clone(), name.to_string(), self.resolve_type(typ)?);
+                ast::Decl::Node(span, name, typ) => {
+                    let child = Component::Node(span.clone(), name.to_string(), self.resolve_type(typ)?);
                     children.push(Arc::new(child));
                 },
-                ast::Decl::Reg(loc, name, typ, reset) => {
+                ast::Decl::Reg(span, name, typ, reset) => {
                     let reset_e = if let Some(e) = reset {
                         Some(self.resolve_expr(&e, Context::empty())?)
                     } else {
                         None
                     };
                     let child = Component::Reg(
-                        loc.clone(),
+                        span.clone(),
                         name.to_string(),
                         self.resolve_type(typ)?,
                         reset_e,
                     );
                     children.push(Arc::new(child));
                 },
-                ast::Decl::Wire(loc, ast::Wire(_loc, target, expr, wire_type)) => {
+                ast::Decl::Wire(span, ast::Wire(_loc, target, expr, wire_type)) => {
                     let wire = Wire(
-                        loc.clone(),
+                        span.clone(),
                         target_to_path(target),
                         self.resolve_expr(expr, Context::empty())?,
                         wire_type.clone(),
@@ -237,9 +237,9 @@ impl Namespace {
                     let mut package_wires = vec![];
                     let package_cond = self.resolve_expr(&*cond, Context::empty())?;
 
-                    for ast::Wire(loc, target, expr, wire_type) in wires {
+                    for ast::Wire(span, target, expr, wire_type) in wires {
                         let package_wire = Wire(
-                            loc.clone(),
+                            span.clone(),
                             target_to_path(target),
                             self.resolve_expr(expr, Context::empty())?,
                             wire_type.clone(),
@@ -257,56 +257,56 @@ impl Namespace {
 
     fn resolve_expr(&self, expr: &ast::Expr, ctx: Context<String, Type>) -> Result<Arc<Expr>, Vec<BitsyError>> {
         Ok(Arc::new(match expr {
-            ast::Expr::Ident(loc, id) => {
+            ast::Expr::Ident(span, id) => {
                 self.add_ident(id);
-                Expr::Reference(loc.clone(), OnceCell::new(), id.to_string().into())
+                Expr::Reference(span.clone(), OnceCell::new(), id.to_string().into())
             },
-            ast::Expr::Dot(loc, e, x) => {
+            ast::Expr::Dot(span, e, x) => {
                 if let ast::Expr::Ident(_loc, id) = &**e {
                     self.add_ident(id);
-                    Expr::Reference(loc.clone(), OnceCell::new(), format!("{id}.{x}").into())
+                    Expr::Reference(span.clone(), OnceCell::new(), format!("{id}.{x}").into())
                 } else {
                     panic!()
                 }
             },
-            ast::Expr::Word(loc, w, n) => Expr::Word(loc.clone(), OnceCell::new(), *w, *n),
-            ast::Expr::Enum(loc, typ, value) => {
-                Expr::Enum(loc.clone(), OnceCell::new(), self.resolve_type(typ)?, value.clone())
+            ast::Expr::Word(span, w, n) => Expr::Word(span.clone(), OnceCell::new(), *w, *n),
+            ast::Expr::Enum(span, typ, value) => {
+                Expr::Enum(span.clone(), OnceCell::new(), self.resolve_type(typ)?, value.clone())
             },
-            ast::Expr::Struct(loc, fields) => {
+            ast::Expr::Struct(span, fields) => {
                 let mut package_fields: Vec<(String, Arc<Expr>)> = vec![];
                 for (name, expr) in fields {
                     package_fields.push((name.to_string(), self.resolve_expr(expr, ctx.clone())?));
                 }
-                Expr::Struct(loc.clone(), OnceCell::new(), package_fields)
+                Expr::Struct(span.clone(), OnceCell::new(), package_fields)
             },
-            ast::Expr::Vec(loc, es) => {
+            ast::Expr::Vec(span, es) => {
                 let mut package_es: Vec<Arc<Expr>> = vec![];
                 for expr in es {
                     package_es.push(self.resolve_expr(expr, ctx.clone())?);
                 }
-                Expr::Vec(loc.clone(), OnceCell::new(), package_es)
+                Expr::Vec(span.clone(), OnceCell::new(), package_es)
             },
-            ast::Expr::Call(loc, func, es) => {
+            ast::Expr::Call(span, func, es) => {
                 let mut package_es: Vec<Arc<Expr>> = vec![];
                 for expr in es {
                     package_es.push(self.resolve_expr(expr, ctx.clone())?);
                 }
                 match func.as_str() {
-                    "cat" => Expr::Cat(loc.clone(), OnceCell::new(), package_es),
+                    "cat" => Expr::Cat(span.clone(), OnceCell::new(), package_es),
                     "mux" => Expr::Mux(
-                        loc.clone(),
+                        span.clone(),
                         OnceCell::new(),
                         package_es[0].clone(),
                         package_es[1].clone(),
                         package_es[2].clone(),
                     ),
-                    "sext" => Expr::Sext(loc.clone(), OnceCell::new(), package_es[0].clone()),
-                    "zext" => Expr::Zext(loc.clone(), OnceCell::new(), package_es[0].clone()),
-                    "trycast" => Expr::TryCast(loc.clone(), OnceCell::new(), package_es[0].clone()),
-                    "word" => Expr::ToWord(loc.clone(), OnceCell::new(), package_es[0].clone()),
-                    "@Valid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Valid".to_string(), package_es),
-                    "@Invalid" => Expr::Ctor(loc.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
+                    "sext" => Expr::Sext(span.clone(), OnceCell::new(), package_es[0].clone()),
+                    "zext" => Expr::Zext(span.clone(), OnceCell::new(), package_es[0].clone()),
+                    "trycast" => Expr::TryCast(span.clone(), OnceCell::new(), package_es[0].clone()),
+                    "word" => Expr::ToWord(span.clone(), OnceCell::new(), package_es[0].clone()),
+                    "@Valid" => Expr::Ctor(span.clone(), OnceCell::new(), "Valid".to_string(), package_es),
+                    "@Invalid" => Expr::Ctor(span.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
                     fnname => {
                         let func = fnname.to_string();
                         if fnname.starts_with("@") {
@@ -314,20 +314,20 @@ impl Namespace {
                             for expr in es {
                                 package_es.push(self.resolve_expr(expr, ctx.clone())?);
                             }
-                            Expr::Ctor(loc.clone(), OnceCell::new(), fnname[1..].to_string(), package_es)
+                            Expr::Ctor(span.clone(), OnceCell::new(), fnname[1..].to_string(), package_es)
                         } else if let Some(fndef) = self.fndef(&func) {
                             let mut package_es: Vec<Arc<Expr>> = vec![];
                             for expr in es {
                                 package_es.push(self.resolve_expr(expr, ctx.clone())?);
                             }
-                            Expr::Call(loc.clone(), OnceCell::new(), fndef, package_es)
+                            Expr::Call(span.clone(), OnceCell::new(), fndef, package_es)
                         } else {
                             panic!("Unknown call: {func}")
                         }
                     },
                 }
             },
-            ast::Expr::Let(loc, x, type_ascription, e, b) => {
+            ast::Expr::Let(span, x, type_ascription, e, b) => {
                 let package_e = self.resolve_expr(e, ctx.clone())?;
                 let package_b = self.resolve_expr(b, ctx)?;
                 let package_ascription = if let Some(typ) = type_ascription {
@@ -335,47 +335,47 @@ impl Namespace {
                 } else {
                     None
                 };
-                Expr::Let(loc.clone(), OnceCell::new(), x.to_string(), package_ascription, package_e, package_b)
+                Expr::Let(span.clone(), OnceCell::new(), x.to_string(), package_ascription, package_e, package_b)
             },
-            ast::Expr::UnOp(loc, op, e1) => {
-                Expr::UnOp(loc.clone(), OnceCell::new(), *op, self.resolve_expr(&e1, ctx)?)
+            ast::Expr::UnOp(span, op, e1) => {
+                Expr::UnOp(span.clone(), OnceCell::new(), *op, self.resolve_expr(&e1, ctx)?)
             },
-            ast::Expr::BinOp(loc, op, e1, e2) => Expr::BinOp(
-                loc.clone(),
+            ast::Expr::BinOp(span, op, e1, e2) => Expr::BinOp(
+                span.clone(),
                 OnceCell::new(),
                 *op,
                 self.resolve_expr(&e1, ctx.clone())?,
                 self.resolve_expr(&e2, ctx)?,
             ),
-            ast::Expr::If(loc, c, e1, e2) => {
+            ast::Expr::If(span, c, e1, e2) => {
                 let package_c = self.resolve_expr(c, ctx.clone())?;
                 let package_e1 = self.resolve_expr(e1, ctx.clone())?;
                 let package_e2 = self.resolve_expr(e2, ctx)?;
-                Expr::If(loc.clone(), OnceCell::new(), package_c, package_e1, package_e2)
+                Expr::If(span.clone(), OnceCell::new(), package_c, package_e1, package_e2)
             },
-            ast::Expr::Match(loc, e, arms) => {
+            ast::Expr::Match(span, e, arms) => {
                 let package_e = self.resolve_expr(e, ctx.clone())?;
                 let mut package_arms: Vec<MatchArm> = vec![];
                 for ast::MatchArm(pat, expr) in arms {
                     let package_expr = self.resolve_expr(expr, ctx.clone())?;
                     package_arms.push(MatchArm(pat.clone(), package_expr))
                 }
-                Expr::Match(loc.clone(), OnceCell::new(), package_e, package_arms)
+                Expr::Match(span.clone(), OnceCell::new(), package_e, package_arms)
             },
-            ast::Expr::IdxField(loc, e, field) => Expr::IdxField(
-                loc.clone(),
+            ast::Expr::IdxField(span, e, field) => Expr::IdxField(
+                span.clone(),
                 OnceCell::new(),
                 self.resolve_expr(&e, ctx)?,
                 field.to_string(),
             ),
-            ast::Expr::Idx(loc, e, i) => {
-                Expr::Idx(loc.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *i)
+            ast::Expr::Idx(span, e, i) => {
+                Expr::Idx(span.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *i)
             },
-            ast::Expr::IdxRange(loc, e, j, i) => {
-                Expr::IdxRange(loc.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *j, *i)
+            ast::Expr::IdxRange(span, e, j, i) => {
+                Expr::IdxRange(span.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *j, *i)
             },
-            ast::Expr::Hole(loc, name) => {
-                Expr::Hole(loc.clone(), OnceCell::new(), name.clone().map(|name| name.to_string()))
+            ast::Expr::Hole(span, name) => {
+                Expr::Hole(span.clone(), OnceCell::new(), name.clone().map(|name| name.to_string()))
             },
         }))
     }
@@ -651,7 +651,7 @@ fn order_items(package: &ast::Package) -> Result<Vec<&ast::Item>, Vec<BitsyError
             if let Some((dependency, _item)) = items.get(&item_dependency.name) {
                 graph.add_edge(node, *dependency, ());
             } else {
-                errors.push(BitsyError::Unknown(Some(item_dependency.loc.clone()), format!("{item_dependency} not found")));
+                errors.push(BitsyError::Unknown(Some(item_dependency.span.clone()), format!("{item_dependency} not found")));
             }
         }
     }
