@@ -4,7 +4,7 @@ use crate::types::*;
 impl Expr {
     pub fn typecheck(self: &Arc<Self>, type_expected: Type, ctx: Context<Path, Type>) -> Result<(), TypeError> {
         if let Some(type_actual) = self.typeinfer(ctx.clone()) {
-            if type_actual == type_expected {
+            if type_actual.equals(&type_expected) {
                 return Ok(());
             } else {
                 return Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()));
@@ -31,7 +31,7 @@ impl Expr {
                 }
             },
             (_type_expected, Expr::Enum(_loc, _typ, typedef, _name)) => {
-                if type_expected == *typedef {
+                if type_expected.equals(typedef) {
                     Ok(())
                 } else {
                     Err(TypeError::Other(self.clone(), format!("Type Error")))
@@ -120,7 +120,7 @@ impl Expr {
             },
             (Type::Word(n), Expr::BinOp(_loc, _typ, BinOp::AddCarry, e1, e2)) => {
                 if let (Some(typ1), Some(typ2)) = (e1.typeinfer(ctx.clone()), e2.typeinfer(ctx.clone())) {
-                    if n > 0 && typ1 == typ2 && typ1 == Type::Word(n - 1) {
+                    if n > 0 && typ1.equals(&typ2) && typ1.equals(&Type::Word(n - 1)) {
                         Ok(())
                     } else {
                         Err(TypeError::Other(self.clone(), format!("Types don't match")))
@@ -212,7 +212,7 @@ impl Expr {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Struct(typedef)) => {
                         if let Some(type_actual) = typedef.type_of_field(field) {
-                            if type_expected == type_actual {
+                            if type_expected.equals(&type_actual) {
                                 Ok(())
                             } else {
                                 return Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()));

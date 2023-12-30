@@ -40,6 +40,19 @@ impl Item {
     }
 }
 
+impl HasLoc for Item {
+    fn loc(&self) -> Loc {
+        match self {
+            Item::ModDef(ModDef(loc, _name, _decls)) => loc.clone(),
+            Item::ExtDef(ModDef(loc, _name, _decls)) => loc.clone(),
+            Item::EnumTypeDef(typedef) => typedef.loc.clone(),
+            Item::StructTypeDef(typedef) => typedef.loc.clone(),
+            Item::AltTypeDef(typedef) => typedef.loc.clone(),
+            Item::FnDef(fndef) => fndef.loc.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ModDef(pub Loc, pub Ident, pub Vec<Decl>);
 
@@ -61,6 +74,7 @@ pub enum Decl {
 pub struct EnumTypeDef {
     pub name: Ident,
     pub values: Vec<(Ident, WordLit)>,
+    pub loc: Loc,
 }
 
 /// A user-defined `struct` type.
@@ -68,6 +82,7 @@ pub struct EnumTypeDef {
 pub struct StructTypeDef {
     pub name: Ident,
     pub fields: Vec<(Ident, Type)>,
+    pub loc: Loc,
 }
 
 /// A user-defined `alt` type.
@@ -75,6 +90,7 @@ pub struct StructTypeDef {
 pub struct AltTypeDef {
     pub name: Ident,
     pub alts: Vec<(Ident, Vec<Type>)>,
+    pub loc: Loc,
 }
 
 /// A user-defined function.
@@ -84,6 +100,7 @@ pub struct FnDef {
     pub args: Vec<(Ident, Type)>,
     pub ret: Type,
     pub body: Expr,
+    pub loc: Loc,
 }
 
 /// An expression.

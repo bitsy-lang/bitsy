@@ -87,6 +87,7 @@ impl Namespace {
         let package_typedef = Arc::new(EnumTypeDef {
             name: typedef.name.to_string(),
             values: typedef.values.iter().map(|(name, val)| (name.to_string(), val.clone())).collect(),
+            loc: typedef.loc.clone(),
         });
         Ok(package_typedef)
     }
@@ -100,6 +101,7 @@ impl Namespace {
         let package_typedef = Arc::new(StructTypeDef {
             name: typedef.name.to_string(),
             fields: fields.into_iter().collect(),
+            loc: typedef.loc.clone(),
         });
         Ok(package_typedef)
     }
@@ -117,6 +119,7 @@ impl Namespace {
         let package_typedef = Arc::new(AltTypeDef {
             name: typedef.name.to_string(),
             alts: alts.into_iter().collect(),
+            loc: typedef.loc.clone(),
         });
         Ok(package_typedef)
     }
@@ -128,6 +131,7 @@ impl Namespace {
         }
 
         let package_typedef = Arc::new(FnDef {
+            loc: Loc::unknown(),
             name: fndef.name.to_string(),
             args: args.into_iter().collect(),
             ret: self.resolve_type(&fndef.ret)?,

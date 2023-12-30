@@ -57,6 +57,7 @@ EnumTypeDef: EnumTypeDef = {
         EnumTypeDef {
             name,
             values: values.iter().map(|(n, _, v, _)| (n.clone(), v.clone())).collect::<Vec<_>>(),
+            loc: Loc::from(source_info, ll, rr),
         }
     },
 }
@@ -68,6 +69,7 @@ StructTypeDef: StructTypeDef = {
         StructTypeDef {
             name,
             fields: fields.iter().map(|(name, _, typ, _)| (name.clone(), typ.clone())).collect::<Vec<_>>(),
+            loc: Loc::from(source_info, ll, rr),
         }
     },
 }
@@ -79,6 +81,7 @@ AltTypeDef: AltTypeDef = {
         AltTypeDef {
             name,
             alts: alts.iter().map(|(name, _, typs, _, _)| (name.clone(), typs.clone())).collect::<Vec<_>>(),
+            loc: Loc::from(source_info, ll, rr),
         }
     },
 }
@@ -98,14 +101,15 @@ TypeList: Vec<Type> = {
 }
 
 FnDef: FnDef = {
-    "fn" <name:Id> "(" <args:ArgList> ")" "->" <ret:Type> "{"
+    <ll:@L> "fn" <name:Id> "(" <args:ArgList> ")" "->" <ret:Type> "{"
         <body:Expr>
-    "}" => {
+    "}" <rr:@R> => {
         FnDef {
             name,
             args,
             ret,
             body: *body,
+            loc: Loc::from(source_info, ll, rr),
         }
     },
 }

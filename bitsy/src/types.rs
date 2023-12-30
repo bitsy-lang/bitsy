@@ -1,6 +1,7 @@
 use super::Context;
 use super::Expr;
 use super::Path;
+use super::loc::Loc;
 
 use std::sync::Arc;
 
@@ -13,7 +14,7 @@ pub type Width = u64;
 pub type Length = u64;
 
 /// A type classifier for [`crate::sim::Value`]s.
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum Type {
     /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
     Word(Width),
@@ -38,6 +39,19 @@ impl Type {
             Type::Enum(typedef) => &typedef.name,
             Type::Struct(typedef) => &typedef.name,
             Type::Alt(typedef) => &typedef.name,
+        }
+    }
+
+    #[rustfmt::skip]
+    pub fn equals(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Word(width1),      Type::Word(width2)) => width1 == width2,
+            (Type::Vec(typ1, len1),   Type::Vec(typ2, len2)) => len1 == len2 && typ1.equals(typ2),
+            (Type::Valid(typ1),       Type::Valid(typ2)) => typ1.equals(typ2),
+            (Type::Enum(typedef1),    Type::Enum(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
+            (Type::Struct(typedef1),  Type::Struct(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
+            (Type::Alt(typedef1),     Type::Alt(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
+            _ => false,
         }
     }
 
@@ -66,24 +80,27 @@ impl Type {
 }
 
 /// A user-defined `enum` type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EnumTypeDef {
     pub name: String,
     pub values: Vec<(String, WordLit)>,
+    pub loc: Loc,
 }
 
 /// A user-defined `struct` type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct StructTypeDef {
     pub name: String,
     pub fields: Vec<(String, Type)>,
+    pub loc: Loc,
 }
 
 /// A user-defined `alt` type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct AltTypeDef {
     pub name: String,
     pub alts: Vec<(String, Vec<Type>)>,
+    pub loc: Loc,
 }
 
 impl AltTypeDef {
@@ -100,6 +117,7 @@ impl AltTypeDef {
 /// A user-defined `fn` function.
 #[derive(Debug, Clone)]
 pub struct FnDef {
+    pub loc: Loc,
     pub name: String,
     pub args: Vec<(String, Type)>,
     pub ret: Type,

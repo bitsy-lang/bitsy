@@ -31,12 +31,20 @@ impl Package {
         }
     }
 
+    pub fn items(&self) -> Vec<Item> {
+        let mut results = vec![];
+        for item in &self.items {
+            results.push(item.clone())
+        }
+        results
+    }
+
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
         let mut results = vec![];
-        for items in &self.items {
-            if let Item::ModDef(moddef) = &items {
+        for item in &self.items {
+            if let Item::ModDef(moddef) = &item {
                 results.push(moddef.clone());
-            } else if let Item::ExtDef(moddef) = &items {
+            } else if let Item::ExtDef(moddef) = &item {
                 results.push(moddef.clone());
             }
         }
@@ -237,6 +245,19 @@ impl Item {
         match self {
             Item::FnDef(fndef) => Some(fndef.clone()),
             _ => None,
+        }
+    }
+}
+
+impl HasLoc for Item {
+    fn loc(&self) -> Loc {
+        match self {
+            Item::ModDef(component) => component.loc(),
+            Item::ExtDef(component) => component.loc(),
+            Item::EnumTypeDef(typedef) => typedef.loc.clone(),
+            Item::StructTypeDef(typedef) => typedef.loc.clone(),
+            Item::AltTypeDef(typedef) => typedef.loc.clone(),
+            Item::FnDef(typedef) => typedef.loc.clone(),
         }
     }
 }

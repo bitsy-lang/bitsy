@@ -97,6 +97,16 @@ impl std::fmt::Debug for Loc {
     }
 }
 
+impl std::fmt::Display for Loc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match &self.source_info.source {
+            Source::File(path) => write!(f, "[{}-{}]", self.start(), self.end()),
+            Source::String(_s) => write!(f, "[{}-{}]", self.start(), self.end()),
+            Source::Unknown => write!(f, "[{}-{}]", self.start(), self.end()),
+        }
+    }
+}
+
 impl Loc {
     /// When the location of something is unknown, you can use this.
     pub fn unknown() -> Loc {

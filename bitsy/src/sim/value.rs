@@ -1,7 +1,7 @@
 use crate::types::*;
 
 /// A value used in the simulator (see [`crate::sim::Sim`]).
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default)]
 pub enum Value {
     /// An undefined value.
     #[default]
@@ -15,6 +15,51 @@ pub enum Value {
     /// An element of a user-defined `enum`.
     Enum(Type, String),
     Struct(Type, Vec<(String, Value)>),
+}
+
+impl PartialEq for Value {
+    #[rustfmt::skip]
+    fn eq(&self, other: &Value) -> bool {
+        match (self, other) {
+            //(Value::X, Value::X) => false,
+            (Value::Word(w1, v1), Value::Word(w2, v2)) => w1 == w2 && v1 == v2,
+            (Value::Vec(vs1), Value::Vec(vs2)) => {
+                assert_eq!(vs1.len(), vs2.len());
+                for (v1, v2) in vs1.iter().zip(vs2.iter()) {
+                    if v1 != v2 {
+                        return false;
+                    }
+                }
+                true
+            },
+            (Value::Enum(typ1, name1), Value::Enum(typ2, name2)) => typ1.equals(typ2) && name1 == name2,
+            (Value::Struct(typ1, fields1), Value::Struct(typ2, fields2)) => {
+                if !typ1.equals(typ2) {
+                    return false;
+                }
+                assert_eq!(fields1.len(), fields2.len());
+                for ((name1, v1), (name2, v2)) in fields1.iter().zip(fields2.iter()) {
+                    assert_eq!(name1, name2);
+                    if v1 != v2 {
+                        return false;
+                    }
+                }
+                true
+            },
+            (Value::Ctor(ctor1, vs1), Value::Ctor(ctor2, vs2)) => {
+                if ctor1 != ctor2 {
+                    return false;
+                }
+                for (v1, v2) in vs1.iter().zip(vs2.iter()) {
+                    if v1 != v2 {
+                        return false;
+                    }
+                }
+                true
+            },
+            _ => false,
+        }
+    }
 }
 
 impl Value {
