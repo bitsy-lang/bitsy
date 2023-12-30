@@ -208,40 +208,6 @@ impl Expr {
                     Ok(())
                 }
             },
-            (_type_expected, Expr::IdxField(_span, _typ, e, field)) => {
-                // TODO probably want to infer idx exprs rather than check them.
-                match e.typeinfer(ctx.clone()) {
-                    Some(Type::Struct(typedef)) => {
-                        if let Some(type_actual) = typedef.type_of_field(field) {
-                            if type_expected.equals(&type_actual) {
-                                Ok(())
-                            } else {
-                                return Err(TypeError::NotExpectedType(type_expected.clone(), type_actual.clone(), self.clone()));
-                            }
-                        } else {
-                            Err(TypeError::Other(self.clone(), format!("No such field: {field}")))
-                        }
-                    },
-                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Expected struct type, not {typ:?}"))),
-                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
-                }
-            },
-            (_type_expected, Expr::Idx(_span, _typ, e, i)) => {
-                match e.typeinfer(ctx.clone()) {
-                    Some(Type::Word(n)) if *i < n => Ok(()),
-                    Some(Type::Word(_n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
-                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}"))),
-                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
-                }
-            },
-            (_type_expected, Expr::IdxRange(_span, _typ, e, j, i)) => {
-                match e.typeinfer(ctx.clone()) {
-                    Some(Type::Word(n)) if n >= *j && j >= i => Ok(()),
-                    Some(Type::Word(_n)) => Err(TypeError::Other(self.clone(), format!("Index out of bounds"))),
-                    Some(typ) => Err(TypeError::Other(self.clone(), format!("Can't index into type {typ:?}"))),
-                    None => Err(TypeError::Other(self.clone(), format!("Can't infer the type of {e:?}"))),
-                }
-            },
             (_type_expected, Expr::Call(_span, _typ, fndef, es)) => {
                 // TODO
                 if fndef.args.len() != es.len() {
@@ -261,16 +227,14 @@ impl Expr {
             _ => Err(TypeError::Other(self.clone(), format!("{self:?} is not the expected type {type_expected:?}"))),
         };
 
-        if let Some(typ) = self.type_of_cell() {
-            if let Ok(()) = &result {
-                let _ = typ.set(type_expected);
-            }
+        if let Ok(()) = &result {
+            self.annotate_type(type_expected.clone());
         }
         result
     }
 
-    pub fn typeinfer(self: &Arc<Self>, ctx: Context<Path, Type>) -> Option<Type> {
-        let result = match &**self {
+    pub fn typeinfer(&self, ctx: Context<Path, Type>) -> Option<Type> {
+        let result = match self {
             Expr::Reference(_span, _typ, path) => {
                 let type_actual = ctx.lookup(path)?;
                 Some(type_actual)
@@ -278,6 +242,7 @@ impl Expr {
             Expr::Net(_span, _typ, _netid) => panic!("Can't typecheck a net"),
             Expr::Word(_span, _typ, None, _n) => None,
             Expr::Word(_span, _typ, Some(w), n) => if n >> w == 0 {
+                // TODO the n >> w condition should be a check, not a typecheck.
                 Some(Type::word(*w))
             } else {
                 None
@@ -296,15 +261,6 @@ impl Expr {
                 }
                 Some(Type::word(w))
             },
-            Expr::ToWord(_span, _typ, e) => {
-                match e.typeinfer(ctx.clone()) {
-                    Some(Type::Enum(typedef)) => {
-                        Some(Type::word(typedef.bitwidth()))
-                    }
-                    _ => None,
-                }
-            },
-            Expr::Vec(_span, _typ, _es) => None,
             Expr::IdxField(_span, _typ, e, field) => {
                 match e.typeinfer(ctx.clone()) {
                     Some(Type::Struct(typedef)) => {
@@ -331,16 +287,19 @@ impl Expr {
                     None => None,
                 }
             },
-            Expr::Hole(_span, _typ, _opt_name) => None,
             _ => None,
         };
 
         if let Some(type_actual) = &result {
-            if let Some(typ) = self.type_of_cell() {
-                let _ = typ.set(type_actual.clone());
-            }
+            self.annotate_type(type_actual.clone());
         }
         result
+    }
+
+    fn annotate_type(&self, typ: Type) {
+        if let Some(type_cell) = self.type_of_cell() {
+            let _ = type_cell.set(typ.clone());
+        }
     }
 }
 

@@ -20,11 +20,6 @@ pub fn resolve(package: &ast::Package) -> Result<Namespace, Vec<BitsyError>> {
         namespace.add_item(item.name(), item.clone());
     }
 
-    // TODO
-    for ident in namespace.idents().iter() {
-        eprintln!("{ident:?}");
-    }
-
     Ok(namespace)
 }
 
