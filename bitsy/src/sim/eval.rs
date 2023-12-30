@@ -70,14 +70,12 @@ impl Expr {
             },
             Expr::If(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
-                let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
-                let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
-                if cond_v.is_x() || v1.is_x() || v2.is_x() {
+                if cond_v.is_x() {
                     return Value::X;
                 }
                 match cond_v {
-                    Value::Word(1, 1) => v1,
-                    Value::Word(1, 0) => v2,
+                    Value::Word(1, 1) => e1.eval_with_ctx(bitsy, ctx.clone()),
+                    Value::Word(1, 0) => e2.eval_with_ctx(bitsy, ctx.clone()),
                     _ => Value::X,
                 }
             },
@@ -97,14 +95,12 @@ impl Expr {
             },
             Expr::Mux(_loc, _typ, cond, e1, e2) => {
                 let cond_v = cond.eval_with_ctx(bitsy, ctx.clone());
-                let v1 = e1.eval_with_ctx(bitsy, ctx.clone());
-                let v2 = e2.eval_with_ctx(bitsy, ctx.clone());
-                if cond_v.is_x() || v1.is_x() || v2.is_x() {
+                if cond_v.is_x() {
                     return Value::X;
                 }
                 match cond_v {
-                    Value::Word(1, 1) => v1,
-                    Value::Word(1, 0) => v2,
+                    Value::Word(1, 1) => e1.eval_with_ctx(bitsy, ctx.clone()),
+                    Value::Word(1, 0) => e2.eval_with_ctx(bitsy, ctx.clone()),
                     _ => Value::X,
                 }
             },
@@ -297,11 +293,12 @@ impl Expr {
 
                 fndef.body.eval_with_ctx(bitsy, new_ctx)
             },
-            Expr::Hole(_loc, _typ, opt_name) => {
+            Expr::Hole(loc, _typ, opt_name) => {
                 match opt_name {
-                    Some(name) => panic!("EVALUATED A HOLE: ?{name}"),
-                    None => panic!("EVALUATED A HOLE"),
+                    Some(name) => eprintln!("{loc} EVALUATED A HOLE: ?{name}: {ctx:?}"),
+                    None => eprintln!("{loc} EVALUATED A HOLE: {ctx}"),
                 }
+                Value::X
             },
         }
     }

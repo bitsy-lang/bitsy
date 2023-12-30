@@ -218,7 +218,6 @@ impl Expr {
                 } else {
                     let mut errors = vec![];
                     for ((arg_name, arg_typ), e) in fndef.args.iter().rev().zip(es.iter()) {
-                        eprintln!("checking {arg_name} has {arg_typ:?} in {e:?}");
                         if let Err(error) = e.typecheck(Type::clone(&arg_typ), ctx.clone()) {
                             errors.push(error);
                         }
@@ -257,6 +256,17 @@ impl Expr {
             },
             Expr::Enum(_span, _typ, typedef, _name) => {
                 Some(typedef.clone())
+            },
+            Expr::BinOp(_span, _typ, BinOp::Eq | BinOp::Neq | BinOp::Lt, e1, e2) => {
+                if let Some(typ1) = e1.typeinfer(ctx.clone()) {
+                    if let Err(_) = e2.typecheck(typ1, ctx.clone()) {
+                        None
+                    } else {
+                        Some(Type::Word(1))
+                    }
+                } else {
+                    None
+                }
             },
             Expr::Cat(_span, _typ, es) => {
                 let mut w = 0u64;
