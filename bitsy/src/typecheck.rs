@@ -216,8 +216,16 @@ impl Expr {
                     let n = es.len();
                     Err(TypeError::Other(self.clone(), format!("{fn_name} takes {n} args, but found {m} instead")))
                 } else {
-                    for ((_arg_name, arg_typ), e) in fndef.args.iter().zip(es.iter()) {
-                        e.typecheck(Type::clone(&arg_typ), ctx.clone())?;
+                    let mut errors = vec![];
+                    for ((arg_name, arg_typ), e) in fndef.args.iter().rev().zip(es.iter()) {
+                        eprintln!("checking {arg_name} has {arg_typ:?} in {e:?}");
+                        if let Err(error) = e.typecheck(Type::clone(&arg_typ), ctx.clone()) {
+                            errors.push(error);
+                        }
+                    }
+
+                    if errors.len() > 0 {
+                        return Err(errors[0].clone());
                     }
 
                     Ok(())
