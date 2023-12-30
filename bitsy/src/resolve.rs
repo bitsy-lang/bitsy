@@ -1,39 +1,62 @@
 use super::*;
 
+use ast::Ident;
 use std::collections::BTreeSet;
 use std::collections::BTreeMap;
 use once_cell::sync::OnceCell;
 use std::sync::Arc;
+use std::sync::Mutex;
 
-struct Namespace(BTreeMap<String, Item>);
+pub struct Namespace {
+    items: BTreeMap<String, Item>,
+    idents: Mutex<Vec<Ident>>,
+}
 
-pub fn resolve(package: &ast::Package) -> Result<Vec<Item>, Vec<BitsyError>> {
+pub fn resolve(package: &ast::Package) -> Result<Namespace, Vec<BitsyError>> {
     let mut namespace = Namespace::new();
 
     for item in order_items(package)? {
         let item = namespace.resolve_item(item)?;
-        namespace.add(item.name(), item.clone());
+        namespace.add_item(item.name(), item.clone());
     }
 
-    Ok(namespace.items().into_iter().map(|(_name, item)| item).collect())
+    // TODO
+    for ident in namespace.idents().iter() {
+        eprintln!("{ident:?}");
+    }
+
+    Ok(namespace)
 }
 
 impl Namespace {
     fn new() -> Namespace {
-        Namespace(BTreeMap::new())
+        Namespace {
+            items: BTreeMap::new(),
+            idents: Mutex::new(Vec::new()),
+        }
     }
 
-    fn items(&self) -> Vec<(String, Item)> {
-        self.0.clone().into_iter().collect()
+    pub fn items(&self) -> Vec<(String, Item)> {
+        self.items.clone().into_iter().collect()
     }
 
-    fn add(&mut self, name: &str, item: Item) {
-        let prev = self.0.insert(name.to_string(), item);
+    pub fn idents(&self) -> Vec<Ident> {
+        let idents = self.idents.lock().unwrap();
+        idents.to_vec()
+    }
+
+    fn add_item(&mut self, name: &str, item: Item) {
+        let prev = self.items.insert(name.to_string(), item);
         assert!(prev.is_none());
     }
 
+    fn add_ident(&self, ident: &Ident) {
+        let mut idents = self.idents.lock().unwrap();
+        idents.push(ident.clone());
+    }
+
     fn item(&self, name: &str) -> Option<Item> {
-        self.0.get(name).cloned()
+        self.items.get(name).cloned()
     }
 
     fn moddef(&self, name: &str) -> Option<Arc<Component>> {
@@ -145,12 +168,15 @@ impl Namespace {
             ast::Type::Word(n) => Type::word(*n),
             ast::Type::Vec(t, n) => Type::vec(self.resolve_type(t)?, *n),
             ast::Type::Valid(t) => Type::valid(self.resolve_type(t)?),
-            ast::Type::TypeRef(r) => match self.item(r.as_str()) {
-                Some(Item::EnumTypeDef(typedef)) => Type::Enum(typedef.clone()),
-                Some(Item::StructTypeDef(typedef)) => Type::Struct(typedef.clone()),
-                Some(Item::AltTypeDef(typedef)) => Type::Alt(typedef.clone()),
-                Some(_) => return Err(vec![BitsyError::Unknown(None, format!("Not a type definition: {r}"))]),
-                None => return Err(vec![BitsyError::Unknown(None, format!("Type definition not found: {r}"))]),
+            ast::Type::TypeRef(r) => {
+                self.add_ident(r);
+                match self.item(r.as_str()) {
+                    Some(Item::EnumTypeDef(typedef)) => Type::Enum(typedef.clone()),
+                    Some(Item::StructTypeDef(typedef)) => Type::Struct(typedef.clone()),
+                    Some(Item::AltTypeDef(typedef)) => Type::Alt(typedef.clone()),
+                    Some(_) => return Err(vec![BitsyError::Unknown(None, format!("Not a type definition: {r}"))]),
+                    None => return Err(vec![BitsyError::Unknown(None, format!("Type definition not found: {r}"))]),
+                }
             },
         })
     }
@@ -231,9 +257,13 @@ impl Namespace {
 
     fn resolve_expr(&self, expr: &ast::Expr, ctx: Context<String, Type>) -> Result<Arc<Expr>, Vec<BitsyError>> {
         Ok(Arc::new(match expr {
-            ast::Expr::Ident(loc, id) => Expr::Reference(loc.clone(), OnceCell::new(), id.to_string().into()),
+            ast::Expr::Ident(loc, id) => {
+                self.add_ident(id);
+                Expr::Reference(loc.clone(), OnceCell::new(), id.to_string().into())
+            },
             ast::Expr::Dot(loc, e, x) => {
                 if let ast::Expr::Ident(_loc, id) = &**e {
+                    self.add_ident(id);
                     Expr::Reference(loc.clone(), OnceCell::new(), format!("{id}.{x}").into())
                 } else {
                     panic!()

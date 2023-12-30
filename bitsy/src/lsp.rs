@@ -313,6 +313,9 @@ impl State {
     }
 
     fn text_document_hover(&mut self, message: Value) {
+        let line = message["params"]["position"]["line"].as_u64().unwrap();
+        let character = message["params"]["position"]["character"].as_u64().unwrap();
+        warn!("{line}:{character}");
         let response: Value = json!({
             "jsonrpc": "2.0",
             "id": message["id"],

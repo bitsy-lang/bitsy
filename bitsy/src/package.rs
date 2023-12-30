@@ -2,6 +2,7 @@ use super::*;
 
 use std::sync::Arc;
 
+pub use ast::Ident;
 pub use ast::WireType;
 
 pub type Name = String;
@@ -11,14 +12,20 @@ pub type Name = String;
 #[derive(Debug, Clone)]
 pub struct Package {
     items: Vec<Item>,
+    idents: Vec<Ident>,
 }
 
 impl Package {
     pub fn from(ast: &ast::Package) -> Result<Package, Vec<BitsyError>> {
-        let items = resolve::resolve(ast)?;
+        let namespace = resolve::resolve(ast)?;
+        let items = namespace.items().into_iter().map(|(_name, item)| item).collect();
+        let idents = namespace.idents();
+
         let package = Package {
             items,
+            idents,
         };
+
         package.check()?;
         Ok(package)
     }

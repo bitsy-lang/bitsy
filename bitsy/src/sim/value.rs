@@ -21,7 +21,7 @@ impl PartialEq for Value {
     #[rustfmt::skip]
     fn eq(&self, other: &Value) -> bool {
         match (self, other) {
-            //(Value::X, Value::X) => false,
+            (Value::X, Value::X) => true,
             (Value::Word(w1, v1), Value::Word(w2, v2)) => w1 == w2 && v1 == v2,
             (Value::Vec(vs1), Value::Vec(vs2)) => {
                 assert_eq!(vs1.len(), vs2.len());
