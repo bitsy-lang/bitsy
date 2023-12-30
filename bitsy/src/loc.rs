@@ -58,10 +58,16 @@ pub enum Source {
 }
 
 /// A [`LineCol`] is a container for a line and column.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LineCol(usize, usize);
 
 impl LineCol {
+    pub fn from(line: usize, col: usize) -> LineCol {
+        assert!(line > 0);
+        assert!(col > 0);
+        LineCol(line - 1, col - 1)
+    }
+
     /// The line number. Starts with line 1.
     pub fn line(&self) -> usize {
         self.0 + 1
@@ -100,7 +106,7 @@ impl std::fmt::Debug for Span {
 impl std::fmt::Display for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match &self.source_info.source {
-            Source::File(path) => write!(f, "[{}-{}]", self.start(), self.end()),
+            Source::File(_path) => write!(f, "[{}-{}]", self.start(), self.end()),
             Source::String(_s) => write!(f, "[{}-{}]", self.start(), self.end()),
             Source::Unknown => write!(f, "[{}-{}]", self.start(), self.end()),
         }
@@ -141,6 +147,10 @@ impl Span {
         } else {
             ""
         }
+    }
+
+    pub fn contains(&self, linecol: &LineCol) -> bool {
+        &self.start() <= linecol && linecol <= &self.end()
     }
 }
 

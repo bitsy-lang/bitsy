@@ -3,6 +3,7 @@
 use serde_json::{Value, json};
 use bitsy_lang::Package;
 use bitsy_lang::HasSpan;
+use bitsy_lang::LineCol;
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -313,9 +314,24 @@ impl State {
     }
 
     fn text_document_hover(&mut self, message: Value) {
-        let line = message["params"]["position"]["line"].as_u64().unwrap();
-        let character = message["params"]["position"]["character"].as_u64().unwrap();
-        warn!("{line}:{character}");
+        let line = message["params"]["position"]["line"].as_u64().unwrap() + 1;
+        let character = message["params"]["position"]["character"].as_u64().unwrap() + 1;
+        let linecol = LineCol::from(line.try_into().unwrap(), character.try_into().unwrap());
+
+        let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
+        let buffer = self.buffer(&uri);
+
+        let mut hover_ident = None;
+
+        if let Ok(package) = bitsy_lang::load_package_from_string(&buffer.text) {
+            for ident in package.idents().iter() {
+                if ident.span().contains(&linecol) {
+                    hover_ident = Some(ident.clone());
+                }
+            }
+        }
+
+        warn!("Hover: {linecol}: {:?}", hover_ident);
         let response: Value = json!({
             "jsonrpc": "2.0",
             "id": message["id"],
@@ -331,19 +347,45 @@ impl State {
     }
 
     fn text_document_definition(&mut self, message: Value) {
-        let (start_line, start_character) = (0, 0);
-        let (end_line, end_character) = (0, 1);
+        let line = message["params"]["position"]["line"].as_u64().unwrap() + 1;
+        let character = message["params"]["position"]["character"].as_u64().unwrap() + 1;
+        let linecol = LineCol::from(line.try_into().unwrap(), character.try_into().unwrap());
+
         let uri = message["params"]["textDocument"]["uri"].as_str().unwrap().to_string();
-        let response: Value = json!({
-            "jsonrpc": "2.0",
-            "id": message["id"],
-            "result": {
+        let buffer = self.buffer(&uri);
+
+        let mut item_span = None;
+        if let Ok(package) = bitsy_lang::load_package_from_string(&buffer.text) {
+            for ident in package.idents().iter() {
+                if ident.span().contains(&linecol) {
+                    if let Some(item) = package.item(&ident.name) {
+                        item_span = Some(item.span());
+                    }
+                }
+            }
+        }
+
+        let result = if let Some(span) = item_span {
+            let start_line = span.start().line() - 1;
+            let start_character = span.start().col() - 1;
+            let end_line = span.end().line() - 1;
+            let end_character = span.end().col() - 1;
+
+            json!({
                 "uri": uri,
                 "range": {
                     "start": { "line": start_line, "character": start_character },
                     "end": { "line": end_line, "character": end_character },
                 },
-            },
+            })
+        } else {
+            json!(null)
+        };
+
+        let response: Value = json!({
+            "jsonrpc": "2.0",
+            "id": message["id"],
+            "result": result,
         });
 
         send_message(response);

@@ -194,6 +194,7 @@ impl Namespace {
                     children.push(Arc::new(child));
                 },
                 ast::Decl::ModInst(span, name, moddef_name) => {
+                    self.add_ident(moddef_name);
                     let moddef = self.moddef(moddef_name.as_str()).unwrap();
                     let child = Component::ModInst(span.clone(), name.to_string(), moddef);
                     children.push(Arc::new(child));

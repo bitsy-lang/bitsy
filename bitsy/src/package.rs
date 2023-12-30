@@ -30,6 +30,10 @@ impl Package {
         Ok(package)
     }
 
+    pub fn idents(&self) -> Vec<Ident> {
+        self.idents.clone()
+    }
+
     pub fn top(&self, top_name: &str) -> Result<Circuit, BitsyError>  {
         if let Some(top) = self.moddef(top_name) {
             Ok(Circuit(self.clone(), top))
@@ -44,6 +48,15 @@ impl Package {
             results.push(item.clone())
         }
         results
+    }
+
+    pub fn item(&self, name: &str) -> Option<Item> {
+        for item in &self.items {
+            if name == item.name() {
+                return Some(item.clone());
+            }
+        }
+        None
     }
 
     pub fn moddefs(&self) -> Vec<Arc<Component>> {
