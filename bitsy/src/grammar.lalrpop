@@ -133,6 +133,11 @@ Type: Type = {
     },
 }
 
+TypeParam: TypeParam = {
+    <n:Nat> => TypeParam::Nat(n),
+    <typ:Type> => TypeParam::Type(typ),
+}
+
 Kind: Kind = {
     "Nat"  => Kind::Nat,
     "Type" => Kind::Type,
@@ -195,6 +200,8 @@ ModInst: Decl = {
 
 Expr: Box<Expr> = {
     <e:ExprLet> => e,
+    <e:ExprIf> => e,
+    <e:ExprMatch> => e,
     <e:ExprOr> => e,
 }
 
@@ -229,8 +236,6 @@ ExprAdd: Box<Expr> = {
 }
 
 ExprCall: Box<Expr> = {
-    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), es)),
-    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), vec![*e; n as usize])),
     <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![], vec![])),
     <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![], es)),
     <ll:@L> <name:Id> <params:("<" TypeParamList ">")?> "(" <es:ExprList> ")" <rr:@R> => {
@@ -241,33 +246,38 @@ ExprCall: Box<Expr> = {
         };
         Box::new(Expr::Call(Span::from(source_info, ll, rr), name, params, es))
     },
-    <e:StructCtor> => e,
-    <e:ExprDot> => e,
+    <e:ExprIdx> => e,
 }
 
-StructCtor: Box<Expr> = {
+ExprIdx: Box<Expr> = {
+    <ll:@L> <e:ExprIdx> "." <id:Id> <rr:@R> => Box::new(Expr::Dot(Span::from(source_info, ll, rr), e, id)),
+    <ll:@L> <e:ExprIdx> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Span::from(source_info, ll, rr), e, field.clone())),
+    <ll:@L> <e:ExprIdx> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Span::from(source_info, ll, rr), e, i)),
+    <ll:@L> <e:ExprIdx> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Span::from(source_info, ll, rr), e, j, i)),
+    <e:ExprBase> => e,
+}
+
+ExprBase: Box<Expr> = {
+    <e:ExprVec> => e,
+    <e:ExprStruct> => e,
+    <e:ExprLit> => e,
+    <e:ExprHole> => e,
+    <e:ExprId> => e,
+    "(" <e:Expr> ")" => e,
+}
+
+ExprVec: Box<Expr> = {
+    <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), es)),
+    <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), vec![*e; n as usize])),
+}
+
+ExprStruct: Box<Expr> = {
     <ll:@L> "{" <fields:FieldExprList> "}" <rr:@R> => {
         let fields = fields.iter().map(|(name, e)| (name.to_string(), Box::new(e.clone()))).collect();
         Box::new(Expr::Struct(Span::from(source_info, ll, rr), fields))
     },
 }
 
-ExprDot: Box<Expr> = {
-    <ll:@L> <e:ExprDot> "." <id:Id> <rr:@R> => Box::new(Expr::Dot(Span::from(source_info, ll, rr), e, id)),
-    <ll:@L> <e:ExprDot> "->" <field:Id> <rr:@R> => Box::new(Expr::IdxField(Span::from(source_info, ll, rr), e, field.clone())),
-    <ll:@L> <e:ExprDot> "[" <i:Nat> "]" <rr:@R> => Box::new(Expr::Idx(Span::from(source_info, ll, rr), e, i)),
-    <ll:@L> <e:ExprDot> "[" <j:Nat> ".." <i:Nat> "]" <rr:@R> => Box::new(Expr::IdxRange(Span::from(source_info, ll, rr), e, j, i)),
-    <e:ExprBase> => e,
-}
-
-ExprBase: Box<Expr> = {
-    <e:ExprLit> => e,
-    <e:ExprIf> => e,
-    <e:ExprMatch> => e,
-    <e:ExprHole> => e,
-    <e:ExprId> => e,
-    "(" <e:Expr> ")" => e,
-}
 
 ExprHole: Box<Expr> = {
     <ll:@L> "?" <name:Id?> <rr:@R> => Box::new(Expr::Hole(Span::from(source_info, ll, rr), name)),
@@ -300,7 +310,6 @@ ExprLet: Box<Expr> = {
 
 ExprLit: Box<Expr> = {
     <ll:@L> <typ:Type> "::" <name:Id> <rr:@R> => Box::new(Expr::Enum(Span::from(source_info, ll, rr), typ, name.to_string())),
-
     <ll:@L> <lit:WordLit> <rr:@R> => {
         let WordLit(w, v) = lit;
         Box::new(Expr::Word(Span::from(source_info, ll, rr), w, v))
@@ -328,27 +337,12 @@ Pat: Pat = {
     "otherwise" => Pat::Otherwise,
 }
 
-PatList: Vec<Pat> = {
-    <pats:((Pat ("," Pat)* ","?)?)> => {
-        if let Some((pat, pats, _comma)) = pats {
-            let mut results = vec![pat];
-            for (_comma, pat) in pats {
-                results.push(pat);
-            }
-            results
-        } else {
-            vec![]
-        }
-    },
-}
-
 ExprId: Box<Expr> = {
     <ll:@L> <id:Id> <rr:@R> => Box::new(Expr::Ident(Span::from(source_info, ll, rr), id)),
 }
 
 WordLit: WordLit = {
     <n:Nat> => WordLit(None, n),
-
     <lit:r"[0-9][_0-9]*w[0-9]+"> => {
         let lit_nounders: String = lit.chars().filter(|&c| c != '_').collect();
         let parts = lit_nounders.split("w").collect::<Vec<_>>();
@@ -356,7 +350,6 @@ WordLit: WordLit = {
         let width = parts[1].parse().unwrap();
         WordLit(Some(width), v)
     },
-
     <lit:r"0b[0-1][_0-1]*w[0-9]+"> => {
         let lit_nounders: String = lit.chars().filter(|&c| c != '_').collect();
         let parts = lit_nounders.split("w").collect::<Vec<_>>();
@@ -364,7 +357,6 @@ WordLit: WordLit = {
         let width = parts[1].parse().unwrap();
         WordLit(Some(width), v)
     },
-
     <lit:r"0x[0-9a-fA-F][_0-9a-fA-F]*w[0-9]+"> => {
         let lit_nounders: String = lit.chars().filter(|&c| c != '_').collect();
         let parts = lit_nounders.split("w").collect::<Vec<_>>();
@@ -372,11 +364,6 @@ WordLit: WordLit = {
         let width = parts[1].parse().unwrap();
         WordLit(Some(width), v)
     },
-}
-
-TypeParam: TypeParam = {
-    <n:Nat> => TypeParam::Nat(n),
-    <typ:Type> => TypeParam::Type(typ),
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -411,7 +398,6 @@ ExprList: Vec<Expr> = {
     },
 }
 
-
 TypeList: Vec<Type> = {
     <args:((Type ("," Type)* ","?)?)> => {
         if let Some((typ, args, _comma)) = args {
@@ -425,7 +411,6 @@ TypeList: Vec<Type> = {
         }
     },
 }
-
 
 TypeArgList: Vec<(Ident, Kind)> = {
     <args:((Id "of" Kind ("," Id "of" Kind)* ","?)?)> => {
@@ -461,6 +446,20 @@ TypeParamList: Vec<TypeParam> = {
             let mut results = vec![param];
             for (_comma, param) in params {
                 results.push(param);
+            }
+            results
+        } else {
+            vec![]
+        }
+    },
+}
+
+PatList: Vec<Pat> = {
+    <pats:((Pat ("," Pat)* ","?)?)> => {
+        if let Some((pat, pats, _comma)) = pats {
+            let mut results = vec![pat];
+            for (_comma, pat) in pats {
+                results.push(pat);
             }
             results
         } else {
