@@ -244,15 +244,6 @@ impl Item {
         }
     }
 
-    pub fn as_type(&self) -> Option<Type> {
-        match self {
-            Item::EnumTypeDef(typedef) => Some(Type::Enum(typedef.clone())),
-            Item::StructTypeDef(typedef) => Some(Type::Struct(typedef.clone())),
-            Item::AltTypeDef(typedef) => Some(Type::Alt(typedef.clone())),
-            _ => None,
-        }
-    }
-
     pub fn as_component(&self) -> Option<Arc<Component>> {
         match self {
             Item::ModDef(component) => Some(component.clone()),

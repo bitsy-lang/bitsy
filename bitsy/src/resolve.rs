@@ -163,16 +163,28 @@ impl Namespace {
             ast::Type::Word(n) => Type::word(*n),
             ast::Type::Vec(t, n) => Type::vec(self.resolve_type(t)?, *n),
             ast::Type::Valid(t) => Type::valid(self.resolve_type(t)?),
-            ast::Type::TypeRef(r) => {
+            ast::Type::TypeRef(r, params) => {
+                // TODO add params to Type::Enum Struct Alt.
                 self.add_ident(r);
+                let mut resolved_params = vec![];
+                for param in params {
+                    resolved_params.push(self.resolve_type_param(param)?);
+                }
                 match self.item(r.as_str()) {
                     Some(Item::EnumTypeDef(typedef)) => Type::Enum(typedef.clone()),
                     Some(Item::StructTypeDef(typedef)) => Type::Struct(typedef.clone()),
-                    Some(Item::AltTypeDef(typedef)) => Type::Alt(typedef.clone()),
+                    Some(Item::AltTypeDef(typedef)) => Type::Alt(typedef.clone(), resolved_params),
                     Some(_) => return Err(vec![BitsyError::Unknown(None, format!("Not a type definition: {r}"))]),
                     None => return Err(vec![BitsyError::Unknown(None, format!("Type definition not found: {r}"))]),
                 }
             },
+        })
+    }
+
+    fn resolve_type_param(&self, typ: &ast::TypeParam) -> Result<TypeParam, Vec<BitsyError>> {
+        Ok(match typ {
+            ast::TypeParam::Nat(n) => TypeParam::Nat(*n),
+            ast::TypeParam::Type(typ) => TypeParam::Type(self.resolve_type(typ)?),
         })
     }
 
@@ -526,7 +538,7 @@ fn type_dependencies(typ: &ast::Type) -> Result<Vec<ast::Ident>, Vec<BitsyError>
         ast::Type::Word(_n) => Ok(Vec::new()),
         ast::Type::Vec(t, _n) => type_dependencies(t),
         ast::Type::Valid(t) => type_dependencies(t),
-        ast::Type::TypeRef(r) => Ok(vec![r.clone()]),
+        ast::Type::TypeRef(r, _params) => Ok(vec![r.clone()]),
     }
 }
 

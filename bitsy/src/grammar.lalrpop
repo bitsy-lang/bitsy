@@ -194,7 +194,7 @@ ExprNot: Box<Expr> = {
 ExprEq: Box<Expr> = {
     <ll:@L> <e1:ExprAdd> "==" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Eq,  e1, e2)),
     <ll:@L> <e1:ExprAdd> "!=" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Neq, e1, e2)),
-    <ll:@L> <e1:ExprAdd> "<" <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
+    <ll:@L> <e1:ExprAdd> "<." <e2:ExprEq> <rr:@R> => Box::new(Expr::BinOp(Span::from(source_info, ll, rr), BinOp::Lt, e1, e2)),
     <e:ExprAdd> => e,
 }
 
@@ -376,7 +376,33 @@ Type: Type = {
     "Word" "<" <n:Nat> ">" => Type::Word(n),
     "Vec" "<" <typ:Type> "," <n:Nat> ">" => Type::Vec(Box::new(typ), n),
     "Valid" "<" <typ:Type> ">" => Type::Valid(Box::new(typ)),
-    <id:Id> => Type::TypeRef(id),
+    <id:Id> <params:("<" TypeParamList ">")?> => {
+        let params = if let Some((_langle, params, _rangle)) = params {
+            params
+        } else {
+            vec![]
+        };
+        Type::TypeRef(id, params)
+    },
+}
+
+TypeParam: TypeParam = {
+    <n:Nat> => TypeParam::Nat(n),
+    <typ:Type> => TypeParam::Type(typ),
+}
+
+TypeParamList: Vec<TypeParam> = {
+    <params:((TypeParam ("," TypeParam)* ","?)?)> => {
+        if let Some((param, params, _comma)) = params {
+            let mut results = vec![param];
+            for (_comma, param) in params {
+                results.push(param);
+            }
+            results
+        } else {
+            vec![]
+        }
+    },
 }
 
 Target: Target = {

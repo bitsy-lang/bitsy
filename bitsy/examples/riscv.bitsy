@@ -496,11 +496,11 @@ mod MemorySubsystem {
 
     mod mem of Mem;
 
-    mem.write_enable := write_addr < 0x10000w32 && write_enable;
+    mem.write_enable := write_addr <. 0x10000w32 && write_enable;
     mem.write_addr := write_addr;
     mem.write_data := write_data;
     mem.read_addr := read_addr;
-    read_data := if read_addr < 0x10000w32 {
+    read_data := if read_addr <. 0x10000w32 {
         mem.read_data
     } else {
         0w32

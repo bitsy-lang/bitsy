@@ -46,7 +46,7 @@ struct type Sort2 {
 }
 
 fn sort(x of Word<32>, y of Word<32>) -> Sort2 {
-    if x < y {
+    if x <. y {
         { min = x, max = y }
     } else {
         { min = y, max = x }

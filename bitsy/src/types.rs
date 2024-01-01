@@ -27,7 +27,7 @@ pub enum Type {
     /// A user-defined `struct`.
     Struct(Arc<StructTypeDef>),
     /// A user-defined `alt`.
-    Alt(Arc<AltTypeDef>),
+    Alt(Arc<AltTypeDef>, Vec<TypeParam>),
 }
 
 impl Type {
@@ -38,7 +38,7 @@ impl Type {
             Type::Valid(_typ) => "Valid",
             Type::Enum(typedef) => &typedef.name,
             Type::Struct(typedef) => &typedef.name,
-            Type::Alt(typedef) => &typedef.name,
+            Type::Alt(typedef, _params) => &typedef.name,
         }
     }
 
@@ -50,7 +50,19 @@ impl Type {
             (Type::Valid(typ1),       Type::Valid(typ2)) => typ1.equals(typ2),
             (Type::Enum(typedef1),    Type::Enum(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
             (Type::Struct(typedef1),  Type::Struct(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
-            (Type::Alt(typedef1),     Type::Alt(typedef2)) => Arc::ptr_eq(typedef1, typedef2),
+            (Type::Alt(typedef1, params1),     Type::Alt(typedef2, params2)) => {
+                if params1.len() != params2.len() {
+                    return false;
+                }
+                for (param1, param2) in params1.iter().zip(params2.iter()) {
+                    match (param1, param2) {
+                        (TypeParam::Nat(n1),    TypeParam::Nat(n2)) if n1 != n2 => return false,
+                        (TypeParam::Type(typ1), TypeParam::Type(typ2)) if !typ1.equals(typ2) => return false,
+                        _ => (),
+                    }
+                }
+                Arc::ptr_eq(typedef1, typedef2)
+            },
             _ => false,
         }
     }
@@ -74,9 +86,15 @@ impl Type {
             Type::Vec(typ, n) => typ.bitwidth() * n,
             Type::Enum(typedef) => typedef.bitwidth(),
             Type::Struct(typedef) => typedef.bitwidth(),
-            Type::Alt(typedef) => todo!(), // TODO typedef.bitwidth(),
+            Type::Alt(typedef, params) => todo!(), // TODO typedef.bitwidth(),
         }
     }
+}
+
+#[derive(Clone)]
+pub enum TypeParam {
+    Nat(u64),
+    Type(Type),
 }
 
 /// A user-defined `enum` type.
@@ -180,7 +198,22 @@ impl std::fmt::Debug for Type {
             Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
             Type::Struct(typedef) => write!(f, "{}", typedef.name),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
-            Type::Alt(typedef) => write!(f, "{}", typedef.name),
+            Type::Alt(typedef, params) => {
+                if params.is_empty() {
+                    write!(f, "{}", typedef.name)
+                } else {
+                    write!(f, "{}<{:?}>", typedef.name, params.iter().map(|param| param.to_string()).collect::<Vec<_>>().join(", "))
+                }
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for TypeParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            TypeParam::Nat(n) => write!(f, "{n}"),
+            TypeParam::Type(typ) => write!(f, "{typ:?}"),
         }
     }
 }

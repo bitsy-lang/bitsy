@@ -52,7 +52,7 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("Not a Valid<T>: {self:?} is not {type_expected:?}")))
                 }
             },
-            (Type::Alt(typedef), Expr::Ctor(_span, _typ, name, es)) => {
+            (Type::Alt(typedef, params), Expr::Ctor(_span, _typ, name, es)) => {
                 if let Some(typs) = typedef.alt(name) {
                     if es.len() == typs.len() {
                         for (e, typ) in es.iter().zip(typs.iter()) {
@@ -339,7 +339,7 @@ impl Type {
                         let alts: Vec<String> = typedef.values.iter().map(|(name, _val)| name.clone()).collect();
                         alts.contains(ctor)
                     },
-                    Type::Alt(typedef) => {
+                    Type::Alt(typedef, _params) => {
                         let alts: Vec<String> = typedef.alts.iter().map(|(name, _val)| name.clone()).collect();
                         alts.contains(ctor)
                     },
@@ -367,7 +367,7 @@ impl Type {
             (Type::Enum(_typedef), Pat::At(_ctor, _subpats)) => {
                 ctx.clone()
             },
-            (Type::Alt(typedef), Pat::At(ctor, subpats)) => {
+            (Type::Alt(typedef, params), Pat::At(ctor, subpats)) => {
                 if let Some(typs) = typedef.alt(ctor) {
                     let mut new_ctx = ctx.clone();
                     assert_eq!(subpats.len(), typs.len());

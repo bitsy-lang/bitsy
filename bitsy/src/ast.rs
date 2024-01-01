@@ -186,7 +186,13 @@ pub enum Type {
     /// An optional value. Written `Valid<T>`.
     Valid(Box<Type>),
     /// An unresolved reference to a user-defined type.
-    TypeRef(Ident),
+    TypeRef(Ident, Vec<TypeParam>),
+}
+
+#[derive(Clone, Debug)]
+pub enum TypeParam {
+    Nat(u64),
+    Type(Type),
 }
 
 /// A [`When`] statement drives procedural logic.

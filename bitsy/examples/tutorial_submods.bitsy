@@ -24,6 +24,6 @@ mod Sort {
     outgoing min of Word<3>;
     outgoing max of Word<3>;
 
-    min := if a < b { a } else { b };
-    max := if a < b { b } else { a };
+    min := if a <. b { a } else { b };
+    max := if a <. b { b } else { a };
 }
