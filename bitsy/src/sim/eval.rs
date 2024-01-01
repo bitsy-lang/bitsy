@@ -191,7 +191,7 @@ impl Expr {
                 let value = value.to_u64().unwrap();
                 for (name, WordLit(_w, v)) in &typedef.values {
                     if value == *v {
-                        return Value::Ctor("Valid".to_string(), vec![Value::Enum(typ.clone(), name.clone())]);
+                        return Value::Ctor("Valid".to_string(), vec![Value::Enum(Type::Enum(typedef.clone()), name.clone())]);
                     }
                 }
                 return Value::Ctor("Invalid".to_string(), vec![]);
