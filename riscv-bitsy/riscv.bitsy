@@ -8,6 +8,12 @@ enum type AluSource {
     RS2 = 0w1;
 }
 
+alt type PcAdvancement {
+    Next();
+    Offset(Word<32>);
+    Abs(Word<32>);
+}
+
 /*
     There are several instruction formats in RISC-V.
     `InstrType` tells us which we have so we can decode.
@@ -38,7 +44,7 @@ enum type OpFunct3 {
 }
 
 enum type BranchFunct3 {
-    BEQ   = 0b000w3;
+    BEQ  = 0b000w3;
     BNE  = 0b001w3;
     BLT  = 0b100w3;
     BGE  = 0b101w3;
@@ -170,12 +176,16 @@ pub mod Core {
     mem_write_data := alu.r;
     mem_write_enable := control.mem_write;
 
-    ifetch.branch_offset := immgen.imm;
-    ifetch.branch_enable := match decoder.opcode {
-        @JALR => 1;
-        @JAL  => 1;
-        @BRANCH => control.is_branch && alu.r == 1;
-        otherwise => 0;
+    ifetch.pc_advancement := match decoder.opcode {
+        @JALR => @Abs(rf.rs1_val + immgen.imm);
+        @JAL => @Offset(immgen.imm);
+        @BRANCH =>
+            if alu.r == 1 {
+                @Offset(immgen.imm)
+            } else {
+                @Next()
+            };
+        otherwise => @Next();
     };
 
     instr_mem_read_addr := ifetch.instr_mem_addr;
@@ -189,6 +199,8 @@ pub mod Core {
         mem_read_data
     } else if decoder.opcode == Opcode::LUI {
         immgen.imm
+    } else if decoder.opcode == Opcode::JAL || decoder.opcode == Opcode::JALR {
+        ifetch.program_counter + 4
     } else {
         alu.r
     };
@@ -369,15 +381,12 @@ mod Control {
     incoming funct7 of Word<7>;
     incoming funct12 of Word<12>;
 
-    outgoing is_branch of Word<1>;
     outgoing mem_read of Word<1>;
     outgoing mem_write of Word<1>;
     outgoing mem_to_reg of Word<1>;
     outgoing alu_op of AluOp;
     outgoing alu_source of AluSource;
     outgoing reg_write of Word<1>;
-
-    is_branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
 
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
@@ -417,7 +426,7 @@ mod Control {
         } else if funct3 == word(BranchFunct3::BGEU) {
             AluOp::GEU
         } else {
-            ?
+            AluOp::ADD // TODO should be impossible.
         }
     } else if opcode == Opcode::SYSTEM {
         AluOp::ADD
@@ -434,7 +443,13 @@ mod Control {
     } else {
         AluSource::RS2
     };
-    reg_write := opcode == Opcode::OP || opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::LUI;
+    reg_write :=
+        opcode == Opcode::OP ||
+        opcode == Opcode::OP_IMM ||
+        opcode == Opcode::LOAD ||
+        opcode == Opcode::LUI ||
+        opcode == Opcode::JAL ||
+        opcode == Opcode::JALR;
 }
 
 /*
@@ -569,21 +584,23 @@ mod Decoder {
 
 */
 mod Ifetch {
-    incoming branch_offset of Word<32>;
-    incoming branch_enable of Word<1>;
+    incoming pc_advancement of PcAdvancement;
 
     outgoing instr_mem_addr of Word<32>;
     incoming instr_mem_data of Word<32>;
 
     outgoing instr of Word<32>;
+    outgoing program_counter of Word<32>;
+
+    program_counter := pc;
 
     reg pc of Word<32> reset 0;
     instr_mem_addr := pc;
 
-    pc <= if branch_enable {
-        pc + branch_offset
-    } else {
-        pc + 4
+    pc <= match pc_advancement {
+        @Next() => pc + 4;
+        @Offset(offset) => pc + offset;
+        @Abs(next_pc) => next_pc;
     };
 
     instr := instr_mem_data;
