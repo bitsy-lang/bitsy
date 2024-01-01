@@ -143,21 +143,21 @@ impl Namespace {
     }
 
     fn resolve_fndef(&self, fndef: &ast::FnDef) -> Result<Arc<FnDef>, Vec<BitsyError>> {
-        let mut type_args: BTreeMap<String, Kind> = BTreeMap::new();
+        let mut type_args: Vec<(String, Kind)> = vec![];
         for (name, kind) in &fndef.type_args {
-            type_args.insert(name.to_string(), kind.clone());
+            type_args.push((name.to_string(), kind.clone()));
         }
 
-        let mut args: BTreeMap<String, Type> = BTreeMap::new();
+        let mut args: Vec<(String, Type)> = vec![];
         for (name, typ) in &fndef.args {
-            args.insert(name.to_string(), self.resolve_type(typ)?);
+            args.push((name.to_string(), self.resolve_type(typ)?));
         }
 
         let package_typedef = Arc::new(FnDef {
             span: Span::unknown(),
             name: fndef.name.to_string(),
             type_args: type_args.into_iter().collect(),
-            args: args.into_iter().collect(),
+            args,
             ret: self.resolve_type(&fndef.ret)?,
             body: self.resolve_expr(&fndef.body, Context::empty())?,
         });
