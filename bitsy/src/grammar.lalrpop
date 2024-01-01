@@ -101,17 +101,43 @@ TypeList: Vec<Type> = {
 }
 
 FnDef: FnDef = {
-    <ll:@L> "fn" <name:Id> "(" <args:ArgList> ")" "->" <ret:Type> "{"
+    <ll:@L> "fn" <name:Id> <type_args:("<" TypeArgList ">")?> "(" <args:ArgList> ")" "->" <ret:Type> "{"
         <body:Expr>
     "}" <rr:@R> => {
+
+        let type_args = if let Some((_langle, args, _rangle)) = type_args {
+            args
+        } else {
+            vec![]
+        };
         FnDef {
             name,
+            type_args,
             args,
             ret,
             body: *body,
             span: Span::from(source_info, ll, rr),
         }
     },
+}
+
+TypeArgList: Vec<(Ident, Kind)> = {
+    <args:((Id "of" Kind ("," Id "of" Kind)* ","?)?)> => {
+        if let Some((name, _of, kind, args, _comma)) = args {
+            let mut results = vec![(name, kind)];
+            for (_comma, name, _of, typ) in args {
+                results.push((name, typ));
+            }
+            results
+        } else {
+            vec![]
+        }
+    },
+}
+
+Kind: Kind = {
+    "Nat"  => Kind::Nat,
+    "Type" => Kind::Type,
 }
 
 ArgList: Vec<(Ident, Type)> = {
@@ -208,9 +234,16 @@ ExprAdd: Box<Expr> = {
 ExprCall: Box<Expr> = {
     <ll:@L> "[" <es:ExprList> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), es)),
     <ll:@L> "[" <e:Expr> ";" <n:Nat> "]" <rr:@R> => Box::new(Expr::Vec(Span::from(source_info, ll, rr), vec![*e; n as usize])),
-    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![])),
-    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, es)),
-    <ll:@L> <name:Id> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, es)),
+    <ll:@L> <name:Ctor> <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![], vec![])),
+    <ll:@L> <name:Ctor> "(" <es:ExprList> ")" <rr:@R> =>  Box::new(Expr::Call(Span::from(source_info, ll, rr), name, vec![], es)),
+    <ll:@L> <name:Id> <params:("<" TypeParamList ">")?> "(" <es:ExprList> ")" <rr:@R> => {
+        let params = if let Some((_langle, params, _rangle)) = params {
+            params
+        } else {
+            vec![]
+        };
+        Box::new(Expr::Call(Span::from(source_info, ll, rr), name, params, es))
+    },
     <e:StructCtor> => e,
     <e:ExprDot> => e,
 }

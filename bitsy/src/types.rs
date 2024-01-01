@@ -6,6 +6,7 @@ use super::loc::Span;
 use std::sync::Arc;
 
 pub use crate::ast::WordLit; // re-export
+pub use crate::ast::Kind;    // re-export
 
 /// The bitwidth of a [`Type::Word`].
 pub type Width = u64;
@@ -137,6 +138,7 @@ impl AltTypeDef {
 pub struct FnDef {
     pub span: Span,
     pub name: String,
+    pub type_args: Vec<(String, Kind)>,
     pub args: Vec<(String, Type)>,
     pub ret: Type,
     pub body: Arc<Expr>,

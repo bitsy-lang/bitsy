@@ -143,6 +143,11 @@ impl Namespace {
     }
 
     fn resolve_fndef(&self, fndef: &ast::FnDef) -> Result<Arc<FnDef>, Vec<BitsyError>> {
+        let mut type_args: BTreeMap<String, Kind> = BTreeMap::new();
+        for (name, kind) in &fndef.type_args {
+            type_args.insert(name.to_string(), kind.clone());
+        }
+
         let mut args: BTreeMap<String, Type> = BTreeMap::new();
         for (name, typ) in &fndef.args {
             args.insert(name.to_string(), self.resolve_type(typ)?);
@@ -151,6 +156,7 @@ impl Namespace {
         let package_typedef = Arc::new(FnDef {
             span: Span::unknown(),
             name: fndef.name.to_string(),
+            type_args: type_args.into_iter().collect(),
             args: args.into_iter().collect(),
             ret: self.resolve_type(&fndef.ret)?,
             body: self.resolve_expr(&fndef.body, Context::empty())?,
@@ -295,7 +301,7 @@ impl Namespace {
                 }
                 Expr::Vec(span.clone(), OnceCell::new(), package_es)
             },
-            ast::Expr::Call(span, func, es) => {
+            ast::Expr::Call(span, func, type_params, es) => {
                 let mut package_es: Vec<Arc<Expr>> = vec![];
                 for expr in es {
                     package_es.push(self.resolve_expr(expr, ctx.clone())?);
@@ -562,7 +568,8 @@ fn expr_dependencies(expr: &ast::Expr, shadowed: &BTreeSet<String>) -> Result<Ve
             }
             results
         },
-        ast::Expr::Call(_loc, func, es) => {
+        ast::Expr::Call(_loc, func, type_params, es) => {
+            // TODO check type_params
             let mut results = Vec::new();
             #[rustfmt::skip]
             const SPECIALS: &[&str] = &[

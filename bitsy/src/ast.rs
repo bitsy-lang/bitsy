@@ -97,6 +97,7 @@ pub struct AltTypeDef {
 #[derive(Debug, Clone)]
 pub struct FnDef {
     pub name: Ident,
+    pub type_args: Vec<(Ident, Kind)>,
     pub args: Vec<(Ident, Type)>,
     pub ret: Type,
     pub body: Expr,
@@ -119,7 +120,7 @@ pub enum Expr {
     /// A constructor for a Vec
     Vec(Span, Vec<Expr>),
     /// A call-like expression, including `cat` and constructors like `@Valid`.
-    Call(Span, Ident, Vec<Expr>),
+    Call(Span, Ident, Vec<TypeParam>, Vec<Expr>),
     /// Let binding. Eg, `let x = a + b in x + x`.
     Let(Span, Ident, Option<Type>, Box<Expr>, Box<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
@@ -193,6 +194,12 @@ pub enum Type {
 pub enum TypeParam {
     Nat(u64),
     Type(Type),
+}
+
+#[derive(Clone, Debug)]
+pub enum Kind {
+    Nat,
+    Type,
 }
 
 /// A [`When`] statement drives procedural logic.
