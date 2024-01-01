@@ -12,9 +12,16 @@ lalrpop_mod!(grammar);
 /// A `Package` is a compilation unit built from a single file.
 #[derive(Debug, Clone)]
 pub struct Package {
-    pub imports: Vec<String>,
+    pub imports: Vec<Import>,
     pub items: Vec<Item>,
 }
+
+#[derive(Debug, Clone)]
+pub struct Import {
+    pub package: Ident,
+    pub span: Span,
+}
+
 
 /// A top-level declaration in a [`Package`].
 #[derive(Debug, Clone)]

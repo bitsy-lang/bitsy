@@ -13,8 +13,13 @@ pub Package: Package = {
     },
 }
 
-Import: String = {
-    "import" <filename:Str> => filename,
+Import: Import = {
+    <ll:@L> "import" <package:Id> <rr:@R> => {
+        Import {
+            package,
+            span: Span::from(source_info, ll, rr),
+        }
+    },
 }
 
 ////////////////////////////////////////////////////////////////////////////////
