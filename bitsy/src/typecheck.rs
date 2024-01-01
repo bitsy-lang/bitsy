@@ -217,7 +217,7 @@ impl Expr {
                     Err(TypeError::Other(self.clone(), format!("{fn_name} takes {n} args, but found {m} instead")))
                 } else {
                     let mut errors = vec![];
-                    for ((arg_name, arg_typ), e) in fndef.args.iter().rev().zip(es.iter()) {
+                    for ((arg_name, arg_typ), e) in fndef.args.iter().zip(es.iter()) {
                         if let Err(error) = e.typecheck(Type::clone(&arg_typ), ctx.clone()) {
                             errors.push(error);
                         }
@@ -278,6 +278,25 @@ impl Expr {
                     }
                 }
                 Some(Type::word(w))
+            },
+            Expr::Call(_span, _typ, fndef, es) => {
+                // TODO
+                if fndef.args.len() != es.len() {
+                    None
+                } else {
+                    let mut errors = vec![];
+                    for ((arg_name, arg_typ), e) in fndef.args.iter().zip(es.iter()) {
+                        if let Err(error) = e.typecheck(Type::clone(&arg_typ), ctx.clone()) {
+                            errors.push(error);
+                        }
+                    }
+
+                    if errors.len() > 0 {
+                        return None;
+                    }
+
+                    Some(fndef.ret.clone())
+                }
             },
             Expr::IdxField(_span, _typ, e, field) => {
                 match e.typeinfer(ctx.clone()) {

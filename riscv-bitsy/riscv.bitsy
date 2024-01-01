@@ -38,8 +38,8 @@ enum type OpFunct3 {
 }
 
 enum type BranchFunct3 {
-    EQ   = 0b000w3;
-    NEQ  = 0b001w3;
+    BEQ   = 0b000w3;
+    BNE  = 0b001w3;
     BLT  = 0b100w3;
     BGE  = 0b101w3;
     BLTU = 0b110w3;
@@ -99,10 +99,17 @@ enum type Opcode {
 }
 
 enum type AluOp {
-    AND = 0w4;
-    OR  = 1w4;
-    ADD = 2w4;
-    SUB = 6w4;
+    AND =  0w4;
+    OR  =  1w4;
+    ADD =  2w4;
+    SUB =  3w4;
+    LT  =  4w4;
+    LTU =  5w4;
+    GE  =  6w4;
+    GEU =  7w4;
+    EQ  =  8w4;
+    NEQ =  9w4;
+    XOR = 10w4;
 }
 
 /*
@@ -164,7 +171,12 @@ pub mod Core {
     mem_write_enable := control.mem_write;
 
     ifetch.branch_offset := immgen.imm;
-    ifetch.branch_enable := control.branch;
+    ifetch.branch_enable := match decoder.opcode {
+        @JALR => 1;
+        @JAL  => 1;
+        @BRANCH => control.is_branch && alu.r == 1;
+        otherwise => 0;
+    };
 
     instr_mem_read_addr := ifetch.instr_mem_addr;
     ifetch.instr_mem_data := instr_mem_read_data;
@@ -357,7 +369,7 @@ mod Control {
     incoming funct7 of Word<7>;
     incoming funct12 of Word<12>;
 
-    outgoing branch of Word<1>;
+    outgoing is_branch of Word<1>;
     outgoing mem_read of Word<1>;
     outgoing mem_write of Word<1>;
     outgoing mem_to_reg of Word<1>;
@@ -365,19 +377,56 @@ mod Control {
     outgoing alu_source of AluSource;
     outgoing reg_write of Word<1>;
 
-    branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
+    is_branch := opcode == Opcode::BRANCH || opcode == Opcode::JALR || opcode == Opcode::JAL;
 
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
     mem_to_reg := opcode == Opcode::LOAD;
 
-    node maybe_funct3 of Valid<OpFunct3>;
-    maybe_funct3 := trycast(funct3);
-
-    alu_op := match maybe_funct3 {
-        @Valid(@ADD) => AluOp::ADD;
-        @Valid(@AND) => AluOp::AND;
-        otherwise => AluOp::ADD;
+    alu_op := if opcode == Opcode::OP || opcode == Opcode::OP_IMM {
+        if funct3 == word(OpFunct3::ADD) {
+            AluOp::ADD
+        } else if funct3 == word(OpFunct3::SLL) {
+            ?
+        } else if funct3 == word(OpFunct3::SLT) {
+            AluOp::LT
+        } else if funct3 == word(OpFunct3::SLTU) {
+            AluOp::LTU
+        } else if funct3 == word(OpFunct3::XOR) {
+            AluOp::XOR
+        } else if funct3 == word(OpFunct3::SR) {
+            ?
+        } else if funct3 == word(OpFunct3::OR) {
+            AluOp::OR
+        } else if funct3 == word(OpFunct3::AND) {
+            AluOp::AND
+        } else {
+            ?
+        }
+    } else if opcode == Opcode::BRANCH {
+        if funct3 == word(BranchFunct3::BEQ) {
+            AluOp::EQ
+        } else if funct3 == word(BranchFunct3::BNE) {
+            AluOp::NEQ
+        } else if funct3 == word(BranchFunct3::BLT) {
+            AluOp::LT
+        } else if funct3 == word(BranchFunct3::BLTU) {
+            AluOp::LTU
+        } else if funct3 == word(BranchFunct3::BGE) {
+            AluOp::GE
+        } else if funct3 == word(BranchFunct3::BGEU) {
+            AluOp::GEU
+        } else {
+            ?
+        }
+    } else if opcode == Opcode::SYSTEM {
+        AluOp::ADD
+    } else if opcode == Opcode::JAL {
+        AluOp::ADD
+    } else if opcode == Opcode::JALR {
+        AluOp::ADD
+    } else {
+        AluOp::ADD
     };
 
     alu_source := if opcode == Opcode::OP_IMM || opcode == Opcode::LOAD || opcode == Opcode::STORE {
@@ -400,9 +449,44 @@ mod Alu {
     r := match op {
         @AND => a && b;
         @OR  => a || b;
-        @ADD => a  + b;
-        @SUB => a  - b;
+        @ADD => a + b;
+        @SUB => a - b;
+        @XOR => a ^ b;
+        @LT  => zext(lt(a, b));
+        @LTU => zext(ltu(a, b));
+        @GE  => zext(ge(a, b));
+        @GEU => zext(geu(a, b));
+        @EQ  => zext(a == b);
+        @NEQ => zext(a != b);
     };
+}
+
+fn ltu(a of Word<32>, b of Word<32>) -> Word<1> {
+    a <. b
+}
+
+fn lt(a of Word<32>, b of Word<32>) -> Word<1> {
+    if a[31] && !b[31] {
+        1
+    } else if !a[31] && b[31] {
+        0
+    } else {
+        a <. b
+    }
+}
+
+fn geu(a of Word<32>, b of Word<32>) -> Word<1> {
+    a == b || b <. a
+}
+
+fn ge(a of Word<32>, b of Word<32>) -> Word<1> {
+    if a[31] && !b[31] {
+        0
+    } else if !a[31] && b[31] {
+        1
+    } else {
+        a == b || b <. a
+    }
 }
 
 /*
@@ -520,11 +604,11 @@ mod MemorySubsystem {
 
     mod mem of DataMem;
 
-    mem.write_enable := write_addr < 0x10000w32 && write_enable;
+    mem.write_enable := write_addr <. 0x10000w32 && write_enable;
     mem.write_addr := write_addr;
     mem.write_data := write_data;
     mem.read_addr := read_addr;
-    read_data := if read_addr < 0x10000w32 {
+    read_data := if read_addr <. 0x10000w32 {
         mem.read_data
     } else {
         0w32
