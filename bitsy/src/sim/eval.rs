@@ -198,13 +198,13 @@ impl Expr {
             },
             Expr::ToWord(loc, _typ, e) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
-                match v {
+                match &v {
                     Value::X => Value::X,
                     Value::Enum(typ, name) => {
                         if let Type::Enum(typ) = typ {
                             Value::Word(typ.bitwidth(), typ.value_of(&name).expect(&format!("{loc:?}")))
                         } else {
-                            panic!("{loc:?}");
+                            panic!("{loc:?}: Can't call word() on {v:?}");
                         }
                     },
                     _ => panic!("Can only call word() on enum values, but found {v:?} {loc:?}"),
@@ -294,10 +294,8 @@ impl Expr {
                 fndef.body.eval_with_ctx(bitsy, new_ctx)
             },
             Expr::Hole(loc, _typ, opt_name) => {
-                match opt_name {
-                    Some(name) => eprintln!("{loc} EVALUATED A HOLE: ?{name}: {ctx:?}"),
-                    None => eprintln!("{loc} EVALUATED A HOLE: {ctx}"),
-                }
+                let name = opt_name.clone().unwrap_or_default();
+                eprintln!("{loc} EVALUATED A HOLE: ?{name}: {ctx}");
                 Value::X
             },
         }
