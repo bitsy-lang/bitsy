@@ -247,7 +247,7 @@ impl Namespace {
                     );
                     wires.push(wire);
                 },
-                ast::Decl::When(_loc, ast::When(cond, wires)) => {
+                ast::Decl::When(_loc, ast::When(_span, cond, wires)) => {
                     let mut package_wires = vec![];
                     let package_cond = self.resolve_expr(&*cond, Context::empty())?;
 
@@ -499,7 +499,7 @@ fn decl_dependencies(decl: &ast::Decl, component_names: &BTreeSet<String>) -> Re
             let ast::Wire(_loc2, _target, expr, _wire_type) = wire;
             results.extend(expr_dependencies(expr, component_names)?.into_iter())
         },
-        ast::Decl::When(_loc, ast::When(cond, wires)) => {
+        ast::Decl::When(_loc, ast::When(_span, cond, wires)) => {
             results.extend(expr_dependencies(cond, component_names)?.into_iter());
             for ast::Wire(_loc2, _target, expr, _wire_type) in wires {
                 results.extend(expr_dependencies(expr, component_names)?.into_iter())

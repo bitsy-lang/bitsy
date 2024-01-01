@@ -211,7 +211,7 @@ pub enum Kind {
 
 /// A [`When`] statement drives procedural logic.
 #[derive(Debug, Clone)]
-pub struct When(pub Box<Expr>, pub Vec<Wire>);
+pub struct When(pub Span, pub Box<Expr>, pub Vec<Wire>);
 
 /// An identifier in the grammar.
 #[derive(Debug, Clone)]

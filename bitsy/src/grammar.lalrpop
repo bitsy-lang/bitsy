@@ -164,9 +164,9 @@ Decl: Decl  = {
 }
 
 When: When = {
-    "when" <e:Expr> "{"
+    <ll:@L> "when" <e:Expr> "{"
         <wires:Wire*>
-    "}" => When(e, wires),
+    "}" <rr:@R> => When(Span::from(source_info, ll, rr), e, wires),
 }
 
 Mod: Decl = {
