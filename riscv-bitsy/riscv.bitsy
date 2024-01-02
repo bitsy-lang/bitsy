@@ -176,17 +176,7 @@ pub mod Core {
     mem_write_data := alu.r;
     mem_write_enable := control.mem_write;
 
-    ifetch.pc_advancement := match decoder.opcode {
-        @JALR => @Abs(rf.rs1_val + immgen.imm);
-        @JAL => @Offset(immgen.imm);
-        @BRANCH =>
-            if alu.r == 1 {
-                @Offset(immgen.imm)
-            } else {
-                @Next()
-            };
-        otherwise => @Next();
-    };
+    ifetch.pc_advancement := next_pc(decoder.opcode, rf.rs1_val, immgen.imm, alu.r);
 
     instr_mem_read_addr := ifetch.instr_mem_addr;
     ifetch.instr_mem_data := instr_mem_read_data;
@@ -220,6 +210,20 @@ pub mod Core {
         @RS2 => rf.rs2_val;
     };
     alu.op := control.alu_op;
+}
+
+fn next_pc(opcode of Opcode, rs1_val of Word<32>, imm of Word<32>, alu_r of Word<32>) -> PcAdvancement {
+    match opcode {
+        @JALR => @Abs(rs1_val + imm);
+        @JAL => @Offset(imm);
+        @BRANCH =>
+            if alu_r == 1 {
+                @Offset(imm)
+            } else {
+                @Next()
+            };
+        otherwise => @Next();
+    }
 }
 
 /*
