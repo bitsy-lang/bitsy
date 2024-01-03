@@ -9,6 +9,7 @@ The Bitsy Hardware Language
   types/index
   expressions/index
   principles
+  Repository <https://github.com/bitsy-lang/bitsy>
   Crate Docs <https://bitsy-lang.org/doc/bitsy_lang/>
 
 Bitsy is a modern hardware description language.
