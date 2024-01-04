@@ -40,6 +40,7 @@ pub struct MemInstance {
     write_enable: bool,
     write_addr: u32,
     write_data: u32,
+    write_mask: u8,
     delay: usize,
     delay_current: usize,
 }
@@ -58,6 +59,7 @@ impl MemInstance {
             write_enable: false,
             write_addr: 0,
             write_data: 0,
+            write_mask: 0,
             delay,
             delay_current: 0,
         }
@@ -117,6 +119,11 @@ impl MemInstance {
                 Value::Word(32, v) => self.write_data = v.try_into().unwrap(),
                 _ => panic!("write_data value must be Word<32>: {value:?}"),
             }
+        } else if port == "write_mask" {
+            match value {
+                Value::Word(4, v) => self.write_mask = v.try_into().unwrap(),
+                _ => panic!("write_data value must be Word<32>: {value:?}"),
+            }
         } else {
             panic!("Mem may only recieve data on read_data: received data on {port} {value:?}")
         }
@@ -139,10 +146,19 @@ impl MemInstance {
 
         if self.write_enable {
             println!("Writing to RAM: 0x{:08x} <= {:08x}", self.write_addr, self.write_data);
-            self.mem[self.write_addr as usize]       = self.write_data as u8 & 0xff;
-            self.mem[(self.write_addr + 1) as usize] = (self.write_data >>  8) as u8;
-            self.mem[(self.write_addr + 2) as usize] = (self.write_data >> 16) as u8;
-            self.mem[(self.write_addr + 3) as usize] = (self.write_data >> 24) as u8;
+            eprintln!("{:08b}", self.write_mask);
+            if self.write_mask & 1 > 0 {
+                self.mem[self.write_addr as usize]       = self.write_data as u8 & 0xff;
+            }
+            if self.write_mask & 2 > 0 {
+                self.mem[(self.write_addr + 1) as usize] = (self.write_data >>  8) as u8;
+            }
+            if self.write_mask & 4 > 0 {
+                self.mem[(self.write_addr + 2) as usize] = (self.write_data >> 16) as u8;
+            }
+            if self.write_mask & 8 > 0 {
+                self.mem[(self.write_addr + 3) as usize] = (self.write_data >> 24) as u8;
+            }
             //println!("Mem wrote {read_data:?} at address 0x{:x}", self.write_addr);
         }
 
@@ -171,6 +187,7 @@ impl Ext for Mem {
             "write_enable".to_string(),
             "write_addr".to_string(),
             "write_data".to_string(),
+            "write_mask".to_string(),
         ]
     }
     fn outgoing_ports(&self) -> Vec<PortName> { vec!["read_data".to_string()] }

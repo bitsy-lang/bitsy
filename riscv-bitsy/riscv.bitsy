@@ -5,7 +5,7 @@
 */
 enum type AluSource {
     IMM = 0w1;
-    RS2 = 0w1;
+    RS2 = 1w1;
 }
 
 alt type PcAdvancement {
@@ -132,10 +132,12 @@ pub mod Top {
     instr_mem.write_enable := 0w1;
     instr_mem.write_addr := 0w32;
     instr_mem.write_data := 0w32;
+    instr_mem.write_mask := 0;
 
     mem.read_addr    := core.mem_read_addr;
     mem.write_addr   := core.mem_write_addr;
     mem.write_data   := core.mem_write_data;
+    mem.write_mask   := core.mem_write_mask;
     mem.write_enable := core.mem_write_enable;
 
     instr_mem.read_addr := core.instr_mem_read_addr;
@@ -169,6 +171,8 @@ pub mod Core {
     outgoing mem_write_data   of Word<32>;
     outgoing mem_read_addr    of Word<32>;
     incoming mem_read_data    of Word<32>;
+    outgoing mem_write_mask   of Word<4>;
+
 
     ecall     := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::ECALL);
     ebreak    := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::EBREAK);
@@ -176,8 +180,9 @@ pub mod Core {
 
     mem_read_addr  := rf.rs1_val + immgen.imm;
     mem_write_addr := rf.rs1_val + immgen.imm;
-    mem_write_data := alu.r;
+    mem_write_data := rf.rs2_val;
     mem_write_enable := control.mem_write;
+    mem_write_mask := decoder.write_mask;
 
     ifetch.pc_advancement := next_pc(decoder.opcode, rf.rs1_val, immgen.imm, alu.r);
 
@@ -189,7 +194,7 @@ pub mod Core {
     rf.rd := decoder.rd;
     rf.write_enable := control.reg_write;
     rf.write_data := if control.mem_to_reg {
-        mem_read_data
+        mem_to_reg_data(mem_read_data, decoder.opcode, decoder.funct3)
     } else if decoder.opcode == Opcode::LUI {
         immgen.imm
     } else if decoder.opcode == Opcode::JAL || decoder.opcode == Opcode::JALR {
@@ -213,6 +218,27 @@ pub mod Core {
         @RS2 => rf.rs2_val;
     };
     alu.op := control.alu_op;
+}
+
+fn mem_to_reg_data(data of Word<32>, opcode of Opcode, funct3 of Word<3>) -> Word<32> {
+    if opcode == Opcode::LOAD {
+        if funct3 == word(LoadFunct3::LB) {
+            sext(data[8..0])
+        } else if funct3 == word(LoadFunct3::LBU) {
+            zext(data[8..0])
+        } else if funct3 == word(LoadFunct3::LH) {
+            sext(data[16..0])
+        } else if funct3 == word(LoadFunct3::LHU) {
+            zext(data[16..0])
+        } else if funct3 == word(LoadFunct3::LW) {
+            data
+        } else {
+            // TODO Impossible
+            data
+        }
+    } else {
+        data
+    }
 }
 
 fn next_pc(opcode of Opcode, rs1_val of Word<32>, imm of Word<32>, alu_r of Word<32>) -> PcAdvancement {
@@ -667,13 +693,24 @@ mod Decoder {
     incoming instr of Word<32>;
 
     outgoing opcode of Opcode;
-    outgoing rd  of Word<5>;
-    outgoing rs1 of Word<5>;
-    outgoing rs2 of Word<5>;
-    outgoing funct3  of Word<3>;
-    outgoing funct7  of Word<7>;
-    outgoing funct12  of Word<12>;
-    outgoing exception of Word<1>;
+    outgoing rd     of Word<5>;
+    outgoing rs1    of Word<5>;
+    outgoing rs2    of Word<5>;
+    outgoing funct3     of Word<3>;
+    outgoing funct7     of Word<7>;
+    outgoing funct12    of Word<12>;
+    outgoing exception  of Word<1>;
+    outgoing write_mask of Word<4>;
+
+    write_mask :=
+        let funct3 = instr[15..12];
+        if funct3 == word(StoreFunct3::SB) {
+            0b0001
+        } else if funct3 == word(StoreFunct3::SH) {
+            0b0011
+        } else {
+            0b1111
+        };
 
     exception := match maybe_opcode {
         @Valid(_o) => 0;
@@ -738,12 +775,14 @@ mod MemorySubsystem {
     incoming write_enable of Word<1>;
     incoming write_addr of Word<32>;
     incoming write_data of Word<32>;
+    incoming write_mask of Word<4>;
 
     mod mem of DataMem;
 
     mem.write_enable := write_addr <. 0x10000w32 && write_enable;
     mem.write_addr := write_addr;
     mem.write_data := write_data;
+    mem.write_mask := write_mask;
     mem.read_addr := read_addr;
     read_data := if read_addr <. 0x10000w32 {
         mem.read_data
@@ -768,6 +807,7 @@ ext mod InstrMem {
     incoming write_enable of Word<1>;
     incoming write_addr of Word<32>;
     incoming write_data of Word<32>;
+    incoming write_mask of Word<4>;
 }
 
 ext mod DataMem {
@@ -777,6 +817,7 @@ ext mod DataMem {
     incoming write_enable of Word<1>;
     incoming write_addr of Word<32>;
     incoming write_data of Word<32>;
+    incoming write_mask of Word<4>;
 }
 
 ext mod Terminal {
