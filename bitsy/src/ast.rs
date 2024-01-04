@@ -181,8 +181,18 @@ pub struct Wire(pub Span, pub Target, pub Box<Expr>, pub WireType);
 pub struct MatchArm(pub Pat, pub Box<Expr>);
 
 /// A [`WordLit`] is a literal for a hardware integer with an optional width ascription.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WordLit(pub Option<Width>, pub u64);
+
+impl WordLit {
+    pub fn width(&self) -> Option<Width> {
+        self.0
+    }
+
+    pub fn value(&self) -> u64 {
+        self.1
+    }
+}
 
 /// A type classifier for values.
 #[derive(Clone, Debug)]

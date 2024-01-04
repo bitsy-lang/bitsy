@@ -4,6 +4,21 @@ impl Package {
     pub(crate) fn check(&self) -> Result<(), Vec<BitsyError>> {
         let mut errors: Vec<BitsyError> = vec![];
 
+        for item in self.items() {
+            match item {
+                Item::EnumTypeDef(typedef)   => {
+                    if let Err(errs) = self.check_enum_typedef(typedef.clone()) {
+                        for error in errs {
+                            errors.push(error)
+                        }
+                    }
+                },
+//                Item::StructTypeDef(typedef) => self.check_struct_typedef(typedef.clone()),
+//                Item::AltTypeDef(typedef)    => self.check_alt_typedef(typedef.clone()),
+                _ => (),
+            }
+        }
+
         for fndef in self.fndefs() {
             if let Err(fndef_errors) = self.check_typecheck_fndef(fndef.clone()) {
                 for fndef_error in fndef_errors {
@@ -32,6 +47,28 @@ impl Package {
             Ok(())
         } else {
             Err(errors)
+        }
+    }
+
+    fn check_enum_typedef(&self, typedef: Arc<EnumTypeDef>) -> Result<(), Vec<BitsyError>> {
+        // TODO maybe print the values in actual form presented in the program text
+        // TODO and also show the location of the error
+        let mut names = BTreeSet::new();
+        let mut values = BTreeSet::new();
+        let mut errors = vec![];
+
+        for (name, value) in &typedef.values {
+            if !names.insert(name.clone()) {
+                errors.push(BitsyError::Unknown(Some(typedef.span.clone()), format!("Duplicate name in enum: {name}")));
+            }
+            if !values.insert(value.value()) {
+                errors.push(BitsyError::Unknown(Some(typedef.span.clone()), format!("Duplicate value in enum: {value:?}")));
+            }
+        }
+        if errors.len() > 0 {
+            Err(errors)
+        } else {
+            Ok(())
         }
     }
 

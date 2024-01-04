@@ -5,7 +5,7 @@
 */
 enum type AluSource {
     IMM = 0w1;
-    RS2 = 0w1;
+    RS2 = 1w1;
 }
 
 /*
