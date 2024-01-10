@@ -7,6 +7,15 @@ Expressions represent combinational logic.
 To represent integers of arbitrary bitwdith, we annotate constants with their bitwidth.
 The literal `42w16` is a 16-bit integer with the value 42.
 
+We may also elide the width in any context where the type can be inferred.
+For example, if we define a register:
+
+.. code-block:: bitsy
+
+    reg counter of Word[4] reset 0;
+
+The reset value, `0` is inferred to have type `Word[4]`, and is the same as if we had written `0w4`.
+
 **References**
 
 You may reference ports, registers, and nodes, accessing their current value.
@@ -112,8 +121,8 @@ For example, given the enum type:
         SUB  = 0b0100000w7;
     }
 
-The expression `word(OpFunct7@ADD)` evaluates to `0b0000000w7` and
-`word(OpFunct7@SUB)` evaluates to `0b0100000w7`.
+The expression `word(OpFunct7::ADD)` evaluates to `0b0000000w7` and
+`word(OpFunct7::SUB)` evaluates to `0b0100000w7`.
 
 You can't cast from a word back to an enum,
 since the value may not be a valid value in that enum type.

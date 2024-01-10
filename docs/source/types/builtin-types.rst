@@ -26,10 +26,12 @@ You can use `match` expressions to get access to the payload inside `Valid[T]`:
 
 .. code-block:: bitsy
 
-    incoming in  of Valid[Word[8]];
-    outgoing out of Word[8];
+    mod Top {
+        incoming in  of Valid[Word[8]];
+        outgoing out of Word[8];
 
-    match in {
-        @Valid(t) => t;
-        @Invalid  => 0;
+        match in {
+            @Valid(t) => t;
+            @Invalid  => 0;
+        }
     }

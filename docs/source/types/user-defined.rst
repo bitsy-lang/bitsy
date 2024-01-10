@@ -69,7 +69,9 @@ Here is an example of a definition for an alt type:
 We define `State` to have three constructors: `Idle`, `Running`, and `Done`.
 
 You construct values of an alt type by calling the constructors.
-Prepend the constructors with an `@` symbol to distinguish them from functions:
+Prepend the constructors with an `@` symbol to distinguish them from functions.
+The `@` also reminds us that the identifier is not a variable or a fixed symbol.
+Instead, it is resolved to a concrete constructor only once you know the type.
 
 .. code-block:: bitsy
 
