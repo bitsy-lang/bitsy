@@ -1,12 +1,12 @@
 struct type Request {
-    x of Word<32>;
-    y of Word<32>;
+    x of Word[32];
+    y of Word[32];
 }
 
 alt type State {
     Idle();
-    Running(Word<32>, Word<32>);
-    Done(Word<32>);
+    Running(Word[32], Word[32]);
+    Done(Word[32]);
 }
 
 pub mod Top {
@@ -15,8 +15,8 @@ pub mod Top {
 }
 
 mod Gcd {
-    incoming request of Valid<Request>;
-    outgoing result of Valid<Word<32>>;
+    incoming request of Valid[Request];
+    outgoing result of Valid[Word[32]];
     reg state of State reset @Idle;
 
     state <= match state {
@@ -41,12 +41,12 @@ mod Gcd {
 }
 
 struct type Sort2 {
-    min of Word<32>;
-    max of Word<32>;
+    min of Word[32];
+    max of Word[32];
 }
 
-fn sort(x of Word<32>, y of Word<32>) -> Sort2 {
-    if x <. y {
+fn sort(x of Word[32], y of Word[32]) -> Sort2 {
+    if x < y {
         { min = x, max = y }
     } else {
         { min = y, max = x }

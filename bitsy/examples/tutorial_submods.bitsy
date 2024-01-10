@@ -1,9 +1,9 @@
 mod Top {
-    outgoing min of Word<3>;
-    outgoing max of Word<3>;
+    outgoing min of Word[3];
+    outgoing max of Word[3];
 
-    reg counter_a of Word<3> reset 0w3;
-    reg counter_b of Word<3> reset 4w3;
+    reg counter_a of Word[3] reset 0w3;
+    reg counter_b of Word[3] reset 4w3;
 
     mod sort of Sort;
 
@@ -18,12 +18,12 @@ mod Top {
 }
 
 mod Sort {
-    incoming a of Word<3>;
-    incoming b of Word<3>;
+    incoming a of Word[3];
+    incoming b of Word[3];
 
-    outgoing min of Word<3>;
-    outgoing max of Word<3>;
+    outgoing min of Word[3];
+    outgoing max of Word[3];
 
-    min := if a <. b { a } else { b };
-    max := if a <. b { b } else { a };
+    min := if a < b { a } else { b };
+    max := if a < b { b } else { a };
 }

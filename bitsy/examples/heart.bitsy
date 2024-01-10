@@ -19,35 +19,35 @@ mod Top {
     video.hsync := positioner.hsync;
     video.vsync := positioner.vsync;
 
-    reg frame_count of Word<32> reset 0w32;
+    reg frame_count of Word[32] reset 0w32;
     frame_count <= if positioner.vsync {
         frame_count + 1w32
     } else {
         frame_count
     };
 
-    node frame_start of Word<1>;
+    node frame_start of Word[1];
     frame_start := positioner.vsync;
 
     video.signal := pixeler.signal;
 }
 
 ext mod Video {
-    incoming signal of Word<2>;
-    incoming hsync of Word<1>;
-    incoming vsync of Word<1>;
+    incoming signal of Word[2];
+    incoming hsync of Word[1];
+    incoming vsync of Word[1];
 }
 
 mod Pixeler {
-    incoming x of Word<4>;
-    incoming y of Word<4>;
-    incoming frame_start of Word<1>;
-    incoming frame_count of Word<32>;
-    outgoing signal of Word<2>;
-    outgoing read_addr of Word<16>;
-    incoming read_data of Word<8>;
+    incoming x of Word[4];
+    incoming y of Word[4];
+    incoming frame_start of Word[1];
+    incoming frame_count of Word[32];
+    outgoing signal of Word[2];
+    outgoing read_addr of Word[16];
+    incoming read_data of Word[8];
 
-    node normal_signal of Word<2>;
+    node normal_signal of Word[2];
 
     normal_signal := if read_data[0] {
         if frame_count[2..0] != 0w2 {
@@ -66,23 +66,23 @@ mod Pixeler {
     };
 
     mod lfsr {
-        outgoing out of Word<8>;
+        outgoing out of Word[8];
 
-        node taps of Word<8>;
+        node taps of Word[8];
         taps := 29w8;
 
-        reg r of Word<8> reset 255w8;
+        reg r of Word[8] reset 255w8;
         r <= cat(r[7..0], 0w1) ^ (if feedback { taps }  else { 0w8 });
         out := r;
 
-        node feedback of Word<1>;
+        node feedback of Word[1];
         feedback := r[7];
     }
 
     mod pos_to_addr {
-        incoming x of Word<4>;
-        incoming y of Word<4>;
-        outgoing addr of Word<8>;
+        incoming x of Word[4];
+        incoming y of Word[4];
+        outgoing addr of Word[8];
 
         addr := cat(y, x);
     }
@@ -91,8 +91,8 @@ mod Pixeler {
     pos_to_addr.x := x;
     pos_to_addr.y := y - heart_y;
 
-    reg heart_x of Word<4> reset 0w4;
-    reg heart_y of Word<4> reset 0w4;
+    reg heart_x of Word[4] reset 0w4;
+    reg heart_y of Word[4] reset 0w4;
     heart_x <= if frame_start {
         if lfsr.out[0] {
             heart_x + 2w4
@@ -114,21 +114,21 @@ mod Pixeler {
 }
 
 ext mod Ram {
-    incoming read_addr of Word<16>;
-    outgoing read_data of Word<8>;
+    incoming read_addr of Word[16];
+    outgoing read_data of Word[8];
 
-    incoming write_enable of Word<1>;
-    incoming write_addr of Word<16>;
-    incoming write_data of Word<8>;
+    incoming write_enable of Word[1];
+    incoming write_addr of Word[16];
+    incoming write_data of Word[8];
 }
 
 mod Positioner {
-    outgoing vsync of Word<1>;
-    outgoing hsync of Word<1>;
-    outgoing x of Word<4>;
-    outgoing y of Word<4>;
+    outgoing vsync of Word[1];
+    outgoing hsync of Word[1];
+    outgoing x of Word[4];
+    outgoing y of Word[4];
 
-    reg tick of Word<32> reset 0w32;
+    reg tick of Word[32] reset 0w32;
     tick <= tick + 1w32;
 
     vsync := tick[8..0] == 0w8;

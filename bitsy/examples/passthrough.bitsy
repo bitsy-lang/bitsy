@@ -1,6 +1,6 @@
 mod Passthrough {
-    incoming in  of Word<8>;
-    outgoing out of Word<8>;
+    incoming in  of Word[8];
+    outgoing out of Word[8];
 
     out := in;
 }

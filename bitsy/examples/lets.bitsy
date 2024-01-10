@@ -1,5 +1,5 @@
 mod Top {
-    outgoing out of Word<8>;
+    outgoing out of Word[8];
 
     out :=
         let x = 3w8;

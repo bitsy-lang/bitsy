@@ -5,9 +5,9 @@ use crate::sim::{Sim, Value};
 fn buffer() {
     let buffer = load_package_from_string("
         mod Top {
-            incoming in of Word<1>;
-            reg r of Word<1>;
-            outgoing out of Word<1>;
+            incoming in of Word[1];
+            reg r of Word[1];
+            outgoing out of Word[1];
             r <= in;
             out := r;
         }
@@ -30,8 +30,8 @@ fn buffer() {
 fn counter() {
     let counter = load_package_from_string("
         mod Top {
-            outgoing out of Word<4>;
-            reg counter of Word<4> reset 0w4;
+            outgoing out of Word[4];
+            reg counter of Word[4] reset 0w4;
             out := counter;
             counter <= counter + 1w4;
         }
@@ -53,11 +53,11 @@ fn counter() {
 fn triangle_numbers() {
     let top = load_package_from_string("
         mod Top {
-            outgoing out of Word<32>;
-            reg sum of Word<32> reset 0w32;
+            outgoing out of Word[32];
+            reg sum of Word[32] reset 0w32;
             mod counter {
-                outgoing out of Word<32>;
-                reg counter of Word<32> reset 1w32;
+                outgoing out of Word[32];
+                reg counter of Word[32] reset 1w32;
                 out := counter;
                 counter <= counter + 1w32;
             }
@@ -81,8 +81,8 @@ fn triangle_numbers() {
 fn ifs() {
     let top = load_package_from_string("
         mod Top {
-            outgoing out of Word<8>;
-            incoming in of Word<1>;
+            outgoing out of Word[8];
+            incoming in of Word[1];
 
             out := if in {
                 42w8
@@ -105,8 +105,8 @@ fn ifs() {
 fn test_node() {
     let top = load_package_from_string("
         mod Top {
-            outgoing out of Word<1>;
-            node n of Word<1>;
+            outgoing out of Word[1];
+            node n of Word[1];
             n := 1w1;
             out := n;
         }
@@ -121,8 +121,8 @@ fn test_node() {
 fn test_check() {
     let top = load_package_from_string("
         mod Top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
+            outgoing out of Word[8];
+            incoming in of Word[8];
 
             out := in;
         }
@@ -134,9 +134,9 @@ fn test_check() {
     /*
     let top2 = parse_top("
         top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
-            node n of Word<1>;
+            outgoing out of Word[8];
+            incoming in of Word[8];
+            node n of Word[1];
             in := n;
         }
     ", None);
@@ -184,8 +184,8 @@ fn test_examples() {
 fn test_locs() {
     let text = "
         mod Top {
-            outgoing out of Word<8>;
-            incoming in of Word<8>;
+            outgoing out of Word[8];
+            incoming in of Word[8];
 
             out := in;
         }

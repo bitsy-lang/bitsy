@@ -8,9 +8,9 @@ use std::collections::BTreeSet;
 fn test_nets() {
     let top = load_package_from_string("
         mod Top {
-            incoming in of Word<1>;
-            reg r of Word<1>;
-            outgoing out of Word<1>;
+            incoming in of Word[1];
+            reg r of Word[1];
+            outgoing out of Word[1];
             r <= in;
             out := r;
         }
@@ -34,11 +34,11 @@ fn test_nets() {
 
     let triangle_numbers_top = load_package_from_string("
         mod Top {
-            node out of Word<32>;
-            reg sum of Word<32> reset 0w32;
+            node out of Word[32];
+            reg sum of Word[32] reset 0w32;
             mod counter {
-                outgoing out of Word<32>;
-                reg c of Word<32> reset 1w32;
+                outgoing out of Word[32];
+                reg c of Word[32] reset 1w32;
                 c <= c + 1w32;
                 out := c;
             }
@@ -56,18 +56,18 @@ fn test_nets() {
 fn test_eval() {
     let top = load_package_from_string("
         mod Top {
-            node x of Word<1>;
-            reg r of Word<1> reset 0w1;
+            node x of Word[1];
+            reg r of Word[1] reset 0w1;
             x := 1w1;
             r <= r;
 
-            reg a of Word<32> reset 2w32;
-            reg b of Word<32> reset 3w32;
+            reg a of Word[32] reset 2w32;
+            reg b of Word[32] reset 3w32;
             a <= a;
             b <= b;
 
-            node p of Word<1>;
-            node q of Word<1>;
+            node p of Word[1];
+            node q of Word[1];
             p := 1w1;
             q := 0w1;
         }
@@ -115,10 +115,10 @@ fn test_eval() {
 fn word_extensions() {
     let buffer = load_package_from_string("
         mod Top {
-            outgoing zout of Word<3>;
-            outgoing sout of Word<3>;
+            outgoing zout of Word[3];
+            outgoing sout of Word[3];
 
-            node n of Word<1>;
+            node n of Word[1];
             n := 1w1;
 
             zout := zext(n);
@@ -137,9 +137,9 @@ fn word_extensions() {
 fn buffer() {
     let buffer = load_package_from_string("
         mod Top {
-            incoming in of Word<1>;
-            reg r of Word<1>;
-            outgoing out of Word<1>;
+            incoming in of Word[1];
+            reg r of Word[1];
+            outgoing out of Word[1];
             r <= in;
             out := r;
         }
@@ -162,8 +162,8 @@ fn buffer() {
 fn counter() {
     let counter = load_package_from_string("
         mod Top {
-            outgoing out of Word<4>;
-            reg counter of Word<4> reset 0w4;
+            outgoing out of Word[4];
+            reg counter of Word[4] reset 0w4;
             out := counter;
             counter <= counter + 1w4;
         }
@@ -186,8 +186,8 @@ fn monitor() {
     let top = load_package_from_string("
         mod Top {
             mod counter {
-                outgoing out of Word<4>;
-                reg counter of Word<4>;
+                outgoing out of Word[4];
+                reg counter of Word[4];
                 counter <= counter + 1w4;
                 out := counter;
             }
@@ -197,7 +197,7 @@ fn monitor() {
         }
 
         ext mod Monitor {
-            incoming in of Word<4>;
+            incoming in of Word[4];
         }
 
     ").unwrap();

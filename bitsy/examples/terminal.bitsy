@@ -1,8 +1,8 @@
 mod Term {
     mod terminal of Terminal;
 
-    reg counter of Word<8> reset 32w8;
-    counter <= if counter <. 127w8 {
+    reg counter of Word[8] reset 32w8;
+    counter <= if counter < 127w8 {
         counter + 1w8
     } else {
         32w8
@@ -13,6 +13,6 @@ mod Term {
 }
 
 ext mod Terminal {
-    incoming in_data of Word<8>;
-    incoming in_valid of Word<1>;
+    incoming in_data of Word[8];
+    incoming in_valid of Word[1];
 }

@@ -10,8 +10,8 @@ enum type AluSource {
 
 alt type PcAdvancement {
     Next();
-    Offset(Word<32>);
-    Abs(Word<32>);
+    Offset(Word[32]);
+    Abs(Word[32]);
 }
 
 /*
@@ -159,20 +159,19 @@ pub mod Core {
     //mod riscv_decoder of RiscvDecoder;
     //riscv_decoder.in := ifetch.instr;
 
-    outgoing ecall of Word<1>;
-    outgoing ebreak of Word<1>;
-    outgoing exception of Word<1>;
+    outgoing ecall of Word[1];
+    outgoing ebreak of Word[1];
+    outgoing exception of Word[1];
 
-    outgoing instr_mem_read_addr of Word<32>;
-    incoming instr_mem_read_data of Word<32>;
+    outgoing instr_mem_read_addr of Word[32];
+    incoming instr_mem_read_data of Word[32];
 
-    outgoing mem_write_enable of Word<1>;
-    outgoing mem_write_addr   of Word<32>;
-    outgoing mem_write_data   of Word<32>;
-    outgoing mem_read_addr    of Word<32>;
-    incoming mem_read_data    of Word<32>;
-    outgoing mem_write_mask   of Word<4>;
-
+    outgoing mem_write_enable of Word[1];
+    outgoing mem_write_addr   of Word[32];
+    outgoing mem_write_data   of Word[32];
+    outgoing mem_read_addr    of Word[32];
+    incoming mem_read_data    of Word[32];
+    outgoing mem_write_mask   of Word[4];
 
     ecall     := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::ECALL);
     ebreak    := decoder.opcode == Opcode::SYSTEM && decoder.funct12 == word(SystemFunct12::EBREAK);
@@ -220,7 +219,7 @@ pub mod Core {
     alu.op := control.alu_op;
 }
 
-fn mem_to_reg_data(data of Word<32>, opcode of Opcode, funct3 of Word<3>) -> Word<32> {
+fn mem_to_reg_data(data of Word[32], opcode of Opcode, funct3 of Word[3]) -> Word[32] {
     if opcode == Opcode::LOAD {
         if funct3 == word(LoadFunct3::LB) {
             sext(data[8..0])
@@ -241,7 +240,7 @@ fn mem_to_reg_data(data of Word<32>, opcode of Opcode, funct3 of Word<3>) -> Wor
     }
 }
 
-fn next_pc(opcode of Opcode, rs1_val of Word<32>, imm of Word<32>, alu_r of Word<32>) -> PcAdvancement {
+fn next_pc(opcode of Opcode, rs1_val of Word[32], imm of Word[32], alu_r of Word[32]) -> PcAdvancement {
     match opcode {
         @JALR => @Abs(rs1_val + imm);
         @JAL => @Offset(imm);
@@ -259,47 +258,47 @@ fn next_pc(opcode of Opcode, rs1_val of Word<32>, imm of Word<32>, alu_r of Word
     `Rf` is the register file.
 */
 mod Rf {
-    incoming rs1 of Word<5>;
-    incoming rs2 of Word<5>;
-    incoming rd  of Word<5>;
+    incoming rs1 of Word[5];
+    incoming rs2 of Word[5];
+    incoming rd  of Word[5];
 
-    incoming write_enable of Word<1>;
-    incoming write_data   of Word<32>;
+    incoming write_enable of Word[1];
+    incoming write_data   of Word[32];
 
-    outgoing rs1_val of Word<32>;
-    outgoing rs2_val of Word<32>;
+    outgoing rs1_val of Word[32];
+    outgoing rs2_val of Word[32];
 
-    reg x1 of Word<32> reset 0;
-    reg x2 of Word<32> reset 0;
-    reg x3 of Word<32> reset 0;
-    reg x4 of Word<32> reset 0;
-    reg x5 of Word<32> reset 0;
-    reg x6 of Word<32> reset 0;
-    reg x7 of Word<32> reset 0;
-    reg x8 of Word<32> reset 0;
-    reg x9 of Word<32> reset 0;
-    reg x10 of Word<32> reset 0;
-    reg x11 of Word<32> reset 0;
-    reg x12 of Word<32> reset 0;
-    reg x13 of Word<32> reset 0;
-    reg x14 of Word<32> reset 0;
-    reg x15 of Word<32> reset 0;
-    reg x16 of Word<32> reset 0;
-    reg x17 of Word<32> reset 0;
-    reg x18 of Word<32> reset 0;
-    reg x19 of Word<32> reset 0;
-    reg x20 of Word<32> reset 0;
-    reg x21 of Word<32> reset 0;
-    reg x22 of Word<32> reset 0;
-    reg x23 of Word<32> reset 0;
-    reg x24 of Word<32> reset 0;
-    reg x25 of Word<32> reset 0;
-    reg x26 of Word<32> reset 0;
-    reg x27 of Word<32> reset 0;
-    reg x28 of Word<32> reset 0;
-    reg x29 of Word<32> reset 0;
-    reg x30 of Word<32> reset 0;
-    reg x31 of Word<32> reset 0;
+    reg x1 of Word[32] reset 0;
+    reg x2 of Word[32] reset 0;
+    reg x3 of Word[32] reset 0;
+    reg x4 of Word[32] reset 0;
+    reg x5 of Word[32] reset 0;
+    reg x6 of Word[32] reset 0;
+    reg x7 of Word[32] reset 0;
+    reg x8 of Word[32] reset 0;
+    reg x9 of Word[32] reset 0;
+    reg x10 of Word[32] reset 0;
+    reg x11 of Word[32] reset 0;
+    reg x12 of Word[32] reset 0;
+    reg x13 of Word[32] reset 0;
+    reg x14 of Word[32] reset 0;
+    reg x15 of Word[32] reset 0;
+    reg x16 of Word[32] reset 0;
+    reg x17 of Word[32] reset 0;
+    reg x18 of Word[32] reset 0;
+    reg x19 of Word[32] reset 0;
+    reg x20 of Word[32] reset 0;
+    reg x21 of Word[32] reset 0;
+    reg x22 of Word[32] reset 0;
+    reg x23 of Word[32] reset 0;
+    reg x24 of Word[32] reset 0;
+    reg x25 of Word[32] reset 0;
+    reg x26 of Word[32] reset 0;
+    reg x27 of Word[32] reset 0;
+    reg x28 of Word[32] reset 0;
+    reg x29 of Word[32] reset 0;
+    reg x30 of Word[32] reset 0;
+    reg x31 of Word[32] reset 0;
 
     // skip x0
     x1 <= mux(write_enable && rd == 1, write_data, x1);
@@ -410,16 +409,16 @@ mod Rf {
 */
 mod Control {
     incoming opcode of Opcode;
-    incoming funct3 of Word<3>;
-    incoming funct7 of Word<7>;
-    incoming funct12 of Word<12>;
+    incoming funct3 of Word[3];
+    incoming funct7 of Word[7];
+    incoming funct12 of Word[12];
 
-    outgoing mem_read of Word<1>;
-    outgoing mem_write of Word<1>;
-    outgoing mem_to_reg of Word<1>;
+    outgoing mem_read of Word[1];
+    outgoing mem_write of Word[1];
+    outgoing mem_to_reg of Word[1];
     outgoing alu_op of AluOp;
     outgoing alu_source of AluSource;
-    outgoing reg_write of Word<1>;
+    outgoing reg_write of Word[1];
 
     mem_read := opcode == Opcode::LOAD;
     mem_write := opcode == Opcode::STORE;
@@ -493,10 +492,10 @@ mod Control {
     `Alu` is the arithmetic logic unit.
 */
 mod Alu {
-    incoming a of Word<32>;
-    incoming b of Word<32>;
+    incoming a of Word[32];
+    incoming b of Word[32];
     incoming op of AluOp;
-    outgoing r of Word<32>;
+    outgoing r of Word[32];
 
     r := match op {
         @AND => a && b;
@@ -516,7 +515,7 @@ mod Alu {
     };
 }
 
-fn sll(a of Word<32>, b of Word<5>) -> Word<32> {
+fn sll(a of Word[32], b of Word[5]) -> Word[32] {
     if b == 0 { a }
     else if b ==  1 { cat(a[31..0],  0w1) }
     else if b ==  2 { cat(a[30..0],  0w2) }
@@ -552,7 +551,7 @@ fn sll(a of Word<32>, b of Word<5>) -> Word<32> {
     else { cat(a[0], 0w31) }
 }
 
-fn srl(a of Word<32>, b of Word<5>) -> Word<32> {
+fn srl(a of Word[32], b of Word[5]) -> Word[32] {
     if b == 0 { a }
     else if b ==  1 { zext(a[32.. 1]) }
     else if b ==  2 { zext(a[32.. 2]) }
@@ -587,7 +586,7 @@ fn srl(a of Word<32>, b of Word<5>) -> Word<32> {
     else { zext(a[31]) }
 }
 
-fn sra(a of Word<32>, b of Word<5>) -> Word<32> {
+fn sra(a of Word[32], b of Word[5]) -> Word[32] {
     if b == 0 { a }
     else if b ==  1 { sext(a[32.. 1]) }
     else if b ==  2 { sext(a[32.. 2]) }
@@ -622,31 +621,31 @@ fn sra(a of Word<32>, b of Word<5>) -> Word<32> {
     else { sext(a[31]) }
 }
 
-fn ltu(a of Word<32>, b of Word<32>) -> Word<1> {
-    a <. b
+fn ltu(a of Word[32], b of Word[32]) -> Word[1] {
+    a < b
 }
 
-fn lt(a of Word<32>, b of Word<32>) -> Word<1> {
+fn lt(a of Word[32], b of Word[32]) -> Word[1] {
     if a[31] && !b[31] {
         1
     } else if !a[31] && b[31] {
         0
     } else {
-        a <. b
+        a < b
     }
 }
 
-fn geu(a of Word<32>, b of Word<32>) -> Word<1> {
-    a == b || b <. a
+fn geu(a of Word[32], b of Word[32]) -> Word[1] {
+    a == b || b < a
 }
 
-fn ge(a of Word<32>, b of Word<32>) -> Word<1> {
+fn ge(a of Word[32], b of Word[32]) -> Word[1] {
     if a[31] && !b[31] {
         0
     } else if !a[31] && b[31] {
         1
     } else {
-        a == b || b <. a
+        a == b || b < a
     }
 }
 
@@ -655,9 +654,9 @@ fn ge(a of Word<32>, b of Word<32>) -> Word<1> {
     It takes the instruction and calculates the 32-bit immediate
 */
 mod Immgen {
-    incoming instr of Word<32>;
+    incoming instr of Word[32];
     incoming opcode of Opcode;
-    outgoing imm of Word<32>;
+    outgoing imm of Word[32];
 
     node typ of InstrType;
     typ := match opcode {
@@ -690,17 +689,17 @@ mod Immgen {
     Not all pieces are guaranteed to be meaningful for all instructions.
 */
 mod Decoder {
-    incoming instr of Word<32>;
+    incoming instr of Word[32];
 
     outgoing opcode of Opcode;
-    outgoing rd     of Word<5>;
-    outgoing rs1    of Word<5>;
-    outgoing rs2    of Word<5>;
-    outgoing funct3     of Word<3>;
-    outgoing funct7     of Word<7>;
-    outgoing funct12    of Word<12>;
-    outgoing exception  of Word<1>;
-    outgoing write_mask of Word<4>;
+    outgoing rd     of Word[5];
+    outgoing rs1    of Word[5];
+    outgoing rs2    of Word[5];
+    outgoing funct3     of Word[3];
+    outgoing funct7     of Word[7];
+    outgoing funct12    of Word[12];
+    outgoing exception  of Word[1];
+    outgoing write_mask of Word[4];
 
     write_mask :=
         let funct3 = instr[15..12];
@@ -717,7 +716,7 @@ mod Decoder {
         @Invalid  => 1;
     };
 
-    node maybe_opcode of Valid<Opcode>;
+    node maybe_opcode of Valid[Opcode];
     maybe_opcode := trycast(instr[7..0]);
 
     opcode := match maybe_opcode {
@@ -743,15 +742,15 @@ mod Decoder {
 mod Ifetch {
     incoming pc_advancement of PcAdvancement;
 
-    outgoing instr_mem_addr of Word<32>;
-    incoming instr_mem_data of Word<32>;
+    outgoing instr_mem_addr of Word[32];
+    incoming instr_mem_data of Word[32];
 
-    outgoing instr of Word<32>;
-    outgoing program_counter of Word<32>;
+    outgoing instr of Word[32];
+    outgoing program_counter of Word[32];
 
     program_counter := pc;
 
-    reg pc of Word<32> reset 0;
+    reg pc of Word[32] reset 0;
     instr_mem_addr := pc;
 
     pc <= match pc_advancement {
@@ -769,22 +768,22 @@ mod Ifetch {
     [0001_0000 - 0001_0001] Terminal
 */
 mod MemorySubsystem {
-    incoming read_addr of Word<32>;
-    outgoing read_data of Word<32>;
+    incoming read_addr of Word[32];
+    outgoing read_data of Word[32];
 
-    incoming write_enable of Word<1>;
-    incoming write_addr of Word<32>;
-    incoming write_data of Word<32>;
-    incoming write_mask of Word<4>;
+    incoming write_enable of Word[1];
+    incoming write_addr   of Word[32];
+    incoming write_data   of Word[32];
+    incoming write_mask   of Word[4];
 
     mod mem of DataMem;
 
-    mem.write_enable := write_addr <. 0x10000w32 && write_enable;
+    mem.write_enable := write_addr < 0x10000w32 && write_enable;
     mem.write_addr := write_addr;
     mem.write_data := write_data;
     mem.write_mask := write_mask;
     mem.read_addr := read_addr;
-    read_data := if read_addr <. 0x10000w32 {
+    read_data := if read_addr < 0x10000w32 {
         mem.read_data
     } else {
         0w32
@@ -797,30 +796,30 @@ mod MemorySubsystem {
 }
 
 //ext mod RiscvDecoder {
-//    incoming in of Word<32>;
+//    incoming in of Word[32];
 //}
 
 ext mod InstrMem {
-    incoming read_addr of Word<32>;
-    outgoing read_data of Word<32>;
+    incoming read_addr of Word[32];
+    outgoing read_data of Word[32];
 
-    incoming write_enable of Word<1>;
-    incoming write_addr of Word<32>;
-    incoming write_data of Word<32>;
-    incoming write_mask of Word<4>;
+    incoming write_enable of Word[1];
+    incoming write_addr of Word[32];
+    incoming write_data of Word[32];
+    incoming write_mask of Word[4];
 }
 
 ext mod DataMem {
-    incoming read_addr of Word<32>;
-    outgoing read_data of Word<32>;
+    incoming read_addr of Word[32];
+    outgoing read_data of Word[32];
 
-    incoming write_enable of Word<1>;
-    incoming write_addr of Word<32>;
-    incoming write_data of Word<32>;
-    incoming write_mask of Word<4>;
+    incoming write_enable of Word[1];
+    incoming write_addr of Word[32];
+    incoming write_data of Word[32];
+    incoming write_mask of Word[4];
 }
 
 ext mod Terminal {
-    incoming out_data of Word<32>;
-    incoming out_valid of Word<1>;
+    incoming out_data of Word[32];
+    incoming out_valid of Word[1];
 }
