@@ -39,16 +39,16 @@ Some basic operations are supported:
 **Concatenation, Indexing, and Slicing**
 
 You can concatenate words with the syntax `cat(w1, w2)`.
-If `w1` is `Word<n>` and `w2` is `Word<m>`, the result is `Word<n + m>`.
+If `w1` is `Word[n]` and `w2` is `Word[m]`, the result is `Word[n + m]`.
 The bits of `w1` become the high-order bits and `w2` become the lower bits.
 
-You can index into a `Word<n>` with the syntax `w[0]`.
+You can index into a `Word[n]` with the syntax `w[0]`.
 Note that we use a plain old literal and not `0w8` here.
 This creates a static indexing of the word.
-It has type `Word<1>`.
+It has type `Word[1]`.
 
 You can also slice a word with the syntax `w[8..4]`.
-This will give you a `Word<4>` with the same result as if you had written
+This will give you a `Word[4]` with the same result as if you had written
 `cat(w[7], w[6], w[5], w[4])`.
 Pay attention!
 This might surprise you coming from Verilog, since `w[8]` is *not* included in the result.
@@ -98,7 +98,7 @@ Each `match` statement has a subject, which is used to determine which match arm
 
 You can extend a word to a larger word by using `sext` (sign-extend) and `zext` (zero-extend).
 The width of the result is automatically inferred from context.
-You cannot use `sext` on a `Word<0>`.
+You cannot use `sext` on a `Word[0]`.
 
 **word and trycast**
 
@@ -128,7 +128,7 @@ You can define your own functions in Bitsy:
 
 .. code-block:: bitsy
 
-    fn inc(x of Word<8>) -> Word<8> {
+    fn inc(x of Word[8]) -> Word[8] {
         x + 1
     }
 
@@ -137,7 +137,7 @@ You can then use these functions in expressions:
 .. code-block:: bitsy
 
     pub mod Top {
-        reg counter of Word<8> reset 0;
+        reg counter of Word[8] reset 0;
         counter <= inc(counter);
     }
 

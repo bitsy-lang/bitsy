@@ -37,9 +37,9 @@ you could define `Color` as:
 .. code-block:: bitsy
 
     struct type Color {
-        red   of Word<8>;
-        green of Word<8>;
-        blue  of Word<8>;
+        red   of Word[8];
+        green of Word[8];
+        blue  of Word[8];
     }
 
 You can construct values of a struct type with the syntax
@@ -62,8 +62,8 @@ Here is an example of a definition for an alt type:
 
     alt type State {
         Idle();
-        Running(Word<32>, Word<32>);
-        Done(Word<32>);
+        Running(Word[32], Word[32]);
+        Done(Word[32]);
     }
 
 We define `State` to have three constructors: `Idle`, `Running`, and `Done`.

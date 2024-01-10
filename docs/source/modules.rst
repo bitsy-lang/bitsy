@@ -15,10 +15,10 @@ The following example is a `Buffer` module, which demonstrates all three parts:
    :linenos:
 
 This module has two ports, an incoming port `in` and and outgoing port `out`.
-Both carry a value of type `Word<1>` (that is, a bit) to and from the module.
+Both carry a value of type `Word[1]` (that is, a bit) to and from the module.
 
 This module contains one subcomponent: a `reg` (register) named `queue`.
-It stores a value of type `Word<1>`.
+It stores a value of type `Word[1]`.
 The `reset` clause declares that the reset value of the register is `0`.
 
 The final two statements are wires.
@@ -48,7 +48,7 @@ We can use several buffers in a row to make a 4-bit shift register:
 
 You can see the experssion `cat(buf3.out, buf2.out, buf1.out, buf0.out)` is used
 to concatenate the output of each of the buffers together.
-Since each of the four values is a single bit, the result is a `Word<4>`.
+Since each of the four values is a single bit, the result is a `Word[4]`.
 
 You can see at a glance that because the module has four latch wires (`<=`),
 a value will take four cycles to get from `cin` to `cout`.
@@ -65,7 +65,7 @@ which might log the value presented on the port `in` on every cycle.
 .. code-block::
 
    ext mod Monitor {
-        incoming in of Word<8>;
+        incoming in of Word[8];
     }
 
 These can be instantiated with the `mod` keyword just like a normal module.
