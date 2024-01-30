@@ -156,3 +156,20 @@ impl Component {
         results
     }
 }
+
+/// A user-defined `tb` testbench.
+#[derive(Debug, Clone)]
+pub struct TbDef {
+    pub span: Span,
+    pub name: String,
+    pub statements: Vec<TbStatement>,
+}
+
+/// A statement which appears in a testbench
+#[derive(Debug, Clone)]
+pub enum TbStatement {
+    Debug,
+    Reset,
+    Clock,
+    ModInst(String, Arc<Component>),
+}

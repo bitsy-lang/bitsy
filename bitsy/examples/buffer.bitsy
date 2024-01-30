@@ -7,3 +7,13 @@ mod Buffer {
     queue <= in;
     out := queue;
 }
+
+tb main {
+    mod buf of Buffer;
+    reset;
+//    assert buf.out == 0;
+//
+//    poke buf.in 0;
+    clock;
+//    assert buf.out == 1;
+}

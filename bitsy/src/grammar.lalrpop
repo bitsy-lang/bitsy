@@ -33,6 +33,7 @@ Item: Item = {
     <e:AltTypeDef> => Item::AltTypeDef(e),
     <m:ExtDef> => Item::ExtDef(m),
     <f:FnDef> => Item::FnDef(f),
+    <t:TbDef> => Item::TbDef(t),
 }
 
 ModDef: ModDef = {
@@ -112,6 +113,19 @@ FnDef: FnDef = {
             ret,
             body: *body,
             span: Span::from(source_info, ll, rr),
+        }
+    },
+}
+
+TbDef: TbDef = {
+    <ll:@L> "tb" <name:Id> "{"
+        <stmts:(TbStatement ";")*>
+    "}" <rr:@R> => {
+        let statements: Vec<_> = stmts.into_iter().map(|(stmt, _semi)| stmt).collect();
+        TbDef {
+            name,
+            span: Span::from(source_info, ll, rr),
+            statements,
         }
     },
 }
@@ -357,6 +371,17 @@ WordLit: WordLit = {
         let width = parts[1].parse().unwrap();
         WordLit(Some(width), v)
     },
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Testbench Statements
+////////////////////////////////////////////////////////////////////////////////
+
+TbStatement: TbStatement = {
+    <ll:@L> "debug" <rr:@R> => TbStatement::Debug,
+    <ll:@L> "clock" <rr:@R> => TbStatement::Clock,
+    <ll:@L> "reset" <rr:@R> => TbStatement::Reset,
+    <ll:@L> "mod" <id:Id> "of" <modname:Id> <rr:@R> => TbStatement::ModInst(id, modname),
 }
 
 ////////////////////////////////////////////////////////////////////////////////

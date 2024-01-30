@@ -32,6 +32,7 @@ pub enum Item {
     StructTypeDef(StructTypeDef),
     AltTypeDef(AltTypeDef),
     FnDef(FnDef),
+    TbDef(TbDef),
 }
 
 impl Item {
@@ -43,6 +44,7 @@ impl Item {
             Item::StructTypeDef(typedef) => typedef.name.as_str(),
             Item::AltTypeDef(typedef) => typedef.name.as_str(),
             Item::FnDef(fndef) => fndef.name.as_str(),
+            Item::TbDef(tbdef) => tbdef.name.as_str(),
         }
     }
 }
@@ -56,6 +58,7 @@ impl HasSpan for Item {
             Item::StructTypeDef(typedef) => typedef.span.clone(),
             Item::AltTypeDef(typedef) => typedef.span.clone(),
             Item::FnDef(fndef) => fndef.span.clone(),
+            Item::TbDef(tbdef) => tbdef.span.clone(),
         }
     }
 }
@@ -109,6 +112,23 @@ pub struct FnDef {
     pub ret: Type,
     pub body: Expr,
     pub span: Span,
+}
+
+/// A testbench
+#[derive(Debug, Clone)]
+pub struct TbDef {
+    pub name: Ident,
+    pub span: Span,
+    pub statements: Vec<TbStatement>,
+}
+
+/// A statement which appears in a testbench
+#[derive(Debug, Clone)]
+pub enum TbStatement {
+    Debug,
+    Reset,
+    Clock,
+    ModInst(Ident, Ident),
 }
 
 /// An expression.

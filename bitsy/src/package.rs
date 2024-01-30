@@ -206,6 +206,7 @@ pub enum Item {
     StructTypeDef(Arc<StructTypeDef>),
     AltTypeDef(Arc<AltTypeDef>),
     FnDef(Arc<FnDef>),
+    TbDef(Arc<TbDef>),
 }
 
 impl Item {
@@ -217,6 +218,7 @@ impl Item {
             Item::StructTypeDef(typedef) => &typedef.name,
             Item::AltTypeDef(typedef) => &typedef.name,
             Item::FnDef(typedef) => &typedef.name,
+            Item::TbDef(tbdef) => &tbdef.name,
         }
     }
 
@@ -269,6 +271,7 @@ impl HasSpan for Item {
             Item::StructTypeDef(typedef) => typedef.span.clone(),
             Item::AltTypeDef(typedef) => typedef.span.clone(),
             Item::FnDef(typedef) => typedef.span.clone(),
+            Item::TbDef(tbdef) => tbdef.span.clone(),
         }
     }
 }

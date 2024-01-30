@@ -82,6 +82,7 @@ impl Namespace {
             ast::Item::StructTypeDef(typedef) => Item::StructTypeDef(self.resolve_struct_typedef(typedef)?),
             ast::Item::AltTypeDef(typedef) => Item::AltTypeDef(self.resolve_alt_typedef(typedef)?),
             ast::Item::FnDef(fndef) => Item::FnDef(self.resolve_fndef(fndef)?),
+            ast::Item::TbDef(fndef) => Item::TbDef(self.resolve_tbdef(fndef)?),
         })
     }
 
@@ -162,6 +163,31 @@ impl Namespace {
             body: self.resolve_expr(&fndef.body, Context::empty())?,
         });
         Ok(package_typedef)
+    }
+
+    fn resolve_tbdef(&self, tbdef: &ast::TbDef) -> Result<Arc<TbDef>, Vec<BitsyError>> {
+        let mut statements = vec![];
+        for statement in &tbdef.statements {
+            statements.push(self.resolve_tbstatement(statement)?);
+        }
+
+        Ok(Arc::new(TbDef {
+            span: tbdef.span.clone(),
+            name: tbdef.name.to_string(),
+            statements,
+        }))
+    }
+
+    fn resolve_tbstatement(&self, statement: &ast::TbStatement) -> Result<TbStatement, Vec<BitsyError>> {
+        Ok(match statement {
+            ast::TbStatement::Debug => TbStatement::Debug,
+            ast::TbStatement::Reset => TbStatement::Reset,
+            ast::TbStatement::Clock => TbStatement::Clock,
+            ast::TbStatement::ModInst(name, moddef_name) => {
+                let moddef = self.moddef(moddef_name.as_str()).unwrap();
+                TbStatement::ModInst(name.to_string(), moddef)
+            }
+        })
     }
 
     fn resolve_type(&self, typ: &ast::Type) -> Result<Type, Vec<BitsyError>> {
@@ -404,6 +430,7 @@ fn item_dependencies(item: &ast::Item) -> Result<Vec<ast::Ident>, Vec<BitsyError
         ast::Item::StructTypeDef(typedef) => structtypedef_dependencies(typedef),
         ast::Item::AltTypeDef(typedef) => altypedef_dependencies(typedef),
         ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
+        ast::Item::TbDef(typedef) => tbdef_dependencies(typedef),
     }
 }
 
@@ -537,6 +564,19 @@ fn fndef_dependencies(typedef: &ast::FnDef) -> Result<Vec<ast::Ident>, Vec<Bitsy
 
     result.extend(expr_dependencies(&typedef.body, &arguments)?.into_iter());
     Ok(result)
+}
+
+fn tbdef_dependencies(tbdef: &ast::TbDef) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
+    let mut results = vec![];
+
+    for statement in &tbdef.statements {
+        match statement {
+            ast::TbStatement::ModInst(_name, moddef_name) => results.push(moddef_name.clone()),
+            _ => (),
+        }
+    }
+
+    Ok(results)
 }
 
 fn type_dependencies(typ: &ast::Type) -> Result<Vec<ast::Ident>, Vec<BitsyError>> {
