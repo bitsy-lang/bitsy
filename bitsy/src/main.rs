@@ -13,7 +13,7 @@ use clap::Parser;
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(name = "bitsy", author, version, about, long_about = None)]
 struct Args {
     filename: Option<String>,
 
