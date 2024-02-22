@@ -111,7 +111,7 @@ impl Expr {
             },
             Expr::Enum(_loc, typ, _typedef, valname) => {
                 let name = format!("%{prefix}_enum");
-                let typedef = if let Type::Enum(typedef) = typ.get().unwrap() {
+                let typedef = if let Type::Enum(typedef) = typ.unwrap() {
                     typedef
                 } else {
                     panic!();

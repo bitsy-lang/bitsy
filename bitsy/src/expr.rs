@@ -2,56 +2,55 @@ use super::*;
 use crate::sim::NetId;
 use std::collections::BTreeSet;
 use std::sync::Arc;
-use once_cell::sync::OnceCell;
 
 /// An expression.
 #[derive(Clone, Debug)]
 pub enum Expr {
     /// A referenec to a port, reg, or node.
-    Reference(Span, OnceCell<Type>, Path),
+    Reference(Span, Option<Type>, Path),
     /// A referenec to a net. Used only in [`crate::sim::Sim`].
-    Net(Span, OnceCell<Type>, NetId),
+    Net(Span, Option<Type>, NetId),
     /// A literal Word.
-    Word(Span, OnceCell<Type>, Option<Width>, u64),
+    Word(Span, Option<Type>, Option<Width>, u64),
     /// A literal enum value.
-    Enum(Span, OnceCell<Type>, Type, String),
+    Enum(Span, Option<Type>, Type, String),
     /// Constructor (for `Valid<T>`)
-    Ctor(Span, OnceCell<Type>, String, Vec<Arc<Expr>>),
+    Ctor(Span, Option<Type>, String, Vec<Arc<Expr>>),
     /// Constructor for structs. Eg, `{ x = 0, y = 0}`.
-    Struct(Span, OnceCell<Type>, Vec<(String, Arc<Expr>)>),
+    Struct(Span, Option<Type>, Vec<(String, Arc<Expr>)>),
     /// Let binding. Eg, `let x = a + b in x + x`.
-    Let(Span, OnceCell<Type>, String, Option<Type>, Arc<Expr>, Arc<Expr>),
+    Let(Span, Option<Type>, String, Option<Type>, Arc<Expr>, Arc<Expr>),
     /// A unary operation. Eg, `!0b101w3`.
-    UnOp(Span, OnceCell<Type>, UnOp, Arc<Expr>),
+    UnOp(Span, Option<Type>, UnOp, Arc<Expr>),
     /// A binary operation. Eg, `1w8 + 1w8`.
-    BinOp(Span, OnceCell<Type>, BinOp, Arc<Expr>, Arc<Expr>),
+    BinOp(Span, Option<Type>, BinOp, Arc<Expr>, Arc<Expr>),
     /// An `if` expression.
-    If(Span, OnceCell<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
+    If(Span, Option<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A `match` expression.
-    Match(Span, OnceCell<Type>, Arc<Expr>, Vec<MatchArm>),
+    Match(Span, Option<Type>, Arc<Expr>, Vec<MatchArm>),
     /// A multiplexer. Eg, `mux(cond, a, b)`.
-    Mux(Span, OnceCell<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
+    Mux(Span, Option<Type>, Arc<Expr>, Arc<Expr>, Arc<Expr>),
     /// A concatenate expression. Eg, `cat(foo, 0w1)`.
-    Cat(Span, OnceCell<Type>, Vec<Arc<Expr>>),
+    Cat(Span, Option<Type>, Vec<Arc<Expr>>),
     /// A sign extension expression.
-    Sext(Span, OnceCell<Type>, Arc<Expr>),
+    Sext(Span, Option<Type>, Arc<Expr>),
     /// A zero extension expression.
-    Zext(Span, OnceCell<Type>, Arc<Expr>),
+    Zext(Span, Option<Type>, Arc<Expr>),
     /// Try to cast a `Word` to an `enum` type.
-    TryCast(Span, OnceCell<Type>, Arc<Expr>),
+    TryCast(Span, Option<Type>, Arc<Expr>),
     /// A word expression. Used to cast user-defined `enum` types to their bit values.
-    ToWord(Span, OnceCell<Type>, Arc<Expr>),
+    ToWord(Span, Option<Type>, Arc<Expr>),
     /// A vector constructor expression. Eg, `[0w2, 1w2, 2w2]`.
-    Vec(Span, OnceCell<Type>, Vec<Arc<Expr>>),
-    IdxField(Span, OnceCell<Type>, Arc<Expr>, String),
+    Vec(Span, Option<Type>, Vec<Arc<Expr>>),
+    IdxField(Span, Option<Type>, Arc<Expr>, String),
     /// A static index. Eg, `foo[0]`.
-    Idx(Span, OnceCell<Type>, Arc<Expr>, u64),
+    Idx(Span, Option<Type>, Arc<Expr>, u64),
     /// A static index range. Eg, `foo[8..4]`.
-    IdxRange(Span, OnceCell<Type>, Arc<Expr>, u64, u64),
+    IdxRange(Span, Option<Type>, Arc<Expr>, u64, u64),
     /// A function call. Eg, `foo(x, y)`.
-    Call(Span, OnceCell<Type>, Arc<FnDef>, Vec<Arc<Expr>>),
+    Call(Span, Option<Type>, Arc<FnDef>, Vec<Arc<Expr>>),
     /// A hole. Eg, `?foo`.
-    Hole(Span, OnceCell<Type>, Option<String>),
+    Hole(Span, Option<Type>, Option<String>),
 }
 
 /// A [`MatchArm`] is a case in a `match` expression.
@@ -180,7 +179,7 @@ impl Expr {
     pub fn assert_has_types(&self) {
         let mut func = |e: &Expr| {
             if let Expr::Word(_loc, typ, _width, _n) = e {
-                typ.get().expect(&format!("Expression was not typechecked: {e:?}"));
+                typ.expect(&format!("Expression was not typechecked: {e:?}"));
             }
         };
         self.with_subexprs(&mut func);
@@ -400,34 +399,34 @@ impl Expr {
     }
 
     pub fn type_of(&self) -> Type {
-        self.type_of_cell().unwrap().get().unwrap().clone()
+        self.type_of_cell().unwrap()
     }
 
-    pub(crate) fn type_of_cell(&self) -> Option<&OnceCell<Type>> {
+    pub(crate) fn type_of_cell(&self) -> Option<Type> {
         match self {
-            Expr::Net(_loc, typ, _netid) => Some(typ),
-            Expr::Reference(_loc, typ, _path) => Some(typ),
-            Expr::Word(_loc, typ, _width, _val) => Some(typ),
-            Expr::Enum(_loc, typ, _typedef, _name) => Some(typ),
-            Expr::Ctor(_loc, typ, _name, _e) => Some(typ),
-            Expr::Struct(_loc, typ, _fields) => Some(typ),
-            Expr::Let(_loc, typ, _name, _typascription, _e, _b) => Some(typ),
-            Expr::UnOp(_loc, typ, _op, _e) => Some(typ),
-            Expr::BinOp(_loc, typ, _op, _e1, _e2) => Some(typ),
-            Expr::If(_loc, typ, _cond, _e1, _e2) => Some(typ),
-            Expr::Match(_loc, typ, _e, _arms) => Some(typ),
-            Expr::Mux(_loc, typ, _cond, _e1, _e2) => Some(typ),
-            Expr::Cat(_loc, typ, _es) => Some(typ),
-            Expr::Sext(_loc, typ, _e) => Some(typ),
-            Expr::Zext(_loc, typ, _e) => Some(typ),
-            Expr::TryCast(_loc, typ, _e) => Some(typ),
-            Expr::ToWord(_loc, typ, _e) => Some(typ),
-            Expr::Vec(_loc, typ, _es) => Some(typ),
-            Expr::Idx(_loc, typ, _e, _i) => Some(typ),
-            Expr::IdxField(_loc, typ, _e, _field) => Some(typ),
-            Expr::IdxRange(_loc, typ, _e, _j, _i) => Some(typ),
-            Expr::Call(_loc, typ, _fndef, _es) => Some(typ),
-            Expr::Hole(_loc, typ, _opt_name) => Some(typ),
+            Expr::Net(_loc, typ, _netid) => typ.clone(),
+            Expr::Reference(_loc, typ, _path) => typ.clone(),
+            Expr::Word(_loc, typ, _width, _val) => typ.clone(),
+            Expr::Enum(_loc, typ, _typedef, _name) => typ.clone(),
+            Expr::Ctor(_loc, typ, _name, _e) => typ.clone(),
+            Expr::Struct(_loc, typ, _fields) => typ.clone(),
+            Expr::Let(_loc, typ, _name, _typascription, _e, _b) => typ.clone(),
+            Expr::UnOp(_loc, typ, _op, _e) => typ.clone(),
+            Expr::BinOp(_loc, typ, _op, _e1, _e2) => typ.clone(),
+            Expr::If(_loc, typ, _cond, _e1, _e2) => typ.clone(),
+            Expr::Match(_loc, typ, _e, _arms) => typ.clone(),
+            Expr::Mux(_loc, typ, _cond, _e1, _e2) => typ.clone(),
+            Expr::Cat(_loc, typ, _es) => typ.clone(),
+            Expr::Sext(_loc, typ, _e) => typ.clone(),
+            Expr::Zext(_loc, typ, _e) => typ.clone(),
+            Expr::TryCast(_loc, typ, _e) => typ.clone(),
+            Expr::ToWord(_loc, typ, _e) => typ.clone(),
+            Expr::Vec(_loc, typ, _es) => typ.clone(),
+            Expr::Idx(_loc, typ, _e, _i) => typ.clone(),
+            Expr::IdxField(_loc, typ, _e, _field) => typ.clone(),
+            Expr::IdxRange(_loc, typ, _e, _j, _i) => typ.clone(),
+            Expr::Call(_loc, typ, _fndef, _es) => typ.clone(),
+            Expr::Hole(_loc, typ, _opt_name) => typ.clone(),
         }
     }
 }

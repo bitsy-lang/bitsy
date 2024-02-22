@@ -26,7 +26,6 @@ lalrpop = "0.20.0"
 lalrpop-util = "0.20.0"
 lazy_static = "1.4.0"
 log = "0.4.20"
-once_cell = "1.19.0"
 petgraph = "0.6.4"
 riscy = "0.4.0"
 rustyline = { version = "12.0.0", features = ["with-file-history"] }

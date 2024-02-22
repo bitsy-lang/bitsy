@@ -18,8 +18,8 @@ impl Expr {
             }
             Expr::Net(_loc, _typ, netid) => bitsy.peek_net(*netid),
             Expr::Word(_loc, typ, _width, value) => {
-                if let Type::Word(width) = typ.get().unwrap() {
-                    Value::Word(*width, *value)
+                if let Type::Word(width) = typ.unwrap() {
+                    Value::Word(width, *value)
                 } else {
                     unreachable!()
                 }
@@ -36,7 +36,7 @@ impl Expr {
                     let value = e.eval_with_ctx(bitsy, ctx.clone());
                     field_values.push((name.to_string(), value));
                 }
-                Value::Struct(typ.get().unwrap().clone(), field_values)
+                Value::Struct(typ.unwrap().clone(), field_values)
             },
             Expr::Let(_loc, _typ, name, _ascription, e, b) => {
                 let v = e.eval_with_ctx(bitsy, ctx.clone());
@@ -127,7 +127,7 @@ impl Expr {
                 }
             },
             Expr::Sext(loc, typ, e) => {
-                let n = if let Type::Word(n) = typ.get().unwrap() {
+                let n = if let Type::Word(n) = typ.unwrap() {
                     n
                 } else {
                     unreachable!()
@@ -136,13 +136,13 @@ impl Expr {
                     Value::X => Value::X,
                     Value::Word(0, _x) => panic!("Can't sext a Word<0> {loc:?}"),
                     Value::Word(w, x) => {
-                        if w <= *n {
+                        if w <= n {
                             let is_negative = x & (1 << (w - 1)) > 0;
                             if is_negative {
                                 let flips = ((1 << (n - w)) - 1) << w;
-                                Value::Word(*n, flips | x)
+                                Value::Word(n, flips | x)
                             } else {
-                                Value::Word(*n, x)
+                                Value::Word(n, x)
                             }
                         } else {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
@@ -154,7 +154,7 @@ impl Expr {
                 }
             },
             Expr::Zext(loc, typ, e) => {
-                let n = if let Type::Word(n) = typ.get().unwrap() {
+                let n = if let Type::Word(n) = typ.unwrap() {
                     n
                 } else {
                     unreachable!()
@@ -162,8 +162,8 @@ impl Expr {
                 match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
                     Value::Word(w, x) => {
-                        if w <= *n {
-                            Value::Word(*n, x)
+                        if w <= n {
+                            Value::Word(n, x)
                         } else {
                             panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
                         }
@@ -174,9 +174,9 @@ impl Expr {
                 }
             },
             Expr::TryCast(_loc, typ, e) => {
-                let typ = typ.get().unwrap();
+                let typ = typ.unwrap();
                 let typedef = if let Type::Valid(inner_type) = typ {
-                    if let Type::Enum(typedef) = &**inner_type {
+                    if let Type::Enum(typedef) = &*inner_type {
                         typedef
                     } else {
                         unreachable!()

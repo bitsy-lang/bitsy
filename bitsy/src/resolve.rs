@@ -3,7 +3,6 @@ use super::*;
 use ast::Ident;
 use std::collections::BTreeSet;
 use std::collections::BTreeMap;
-use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -299,33 +298,33 @@ impl Namespace {
         Ok(Arc::new(match expr {
             ast::Expr::Ident(span, id) => {
                 self.add_ident(id);
-                Expr::Reference(span.clone(), OnceCell::new(), id.to_string().into())
+                Expr::Reference(span.clone(), None, id.to_string().into())
             },
             ast::Expr::Dot(span, e, x) => {
                 if let ast::Expr::Ident(_loc, id) = &**e {
                     self.add_ident(id);
-                    Expr::Reference(span.clone(), OnceCell::new(), format!("{id}.{x}").into())
+                    Expr::Reference(span.clone(), None, format!("{id}.{x}").into())
                 } else {
                     panic!()
                 }
             },
-            ast::Expr::Word(span, w, n) => Expr::Word(span.clone(), OnceCell::new(), *w, *n),
+            ast::Expr::Word(span, w, n) => Expr::Word(span.clone(), None, *w, *n),
             ast::Expr::Enum(span, typ, value) => {
-                Expr::Enum(span.clone(), OnceCell::new(), self.resolve_type(typ)?, value.clone())
+                Expr::Enum(span.clone(), None, self.resolve_type(typ)?, value.clone())
             },
             ast::Expr::Struct(span, fields) => {
                 let mut package_fields: Vec<(String, Arc<Expr>)> = vec![];
                 for (name, expr) in fields {
                     package_fields.push((name.to_string(), self.resolve_expr(expr, ctx.clone())?));
                 }
-                Expr::Struct(span.clone(), OnceCell::new(), package_fields)
+                Expr::Struct(span.clone(), None, package_fields)
             },
             ast::Expr::Vec(span, es) => {
                 let mut package_es: Vec<Arc<Expr>> = vec![];
                 for expr in es {
                     package_es.push(self.resolve_expr(expr, ctx.clone())?);
                 }
-                Expr::Vec(span.clone(), OnceCell::new(), package_es)
+                Expr::Vec(span.clone(), None, package_es)
             },
             ast::Expr::Call(span, func, type_params, es) => {
                 let mut package_es: Vec<Arc<Expr>> = vec![];
@@ -333,20 +332,20 @@ impl Namespace {
                     package_es.push(self.resolve_expr(expr, ctx.clone())?);
                 }
                 match func.as_str() {
-                    "cat" => Expr::Cat(span.clone(), OnceCell::new(), package_es),
+                    "cat" => Expr::Cat(span.clone(), None, package_es),
                     "mux" => Expr::Mux(
                         span.clone(),
-                        OnceCell::new(),
+                        None,
                         package_es[0].clone(),
                         package_es[1].clone(),
                         package_es[2].clone(),
                     ),
-                    "sext" => Expr::Sext(span.clone(), OnceCell::new(), package_es[0].clone()),
-                    "zext" => Expr::Zext(span.clone(), OnceCell::new(), package_es[0].clone()),
-                    "trycast" => Expr::TryCast(span.clone(), OnceCell::new(), package_es[0].clone()),
-                    "word" => Expr::ToWord(span.clone(), OnceCell::new(), package_es[0].clone()),
-                    "@Valid" => Expr::Ctor(span.clone(), OnceCell::new(), "Valid".to_string(), package_es),
-                    "@Invalid" => Expr::Ctor(span.clone(), OnceCell::new(), "Invalid".to_string(), vec![]),
+                    "sext" => Expr::Sext(span.clone(), None, package_es[0].clone()),
+                    "zext" => Expr::Zext(span.clone(), None, package_es[0].clone()),
+                    "trycast" => Expr::TryCast(span.clone(), None, package_es[0].clone()),
+                    "word" => Expr::ToWord(span.clone(), None, package_es[0].clone()),
+                    "@Valid" => Expr::Ctor(span.clone(), None, "Valid".to_string(), package_es),
+                    "@Invalid" => Expr::Ctor(span.clone(), None, "Invalid".to_string(), vec![]),
                     fnname => {
                         let func = fnname.to_string();
                         if fnname.starts_with("@") {
@@ -354,13 +353,13 @@ impl Namespace {
                             for expr in es {
                                 package_es.push(self.resolve_expr(expr, ctx.clone())?);
                             }
-                            Expr::Ctor(span.clone(), OnceCell::new(), fnname[1..].to_string(), package_es)
+                            Expr::Ctor(span.clone(), None, fnname[1..].to_string(), package_es)
                         } else if let Some(fndef) = self.fndef(&func) {
                             let mut package_es: Vec<Arc<Expr>> = vec![];
                             for expr in es {
                                 package_es.push(self.resolve_expr(expr, ctx.clone())?);
                             }
-                            Expr::Call(span.clone(), OnceCell::new(), fndef, package_es)
+                            Expr::Call(span.clone(), None, fndef, package_es)
                         } else {
                             panic!("Unknown call: {func}")
                         }
@@ -375,14 +374,14 @@ impl Namespace {
                 } else {
                     None
                 };
-                Expr::Let(span.clone(), OnceCell::new(), x.to_string(), package_ascription, package_e, package_b)
+                Expr::Let(span.clone(), None, x.to_string(), package_ascription, package_e, package_b)
             },
             ast::Expr::UnOp(span, op, e1) => {
-                Expr::UnOp(span.clone(), OnceCell::new(), *op, self.resolve_expr(&e1, ctx)?)
+                Expr::UnOp(span.clone(), None, *op, self.resolve_expr(&e1, ctx)?)
             },
             ast::Expr::BinOp(span, op, e1, e2) => Expr::BinOp(
                 span.clone(),
-                OnceCell::new(),
+                None,
                 *op,
                 self.resolve_expr(&e1, ctx.clone())?,
                 self.resolve_expr(&e2, ctx)?,
@@ -391,7 +390,7 @@ impl Namespace {
                 let package_c = self.resolve_expr(c, ctx.clone())?;
                 let package_e1 = self.resolve_expr(e1, ctx.clone())?;
                 let package_e2 = self.resolve_expr(e2, ctx)?;
-                Expr::If(span.clone(), OnceCell::new(), package_c, package_e1, package_e2)
+                Expr::If(span.clone(), None, package_c, package_e1, package_e2)
             },
             ast::Expr::Match(span, e, arms) => {
                 let package_e = self.resolve_expr(e, ctx.clone())?;
@@ -400,22 +399,22 @@ impl Namespace {
                     let package_expr = self.resolve_expr(expr, ctx.clone())?;
                     package_arms.push(MatchArm(pat.clone(), package_expr))
                 }
-                Expr::Match(span.clone(), OnceCell::new(), package_e, package_arms)
+                Expr::Match(span.clone(), None, package_e, package_arms)
             },
             ast::Expr::IdxField(span, e, field) => Expr::IdxField(
                 span.clone(),
-                OnceCell::new(),
+                None,
                 self.resolve_expr(&e, ctx)?,
                 field.to_string(),
             ),
             ast::Expr::Idx(span, e, i) => {
-                Expr::Idx(span.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *i)
+                Expr::Idx(span.clone(), None, self.resolve_expr(&e, ctx)?, *i)
             },
             ast::Expr::IdxRange(span, e, j, i) => {
-                Expr::IdxRange(span.clone(), OnceCell::new(), self.resolve_expr(&e, ctx)?, *j, *i)
+                Expr::IdxRange(span.clone(), None, self.resolve_expr(&e, ctx)?, *j, *i)
             },
             ast::Expr::Hole(span, name) => {
-                Expr::Hole(span.clone(), OnceCell::new(), name.clone().map(|name| name.to_string()))
+                Expr::Hole(span.clone(), None, name.clone().map(|name| name.to_string()))
             },
         }))
     }

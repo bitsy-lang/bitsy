@@ -155,7 +155,6 @@ dependencies = [
  "lalrpop-util",
  "lazy_static",
  "log",
- "once_cell",
  "petgraph",
  "riscy",
  "rustyline",
