@@ -9,7 +9,7 @@ syntax region blockComment start="/\*" end="\*/"
 hi link lineComment Comment
 hi link blockComment Comment
 
-syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when alt import from tb clock
+syn keyword bitsyKeyword mod enum type shape struct pub end of match if else wire reg incoming outgoing gate field let port init builtin fn top ext reset node when alt import from tb clock dom on dependson with test while always task loop drv mon it assert cover is set poke peek
 hi link bitsyKeyword Keyword
 syn keyword bitsyConstant true false XXX io
 hi link bitsyConstant Number
@@ -40,6 +40,7 @@ hi link bitsyUpperIdentifier Type
 syn match bitsyAt "@"
 syn match bitsyColon ":"
 syn match bitsyRevFatArrow "<="
+syn match bitsyRevFatDollarArrow "$="
 syn match bitsyRevFatArrowBang "<=!"
 syn match bitsyRevColonArrow ":="
 syn match bitsyRevColonArrowBang ":=!"
@@ -61,6 +62,7 @@ hi link bitsyColon Keyword
 hi link lt Keyword
 hi link gt Keyword
 hi link bitsyArrow Keyword
+hi link bitsyRevFatDollarArrow Keyword
 hi link bitsyRevFatArrow Keyword
 hi link bitsyRevFatArrowBang Keyword
 hi link bitsyRevColonArrow Keyword
@@ -80,3 +82,6 @@ syn match bitsyCtor "@\<[a-zA-Z_][A-Za-z0-9_]*"
 syn match bitsyOtherwise "otherwise"
 hi link bitsyCtor Constant
 hi link bitsyOtherwise Constant
+
+syn match bitsyX "X"
+hi link bitsyX Number
