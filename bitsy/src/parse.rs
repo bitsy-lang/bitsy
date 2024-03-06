@@ -1,4 +1,5 @@
 use super::*;
+use lalrpop_util::ParseError;
 
 pub fn load_package_from_file<P: AsRef<std::path::Path>>(path: P) -> Result<Package, Vec<BitsyError>> {
     let package_text = std::fs::read_to_string(path.as_ref()).unwrap();

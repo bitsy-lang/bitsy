@@ -34,6 +34,12 @@ Item: Item = {
     <m:ExtDef> => Item::ExtDef(m),
     <f:FnDef> => Item::FnDef(f),
     <t:TbDef> => Item::TbDef(t),
+    <ll:@L> ! <rr:@R> => {
+        let span = Span::from(source_info, ll, rr);
+        dbg!(span);
+        eprintln!();
+        Item::Error(Span::from(source_info, ll, rr))
+    },
 }
 
 ModDef: ModDef = {

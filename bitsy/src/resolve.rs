@@ -15,9 +15,29 @@ pub struct Namespace {
 pub fn resolve(package: &ast::Package) -> Result<Namespace, Vec<BitsyError>> {
     let mut namespace = Namespace::new();
 
-    for item in order_items(package)? {
+    let mut errors = vec![];
+
+    for item in &package.items {
+        if let ast::Item::Error(span) = item {
+            errors.push(BitsyError::ParseError(span.clone(), format!("Parse Error {span:?}")));
+        }
+    }
+
+    if errors.len() > 0 {
+        return Err(errors);
+    }
+
+    let ordered_items = order_items(package)?;
+
+    for item in &ordered_items {
         let item = namespace.resolve_item(item)?;
-        namespace.add_item(item.name(), item.clone());
+        if let Err(error) = namespace.add_item(item.name(), item.clone()) {
+            errors.push(error);
+        }
+    }
+
+    if errors.len() > 0 {
+        return Err(errors);
     }
 
     Ok(namespace)
@@ -40,9 +60,13 @@ impl Namespace {
         idents.to_vec()
     }
 
-    fn add_item(&mut self, name: &str, item: Item) {
+    fn add_item(&mut self, name: &str, item: Item) -> Result<(), BitsyError> {
         let prev = self.items.insert(name.to_string(), item);
-        assert!(prev.is_none());
+        if prev.is_none() {
+            Ok(())
+        } else {
+            Err(BitsyError::Unknown(None, "Duplicate item".to_string()))
+        }
     }
 
     fn add_ident(&self, ident: &Ident) {
@@ -83,6 +107,7 @@ impl Namespace {
             ast::Item::AltTypeDef(typedef) => Item::AltTypeDef(self.resolve_alt_typedef(typedef)?),
             ast::Item::FnDef(fndef) => Item::FnDef(self.resolve_fndef(fndef)?),
             ast::Item::TbDef(fndef) => Item::TbDef(self.resolve_tbdef(fndef)?),
+            ast::Item::Error(_message) => panic!(),
         })
     }
 
@@ -431,6 +456,7 @@ fn item_dependencies(item: &ast::Item) -> Result<Vec<ast::Ident>, Vec<BitsyError
         ast::Item::AltTypeDef(typedef) => altypedef_dependencies(typedef),
         ast::Item::FnDef(typedef) => fndef_dependencies(typedef),
         ast::Item::TbDef(typedef) => tbdef_dependencies(typedef),
+        ast::Item::Error(_span) => Ok(Vec::new()),
     }
 }
 

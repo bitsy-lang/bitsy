@@ -5,6 +5,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub enum BitsyError {
     ExtHasNonPort(Span, Name),
+//    DuplicateItem(Item),
     DuplicateComponent(Arc<Component>),
     MultipleDrivers(Span, Name),
     NoDrivers(Arc<Component>),

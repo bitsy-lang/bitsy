@@ -33,6 +33,7 @@ pub enum Item {
     AltTypeDef(AltTypeDef),
     FnDef(FnDef),
     TbDef(TbDef),
+    Error(Span),
 }
 
 impl Item {
@@ -45,6 +46,7 @@ impl Item {
             Item::AltTypeDef(typedef) => typedef.name.as_str(),
             Item::FnDef(fndef) => fndef.name.as_str(),
             Item::TbDef(tbdef) => tbdef.name.as_str(),
+            Item::Error(_span) => "(error)",
         }
     }
 }
@@ -59,6 +61,7 @@ impl HasSpan for Item {
             Item::AltTypeDef(typedef) => typedef.span.clone(),
             Item::FnDef(fndef) => fndef.span.clone(),
             Item::TbDef(tbdef) => tbdef.span.clone(),
+            Item::Error(span) => span.clone(),
         }
     }
 }
