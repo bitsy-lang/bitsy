@@ -71,6 +71,7 @@ pub struct ModDef(pub Span, pub Ident, pub Vec<Decl>);
 pub enum Decl {
     Mod(Span, Ident, Vec<Decl>),
     ModInst(Span, Ident, Ident),
+    Dom(Span, Ident),
     Incoming(Span, Ident, Type),
     Outgoing(Span, Ident, Type),
     Node(Span, Ident, Type),
@@ -184,6 +185,8 @@ impl Ident {
 /// The different kinds of [`Wire`]s in Bitsy.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WireType {
+    /// Domain wire. Written `$=` in the syntax. Connects a domain.
+    Dom,
     /// Direct wire. Written `:=` in the syntax. Connects one terminal to another.
     Direct,
     /// Latched wire. Written `<=` in the syntax. Connects one terminal to the data pin of a register.

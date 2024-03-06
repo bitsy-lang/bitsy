@@ -60,9 +60,10 @@ impl std::fmt::Display for BitsyError {
             BitsyError::NoDriversPort(component, port) => write!(f, "Port is not driven: {}.{}", component.name(), port.name()),
             BitsyError::WrongWireType(_span, name, wire_type) => {
                 let symbol = match wire_type {
+                    WireType::Dom    => "$=",
                     WireType::Direct => ":=",
-                    WireType::Latch => "<=",
-                    WireType::Proc => "<=!",
+                    WireType::Latch  => "<=",
+                    WireType::Proc   => "<=!",
                 };
                 write!(f, "Wrong wire type: {name} does not support {symbol}")
             },

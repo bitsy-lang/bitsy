@@ -238,6 +238,10 @@ impl Namespace {
                     let child = Component::ModInst(span.clone(), name.to_string(), moddef);
                     children.push(Arc::new(child));
                 },
+                ast::Decl::Dom(span, name) => {
+                    let child = Component::Dom(span.clone(), name.to_string());
+                    children.push(Arc::new(child));
+                },
                 ast::Decl::Incoming(span, name, typ) => {
                     let child = Component::Incoming(span.clone(), name.to_string(), self.resolve_type(typ)?);
                     children.push(Arc::new(child));
@@ -455,6 +459,9 @@ fn moddef_component_names(moddef: &ast::ModDef) -> Result<BTreeSet<String>, Vec<
             ast::Decl::ModInst(_loc, name, _moddef_name) => {
                 result.insert(name.to_string());
             },
+            ast::Decl::Dom(_loc, name) => {
+                result.insert(name.to_string());
+            },
             ast::Decl::Incoming(_loc, name, _typ) => {
                 result.insert(name.to_string());
             },
@@ -482,6 +489,9 @@ fn moddef_component_names_anonymous(decls: &[ast::Decl]) -> Result<BTreeSet<Stri
                 result.insert(name.to_string());
             },
             ast::Decl::ModInst(_loc, name, _moddef_name) => {
+                result.insert(name.to_string());
+            },
+            ast::Decl::Dom(_loc, name) => {
                 result.insert(name.to_string());
             },
             ast::Decl::Incoming(_loc, name, _typ) => {
@@ -513,6 +523,7 @@ fn decl_dependencies(decl: &ast::Decl, component_names: &BTreeSet<String>) -> Re
             }
         },
         ast::Decl::ModInst(_loc, _name, moddef_name) => results.push(moddef_name.clone()),
+        ast::Decl::Dom(_loc, _name) => (),
         ast::Decl::Incoming(_loc, _name, typ) => results.extend(type_dependencies(typ)?),
         ast::Decl::Outgoing(_loc, _name, typ) => results.extend(type_dependencies(typ)?),
         ast::Decl::Node(_loc, _name, typ) => results.extend(type_dependencies(typ)?),

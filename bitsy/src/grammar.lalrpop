@@ -159,6 +159,7 @@ Kind: Kind = {
 ////////////////////////////////////////////////////////////////////////////////
 
 Decl: Decl  = {
+    <ll:@L> "dom" <id:Id> ";" <rr:@R> => Decl::Dom(Span::from(source_info, ll, rr), id),
     <ll:@L> "incoming" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Incoming(Span::from(source_info, ll, rr), id, typ),
     <ll:@L> "outgoing" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Outgoing(Span::from(source_info, ll, rr), id, typ),
     <ll:@L> "node" <id:Id> "of" <typ:Type> ";" <rr:@R> => Decl::Node(Span::from(source_info, ll, rr), id, typ),
@@ -190,6 +191,7 @@ Mod: Decl = {
 }
 
 Wire: Wire = {
+    <ll:@L> <target:Target> "$=" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Dom),
     <ll:@L> <target:Target> ":=" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Direct),
     <ll:@L> <target:Target> "<=" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Latch),
     <ll:@L> <target:Target> "<=!" <e:Expr> ";" <rr:@R> => Wire(Span::from(source_info, ll, rr), target, e, WireType::Proc),

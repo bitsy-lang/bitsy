@@ -144,6 +144,7 @@ impl Package {
         for child in component.children() {
             match &*child {
                 Component::Node(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
+                Component::Dom(_span, _name) => (),
                 Component::Incoming(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
                 Component::Outgoing(_span, name, _typ) => results.push((name.to_string().into(), child.clone())),
                 Component::Reg(_span, name, _typ, _reset) => results.push((name.to_string().into(), child.clone())),
@@ -176,8 +177,9 @@ impl Package {
             Component::ModInst(_span, _name, _defname) => None,
             Component::Ext(_span, _name, _children) => None,
             Component::Node(_span, _name, typ) => Some(typ.clone()),
-            Component::Outgoing(_span, _name, typ) => Some(typ.clone()),
+            Component::Dom(_span, _name) => None,
             Component::Incoming(_span, _name, typ) => Some(typ.clone()),
+            Component::Outgoing(_span, _name, typ) => Some(typ.clone()),
             Component::Reg(_span, _name, typ, _reset) => Some(typ.clone()),
         }
     }
@@ -303,6 +305,7 @@ impl HasSpan for Component {
             Component::Mod(span, _name, _children, _wires, _whens) => span.clone(),
             Component::ModInst(span, _name, _moddef) => span.clone(),
             Component::Ext(span, _name, _children) => span.clone(),
+            Component::Dom(span, _name) => span.clone(),
             Component::Incoming(span, _name, _typ) => span.clone(),
             Component::Outgoing(span, _name, _typ) => span.clone(),
             Component::Node(span, _name, _typ) => span.clone(),

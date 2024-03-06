@@ -470,9 +470,10 @@ pub fn nets(circuit: &Circuit) -> Vec<Net> {
     for (path, Wire(_loc, target, expr, wire_type)) in circuit.wires() {
         let abs_expr = expr.rebase(path.clone());
         let target_terminal: Path = match wire_type {
+            WireType::Dom    => path.join(target).clone(),
             WireType::Direct => path.join(target).clone(),
-            WireType::Latch => path.join(target).set(),
-            WireType::Proc => path.join(target).set(),
+            WireType::Latch  => path.join(target).set(),
+            WireType::Proc   => path.join(target).set(),
         };
         if let Expr::Reference(_loc, _typ, driver) = &*abs_expr {
             immediate_driver_for.insert(target_terminal.clone(), driver.clone());

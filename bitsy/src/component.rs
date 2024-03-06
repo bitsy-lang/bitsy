@@ -7,6 +7,7 @@ pub enum Component {
     Mod(Span, Name, Vec<Arc<Component>>, Vec<Wire>, Vec<When>),
     ModInst(Span, Name, Arc<Component>),
     Ext(Span, Name, Vec<Arc<Component>>),
+    Dom(Span, Name),
     Incoming(Span, Name, Type),
     Outgoing(Span, Name, Type),
     Node(Span, Name, Type),
@@ -19,6 +20,7 @@ impl Component {
             Component::Mod(_loc, name, _children, _wires, _whens) => name.as_str(),
             Component::ModInst(_loc, name, _defname) => name.as_str(),
             Component::Ext(_loc, name, _children) => name.as_str(),
+            Component::Dom(_loc, name) => name.as_str(),
             Component::Incoming(_loc, name, _typ) => name.as_str(),
             Component::Outgoing(_loc, name, _typ) => name.as_str(),
             Component::Node(_loc, name, _typ) => name.as_str(),
@@ -40,6 +42,7 @@ impl Component {
             Component::Mod(_loc, _name, children, _wires, _whens) => children.iter().cloned().collect(),
             Component::ModInst(_loc, _name, _defname) => vec![],
             Component::Ext(_loc, _name, children) => children.iter().cloned().collect(),
+            Component::Dom(_loc, _name) => vec![],
             Component::Incoming(_loc, _name, _typ) => vec![],
             Component::Outgoing(_loc, _name, _typ) => vec![],
             Component::Node(_loc, _name, _typ) => vec![],
@@ -74,6 +77,7 @@ impl Component {
                     results.push(path.join(format!("{name}.set").into()));
                     results.push(path.join(name.clone().into()));
                 },
+                Component::Dom(_loc, name) => results.push(path.join(name.clone().into())),
                 Component::Incoming(_loc, name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Outgoing(_loc, name, _typ) => results.push(path.join(name.clone().into())),
                 Component::Mod(_loc, name, _children, _wires, _whens) => results.extend(child.paths_rec(path.join(name.clone().into()))),
@@ -131,6 +135,7 @@ impl Component {
         match self {
             Component::Node(_loc,_name, typ) => Some(typ.clone()),
             Component::Reg(_loc,_name, typ, _reset) => Some(typ.clone()),
+            Component::Dom(_loc, _name) => None,
             Component::Incoming(_loc,_name, typ) => Some(typ.clone()),
             Component::Outgoing(_loc,_name, typ) => Some(typ.clone()),
             Component::Mod(_loc,_name, _children, _wires, _whens) => None,
