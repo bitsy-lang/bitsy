@@ -71,12 +71,11 @@ Id: String = {
 }
 
 Line: String = {
-    <line:r"[^(link)]\n\r]*[\r\n]"> => line.to_string(),
+    <line:r"[^/][^\n\r]*[\r\n]"> => line.to_string(),
 }
 
 match {
     r"//[^\n\r]*[\r\n]" => {},
-    r"[\r\n]*" => {},
     r"/\*[^*]*\*/" => {},
     r" " => {},
     _,
