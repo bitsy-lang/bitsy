@@ -50,3 +50,4 @@ lexers['bitsy'] = bitsy_ext.BitsyLexer()
 # Set the default lexer for your language
 primary_domain = 'bitsy'
 highlight_language = 'bitsy'
+html_favicon = '_static/bitsy-logo.png'
