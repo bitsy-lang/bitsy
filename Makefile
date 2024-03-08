@@ -5,9 +5,9 @@ build:
 #	make -f pybitsy/Makefile
 
 test:
-	cargo test --manifest-path bitsy/Cargo.toml
-	cargo test --manifest-path sim/Cargo.toml
-	cargo test --manifest-path riscv-bitsy/Cargo.toml
+	make -C bitsy test
+	make -C sim test
+	make -C riscv-bitsy test
 
 install:
 	cargo install --path bitsy

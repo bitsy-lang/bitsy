@@ -14,3 +14,6 @@ all: $(EXECUTABLES) $(BINS)
 
 clean:
 	rm -f $(EXECUTABLES) $(BINS)
+
+test:
+	cargo test
