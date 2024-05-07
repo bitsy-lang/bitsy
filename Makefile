@@ -7,7 +7,6 @@ build:
 test:
 	make -C bitsy test
 	make -C sim test
-	make -C riscv-bitsy all
 	make -C riscv-bitsy test
 
 install:
