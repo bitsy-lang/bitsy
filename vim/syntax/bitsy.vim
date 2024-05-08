@@ -86,7 +86,7 @@ syn match bitsyOtherwise "otherwise"
 hi link bitsyCtor Constant
 hi link bitsyOtherwise Constant
 
-syn match bitsyX "X"
+syn match bitsyX "\<X\>"
 hi link bitsyX Number
 
 syn match bitsyWild "\<wild\>"
