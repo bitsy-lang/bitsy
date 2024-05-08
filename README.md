@@ -14,8 +14,8 @@ Bitsy is a modern hardware description language.
         Installed package `bitsy v0.2.0 (/home/auser/bitsy/bitsy)` (executable `bitsy`)
     $ cat bitsy/examples/passthrough.bitsy
     mod Passthrough {
-        incoming in  of Word<8>;
-        outgoing out of Word<8>;
+        incoming in  of Word[8];
+        outgoing out of Word[8];
 
         out := in;
     }
