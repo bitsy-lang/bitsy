@@ -17,11 +17,11 @@ pub type Length = u64;
 /// A type classifier for [`crate::sim::Value`]s.
 #[derive(Clone)]
 pub enum Type {
-    /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
+    /// An n-bit two's complement integer. Nominally unsigned. Written `Word[n]`.
     Word(Width),
-    /// A n-element vector. Written `Vec<T, n>`.
+    /// A n-element vector. Written `Vec[T, n]`.
     Vec(Box<Type>, Length),
-    /// An optional value. Written `Valid<T>`.
+    /// An optional value. Written `Valid[T]`.
     Valid(Box<Type>),
     /// A user-defined `enum`.
     Enum(Arc<EnumTypeDef>),
@@ -195,16 +195,16 @@ impl EnumTypeDef {
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
-            Type::Word(n) => write!(f, "Word<{n}>"),
-            Type::Valid(typ) => write!(f, "Valid<{typ:?}>"),
-            Type::Vec(typ, n) => write!(f, "Vec<{typ:?}, {n}>"),
-            Type::Struct(typedef) => write!(f, "{}", typedef.name),
+                Type::Word(n) => write!(f, "Word[{n}]"),
+                Type::Valid(typ) => write!(f, "Valid[{typ:?}]"),
+                Type::Vec(typ, n) => write!(f, "Vec[{typ:?}, {n}]"),
+                Type::Struct(typedef) => write!(f, "{}", typedef.name),
             Type::Enum(typedef) => write!(f, "{}", typedef.name),
             Type::Alt(typedef, params) => {
                 if params.is_empty() {
                     write!(f, "{}", typedef.name)
                 } else {
-                    write!(f, "{}<{:?}>", typedef.name, params.iter().map(|param| param.to_string()).collect::<Vec<_>>().join(", "))
+                    write!(f, "{}[{:?}]", typedef.name, params.iter().map(|param| param.to_string()).collect::<Vec<_>>().join(", "))
                 }
             },
         }

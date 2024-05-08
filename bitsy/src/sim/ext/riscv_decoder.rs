@@ -26,7 +26,7 @@ impl Ext for RiscvDecoder {
         } else if let Value::X = value {
             // do nothing
         } else {
-            panic!("RiscVDecoder expected Word<32>: {value:?}")
+            panic!("RiscVDecoder expected Word[32]: {value:?}")
         }
         vec![]
     }

@@ -77,7 +77,7 @@ impl RamInstance {
                 self.read_addr = addr as u16;
                 return vec![("read_data".to_string(), self.read())];
             } else {
-                panic!("Ram must receive a Word<16> on read_addr. Received {value:?}")
+                panic!("Ram must receive a Word[16] on read_addr. Received {value:?}")
             }
         } else if port == "write_enable" {
             match value {
@@ -93,7 +93,7 @@ impl RamInstance {
         } else if port == "write_data" {
             match value {
                 Value::Word(8, v) => self.write_data = v.try_into().unwrap(),
-                _ => panic!("write_data value must be Word<8>: {value:?}"),
+                _ => panic!("write_data value must be Word[8]: {value:?}"),
             }
         } else {
             panic!("Ram may only recieve data on read_data: received data on {port} {value:?}")

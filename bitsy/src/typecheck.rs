@@ -146,11 +146,11 @@ impl Expr {
                 if let Some(type_actual) = e.typeinfer(ctx.clone()) {
                     if let Type::Word(m) = type_actual {
                         if m == 0 {
-                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<0>")))
+                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word[0]")))
                         } else if width_expected >= m {
                             Ok(())
                         } else {
-                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word<{m}> to a a Word<{width_expected}>")))
+                            Err(TypeError::Other(self.clone(), format!("Can't sext a Word[{m}] to a a Word[{width_expected}]")))
                         }
                     } else {
                         Err(TypeError::Other(self.clone(), format!("Unknown?")))
@@ -165,7 +165,7 @@ impl Expr {
                         if width_expected >= m {
                             Ok(())
                         } else {
-                            Err(TypeError::Other(self.clone(), format!("Can't zext a Word<{m}> to a a Word<{width_expected}>")))
+                            Err(TypeError::Other(self.clone(), format!("Can't zext a Word[{m}] to a a Word[{width_expected}]")))
                         }
                     } else {
                         Err(TypeError::Other(self.clone(), format!("Unknown?")))
@@ -191,7 +191,7 @@ impl Expr {
                         Ok(())
                     } else {
                         let name = &typedef.name;
-                        Err(TypeError::Other(self.clone(), format!("enum type {name} has bitwidth {width} which cannot be cast to Word<{n}>")))
+                        Err(TypeError::Other(self.clone(), format!("enum type {name} has bitwidth {width} which cannot be cast to Word[{n}]")))
                     }
                 } else {
                     unreachable!()

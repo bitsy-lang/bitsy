@@ -134,7 +134,7 @@ impl Expr {
                 };
                 match e.eval_with_ctx(bitsy, ctx.clone()) {
                     Value::X => Value::X,
-                    Value::Word(0, _x) => panic!("Can't sext a Word<0> {loc:?}"),
+                    Value::Word(0, _x) => panic!("Can't sext a Word[0] {loc:?}"),
                     Value::Word(w, x) => {
                         if w <= *n {
                             let is_negative = x & (1 << (w - 1)) > 0;
@@ -145,7 +145,7 @@ impl Expr {
                                 Value::Word(*n, x)
                             }
                         } else {
-                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
+                            panic!("Can't sext a Word[{w}] to Word[{n}] because {w} > {n}. {loc:?}")
                         }
                     },
                     Value::Vec(_vs) => panic!("Can't sext a Vec {loc:?}"),
@@ -165,7 +165,7 @@ impl Expr {
                         if w <= *n {
                             Value::Word(*n, x)
                         } else {
-                            panic!("Can't sext a Word<{w}> to Word<{n}> because {w} > {n}. {loc:?}")
+                            panic!("Can't sext a Word[{w}] to Word[{n}] because {w} > {n}. {loc:?}")
                         }
                     },
                     Value::Vec(_vs) => panic!("Can't sext a Vec {loc:?}"),

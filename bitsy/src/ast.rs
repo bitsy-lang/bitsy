@@ -220,11 +220,11 @@ impl WordLit {
 /// A type classifier for values.
 #[derive(Clone, Debug)]
 pub enum Type {
-    /// An n-bit two's complement integer. Nominally unsigned. Written `Word<n>`.
+    /// An n-bit two's complement integer. Nominally unsigned. Written `Word[n]`.
     Word(Width),
-    /// A n-element vector. Written `Vec<T, n>`.
+    /// A n-element vector. Written `Vec[T, n]`.
     Vec(Box<Type>, Length),
-    /// An optional value. Written `Valid<T>`.
+    /// An optional value. Written `Valid[T]`.
     Valid(Box<Type>),
     /// An unresolved reference to a user-defined type.
     TypeRef(Ident, Vec<TypeParam>),

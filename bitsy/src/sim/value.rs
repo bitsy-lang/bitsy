@@ -6,11 +6,11 @@ pub enum Value {
     /// An undefined value.
     #[default]
     X,
-    /// An element of `Word<n>`.
+    /// An element of `Word[n]`.
     Word(Width, u64),
-    /// An element of `Vec<T, n>`.
+    /// An element of `Vec[T, n]`.
     Vec(Vec<Value>),
-    /// An element of `Valid<T>`.
+    /// An element of `Valid[T]`.
     Ctor(String, Vec<Value>),
     /// An element of a user-defined `enum`.
     Enum(Type, String),

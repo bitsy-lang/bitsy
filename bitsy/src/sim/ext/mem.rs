@@ -101,7 +101,7 @@ impl MemInstance {
                     self.delay_current = 0;
                 }
             } else {
-                panic!("Mem must receive a Word<32> on read_addr. Received {value:?}")
+                panic!("Mem must receive a Word[32] on read_addr. Received {value:?}")
             }
         } else if port == "write_enable" {
             match value {
@@ -112,17 +112,17 @@ impl MemInstance {
         } else if port == "write_addr" {
             match value {
                 Value::Word(32, v) => self.write_addr = v.try_into().unwrap(),
-                _ => panic!("write_addr value must be Word<32>: {value:?}"),
+                _ => panic!("write_addr value must be Word[32]: {value:?}"),
             }
         } else if port == "write_data" {
             match value {
                 Value::Word(32, v) => self.write_data = v.try_into().unwrap(),
-                _ => panic!("write_data value must be Word<32>: {value:?}"),
+                _ => panic!("write_data value must be Word[32]: {value:?}"),
             }
         } else if port == "write_mask" {
             match value {
                 Value::Word(4, v) => self.write_mask = v.try_into().unwrap(),
-                _ => panic!("write_data value must be Word<32>: {value:?}"),
+                _ => panic!("write_data value must be Word[32]: {value:?}"),
             }
         } else {
             panic!("Mem may only recieve data on read_data: received data on {port} {value:?}")
